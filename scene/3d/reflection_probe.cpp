@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "reflection_probe.h"
 
 void ReflectionProbe::set_intensity(float p_intensity) {
@@ -178,9 +179,9 @@ ReflectionProbe::UpdateMode ReflectionProbe::get_update_mode() const {
 	return update_mode;
 }
 
-Rect3 ReflectionProbe::get_aabb() const {
+AABB ReflectionProbe::get_aabb() const {
 
-	Rect3 aabb;
+	AABB aabb;
 	aabb.position = -origin_offset;
 	aabb.size = origin_offset + extents;
 	return aabb;
@@ -194,7 +195,7 @@ void ReflectionProbe::_validate_property(PropertyInfo &property) const {
 
 	if (property.name == "interior/ambient_color" || property.name == "interior/ambient_energy" || property.name == "interior/ambient_contrib") {
 		if (!interior) {
-			property.usage = PROPERTY_USAGE_NOEDITOR;
+			property.usage = PROPERTY_USAGE_NOEDITOR | PROPERTY_USAGE_INTERNAL;
 		}
 	}
 }

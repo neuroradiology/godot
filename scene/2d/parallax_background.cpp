@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "parallax_background.h"
 #include "parallax_layer.h"
 
@@ -47,10 +48,12 @@ void ParallaxBackground::_notification(int p_what) {
 	}
 }
 
-void ParallaxBackground::_camera_moved(const Transform2D &p_transform) {
+void ParallaxBackground::_camera_moved(const Transform2D &p_transform, const Point2 &p_screen_offset) {
 
-	set_scroll_offset(p_transform.get_origin());
+	screen_offset = p_screen_offset;
+
 	set_scroll_scale(p_transform.get_scale().dot(Vector2(0.5, 0.5)));
+	set_scroll_offset(p_transform.get_origin());
 }
 
 void ParallaxBackground::set_scroll_scale(float p_scale) {
@@ -106,9 +109,9 @@ void ParallaxBackground::_update_scroll() {
 			continue;
 
 		if (ignore_camera_zoom)
-			l->set_base_offset_and_scale(ofs, 1.0);
+			l->set_base_offset_and_scale(ofs, 1.0, screen_offset);
 		else
-			l->set_base_offset_and_scale(ofs, scale);
+			l->set_base_offset_and_scale(ofs, scale, screen_offset);
 	}
 }
 

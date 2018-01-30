@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef POPUP_MENU_H
 #define POPUP_MENU_H
 
@@ -46,6 +47,8 @@ class PopupMenu : public Popup {
 		String xl_text;
 		bool checked;
 		bool checkable;
+		int max_states;
+		int state;
 		bool separator;
 		bool disabled;
 		int ID;
@@ -62,6 +65,8 @@ class PopupMenu : public Popup {
 			checked = false;
 			checkable = false;
 			separator = false;
+			max_states = 0;
+			state = 0;
 			accel = 0;
 			disabled = false;
 			_ofs_cache = 0;
@@ -79,6 +84,7 @@ class PopupMenu : public Popup {
 	String _get_accel_text(int p_item) const;
 	int _get_mouse_over(const Point2 &p_over) const;
 	virtual Size2 get_minimum_size() const;
+	void _scroll(float p_factor, const Point2 &p_over);
 	void _gui_input(const Ref<InputEvent> &p_event);
 	void _activate_submenu(int over);
 	void _submenu_timeout();
@@ -86,6 +92,7 @@ class PopupMenu : public Popup {
 	bool invalidated_click;
 	bool hide_on_item_selection;
 	bool hide_on_checkable_item_selection;
+	bool hide_on_multistate_item_selection;
 	Vector2 moved;
 
 	Array _get_items() const;
@@ -115,6 +122,8 @@ public:
 	void add_icon_check_shortcut(const Ref<Texture> &p_icon, const Ref<ShortCut> &p_shortcut, int p_ID = -1, bool p_global = false);
 	void add_check_shortcut(const Ref<ShortCut> &p_shortcut, int p_ID = -1, bool p_global = false);
 
+	void add_multistate_item(const String &p_label, int p_max_states, int p_default_state, int p_ID = -1, uint32_t p_accel = 0);
+
 	void set_item_text(int p_idx, const String &p_text);
 	void set_item_icon(int p_idx, const Ref<Texture> &p_icon);
 	void set_item_checked(int p_idx, bool p_checked);
@@ -128,6 +137,8 @@ public:
 	void set_item_tooltip(int p_idx, const String &p_tooltip);
 	void set_item_shortcut(int p_idx, const Ref<ShortCut> &p_shortcut, bool p_global = false);
 	void set_item_h_offset(int p_idx, int p_offset);
+	void set_item_multistate(int p_idx, int p_state);
+	void toggle_item_multistate(int p_idx);
 
 	void toggle_item_checked(int p_idx);
 
@@ -145,6 +156,7 @@ public:
 	bool is_item_checkable(int p_idx) const;
 	String get_item_tooltip(int p_idx) const;
 	Ref<ShortCut> get_item_shortcut(int p_idx) const;
+	int get_item_state(int p_idx) const;
 
 	int get_item_count() const;
 
@@ -168,10 +180,13 @@ public:
 
 	void set_invalidate_click_until_motion();
 	void set_hide_on_item_selection(bool p_enabled);
-	bool is_hide_on_item_selection();
+	bool is_hide_on_item_selection() const;
 
 	void set_hide_on_checkable_item_selection(bool p_enabled);
-	bool is_hide_on_checkable_item_selection();
+	bool is_hide_on_checkable_item_selection() const;
+
+	void set_hide_on_multistate_item_selection(bool p_enabled);
+	bool is_hide_on_multistate_item_selection() const;
 
 	PopupMenu();
 	~PopupMenu();

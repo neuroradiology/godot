@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "sprite_3d.h"
 #include "core_string_names.h"
 #include "scene/scene_string_names.h"
@@ -188,7 +189,7 @@ void SpriteBase3D::_queue_update() {
 	call_deferred(SceneStringNames::get_singleton()->_im_update);
 }
 
-Rect3 SpriteBase3D::get_aabb() const {
+AABB SpriteBase3D::get_aabb() const {
 
 	return aabb;
 }
@@ -294,6 +295,7 @@ SpriteBase3D::SpriteBase3D() {
 	for (int i = 0; i < FLAG_MAX; i++)
 		flags[i] = i == FLAG_TRANSPARENT || i == FLAG_DOUBLE_SIDED;
 
+	alpha_cut = ALPHA_CUT_DISABLED;
 	axis = Vector3::AXIS_Z;
 	pixel_size = 0.01;
 	modulate = Color(1, 1, 1, 1);
@@ -407,7 +409,7 @@ void Sprite3D::_draw() {
 		}
 	}
 
-	Rect3 aabb;
+	AABB aabb;
 
 	for (int i = 0; i < 4; i++) {
 		VS::get_singleton()->immediate_normal(immediate, normal);
@@ -698,7 +700,7 @@ void AnimatedSprite3D::_draw() {
 		}
 	}
 
-	Rect3 aabb;
+	AABB aabb;
 
 	for (int i = 0; i < 4; i++) {
 		VS::get_singleton()->immediate_normal(immediate, normal);

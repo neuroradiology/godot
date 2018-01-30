@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef CONTROL_EDITOR_PLUGIN_H
 #define CONTROL_EDITOR_PLUGIN_H
 
@@ -59,6 +60,7 @@ public:
 	float prev_anchors[4];
 
 	Transform2D pre_drag_xform;
+	Rect2 pre_drag_rect;
 
 	CanvasItemEditorSelectedItem() { prev_rot = 0; }
 };
@@ -86,6 +88,7 @@ class CanvasItemEditor : public VBoxContainer {
 		SNAP_USE_NODE_SIDES,
 		SNAP_USE_OTHER_NODES,
 		SNAP_USE_GRID,
+		SNAP_USE_GUIDES,
 		SNAP_USE_ROTATION,
 		SNAP_RELATIVE,
 		SNAP_CONFIGURE,
@@ -93,27 +96,59 @@ class CanvasItemEditor : public VBoxContainer {
 		SHOW_GRID,
 		SHOW_HELPERS,
 		SHOW_RULERS,
+		SHOW_GUIDES,
 		LOCK_SELECTED,
 		UNLOCK_SELECTED,
 		GROUP_SELECTED,
 		UNGROUP_SELECTED,
-		ANCHOR_ALIGN_TOP_LEFT,
-		ANCHOR_ALIGN_TOP_RIGHT,
-		ANCHOR_ALIGN_BOTTOM_LEFT,
-		ANCHOR_ALIGN_BOTTOM_RIGHT,
-		ANCHOR_ALIGN_CENTER_LEFT,
-		ANCHOR_ALIGN_CENTER_RIGHT,
-		ANCHOR_ALIGN_CENTER_TOP,
-		ANCHOR_ALIGN_CENTER_BOTTOM,
-		ANCHOR_ALIGN_CENTER,
-		ANCHOR_ALIGN_TOP_WIDE,
-		ANCHOR_ALIGN_LEFT_WIDE,
-		ANCHOR_ALIGN_RIGHT_WIDE,
-		ANCHOR_ALIGN_BOTTOM_WIDE,
-		ANCHOR_ALIGN_VCENTER_WIDE,
-		ANCHOR_ALIGN_HCENTER_WIDE,
-		ANCHOR_ALIGN_WIDE,
-		ANCHOR_ALIGN_WIDE_FIT,
+		ANCHORS_AND_MARGINS_PRESET_TOP_LEFT,
+		ANCHORS_AND_MARGINS_PRESET_TOP_RIGHT,
+		ANCHORS_AND_MARGINS_PRESET_BOTTOM_LEFT,
+		ANCHORS_AND_MARGINS_PRESET_BOTTOM_RIGHT,
+		ANCHORS_AND_MARGINS_PRESET_CENTER_LEFT,
+		ANCHORS_AND_MARGINS_PRESET_CENTER_RIGHT,
+		ANCHORS_AND_MARGINS_PRESET_CENTER_TOP,
+		ANCHORS_AND_MARGINS_PRESET_CENTER_BOTTOM,
+		ANCHORS_AND_MARGINS_PRESET_CENTER,
+		ANCHORS_AND_MARGINS_PRESET_TOP_WIDE,
+		ANCHORS_AND_MARGINS_PRESET_LEFT_WIDE,
+		ANCHORS_AND_MARGINS_PRESET_RIGHT_WIDE,
+		ANCHORS_AND_MARGINS_PRESET_BOTTOM_WIDE,
+		ANCHORS_AND_MARGINS_PRESET_VCENTER_WIDE,
+		ANCHORS_AND_MARGINS_PRESET_HCENTER_WIDE,
+		ANCHORS_AND_MARGINS_PRESET_WIDE,
+		ANCHORS_PRESET_TOP_LEFT,
+		ANCHORS_PRESET_TOP_RIGHT,
+		ANCHORS_PRESET_BOTTOM_LEFT,
+		ANCHORS_PRESET_BOTTOM_RIGHT,
+		ANCHORS_PRESET_CENTER_LEFT,
+		ANCHORS_PRESET_CENTER_RIGHT,
+		ANCHORS_PRESET_CENTER_TOP,
+		ANCHORS_PRESET_CENTER_BOTTOM,
+		ANCHORS_PRESET_CENTER,
+		ANCHORS_PRESET_TOP_WIDE,
+		ANCHORS_PRESET_LEFT_WIDE,
+		ANCHORS_PRESET_RIGHT_WIDE,
+		ANCHORS_PRESET_BOTTOM_WIDE,
+		ANCHORS_PRESET_VCENTER_WIDE,
+		ANCHORS_PRESET_HCENTER_WIDE,
+		ANCHORS_PRESET_WIDE,
+		MARGINS_PRESET_TOP_LEFT,
+		MARGINS_PRESET_TOP_RIGHT,
+		MARGINS_PRESET_BOTTOM_LEFT,
+		MARGINS_PRESET_BOTTOM_RIGHT,
+		MARGINS_PRESET_CENTER_LEFT,
+		MARGINS_PRESET_CENTER_RIGHT,
+		MARGINS_PRESET_CENTER_TOP,
+		MARGINS_PRESET_CENTER_BOTTOM,
+		MARGINS_PRESET_CENTER,
+		MARGINS_PRESET_TOP_WIDE,
+		MARGINS_PRESET_LEFT_WIDE,
+		MARGINS_PRESET_RIGHT_WIDE,
+		MARGINS_PRESET_BOTTOM_WIDE,
+		MARGINS_PRESET_VCENTER_WIDE,
+		MARGINS_PRESET_HCENTER_WIDE,
+		MARGINS_PRESET_WIDE,
 		ANIM_INSERT_KEY,
 		ANIM_INSERT_KEY_EXISTING,
 		ANIM_INSERT_POS,
@@ -151,6 +186,9 @@ class CanvasItemEditor : public VBoxContainer {
 		DRAG_ROTATE,
 		DRAG_PIVOT,
 		DRAG_NODE_2D,
+		DRAG_V_GUIDE,
+		DRAG_H_GUIDE,
+		DRAG_DOUBLE_GUIDE,
 	};
 
 	enum KeyMoveMODE {
@@ -181,6 +219,7 @@ class CanvasItemEditor : public VBoxContainer {
 	Transform2D transform;
 	bool show_grid;
 	bool show_rulers;
+	bool show_guides;
 	bool show_helpers;
 	float zoom;
 
@@ -196,6 +235,7 @@ class CanvasItemEditor : public VBoxContainer {
 	bool snap_node_sides;
 	bool snap_other_nodes;
 	bool snap_grid;
+	bool snap_guides;
 	bool snap_rotation;
 	bool snap_relative;
 	bool snap_pixel;
@@ -213,10 +253,10 @@ class CanvasItemEditor : public VBoxContainer {
 	struct _SelectResult {
 
 		CanvasItem *item;
-		float z;
+		float z_index;
 		bool has_z;
 		_FORCE_INLINE_ bool operator<(const _SelectResult &p_rr) const {
-			return has_z && p_rr.has_z ? p_rr.z < z : p_rr.has_z;
+			return has_z && p_rr.has_z ? p_rr.z_index < z_index : p_rr.has_z;
 		}
 	};
 
@@ -278,7 +318,10 @@ class CanvasItemEditor : public VBoxContainer {
 	MenuButton *view_menu;
 	HBoxContainer *animation_hb;
 	MenuButton *animation_menu;
-	MenuButton *anchor_menu;
+
+	MenuButton *presets_menu;
+	PopupMenu *anchors_and_margins_popup;
+	PopupMenu *anchors_popup;
 
 	Button *key_loc_button;
 	Button *key_rot_button;
@@ -297,6 +340,9 @@ class CanvasItemEditor : public VBoxContainer {
 	bool updating_value_dialog;
 	Point2 display_rotate_from;
 	Point2 display_rotate_to;
+
+	int edited_guide_index;
+	Point2 edited_guide_pos;
 
 	Ref<StyleBoxTexture> select_sb;
 	Ref<Texture> select_handle;
@@ -367,6 +413,7 @@ class CanvasItemEditor : public VBoxContainer {
 	void _draw_percentage_at_position(float p_value, Point2 p_position, Margin p_side);
 
 	void _draw_rulers();
+	void _draw_guides();
 	void _draw_focus();
 	void _draw_grid();
 	void _draw_selection();
@@ -375,18 +422,22 @@ class CanvasItemEditor : public VBoxContainer {
 	void _draw_locks_and_groups(Node *p_node, const Transform2D &p_xform);
 
 	void _draw_viewport();
-
-	void _viewport_base_gui_input(const Ref<InputEvent> &p_event);
 	void _draw_viewport_base();
+
+	void _gui_input_viewport(const Ref<InputEvent> &p_event);
+	void _gui_input_viewport_base(const Ref<InputEvent> &p_event);
 
 	void _focus_selection(int p_op);
 
-	void _snap_if_closer(Point2 p_value, Point2 p_target_snap, Point2 &r_current_snap, bool (&r_snapped)[2], real_t rotation = 0.0, float p_radius = 10.0);
-	void _snap_other_nodes(Point2 p_value, Point2 &r_current_snap, bool (&r_snapped)[2], const Node *p_current, const CanvasItem *p_to_snap);
+	void _snap_if_closer_float(float p_value, float p_target_snap, float &r_current_snap, bool &r_snapped, float p_radius = 10.0);
+	void _snap_if_closer_point(Point2 p_value, Point2 p_target_snap, Point2 &r_current_snap, bool (&r_snapped)[2], real_t rotation = 0.0, float p_radius = 10.0);
+	void _snap_other_nodes(Point2 p_value, Point2 &r_current_snap, bool (&r_snapped)[2], const Node *p_current, const CanvasItem *p_to_snap = NULL);
 
 	void _set_anchors_preset(Control::LayoutPreset p_preset);
-	void _set_full_rect();
+	void _set_margins_preset(Control::LayoutPreset p_preset);
+	void _set_anchors_and_margins_preset(Control::LayoutPreset p_preset);
 
+	void _zoom_on_position(float p_zoom, Point2 p_position = Point2());
 	void _zoom_minus();
 	void _zoom_reset();
 	void _zoom_plus();
@@ -438,13 +489,14 @@ protected:
 public:
 	enum SnapMode {
 		SNAP_GRID = 1 << 0,
-		SNAP_PIXEL = 1 << 1,
-		SNAP_NODE_PARENT = 1 << 2,
-		SNAP_NODE_ANCHORS = 1 << 3,
-		SNAP_NODE_SIDES = 1 << 4,
-		SNAP_OTHER_NODES = 1 << 5,
+		SNAP_GUIDES = 1 << 1,
+		SNAP_PIXEL = 1 << 2,
+		SNAP_NODE_PARENT = 1 << 3,
+		SNAP_NODE_ANCHORS = 1 << 4,
+		SNAP_NODE_SIDES = 1 << 5,
+		SNAP_OTHER_NODES = 1 << 6,
 
-		SNAP_DEFAULT = 0x03,
+		SNAP_DEFAULT = 0x07,
 	};
 
 	Point2 snap_point(Point2 p_target, unsigned int p_modes = SNAP_DEFAULT, const CanvasItem *p_canvas_item = NULL, unsigned int p_forced_modes = 0);
@@ -517,15 +569,18 @@ class CanvasItemEditorViewport : public Control {
 
 	void _on_mouse_exit();
 	void _on_select_type(Object *selected);
-	void _on_change_type();
+	void _on_change_type_confirmed();
+	void _on_change_type_closed();
 
 	void _create_preview(const Vector<String> &files) const;
 	void _remove_preview();
 
 	bool _cyclical_dependency_exists(const String &p_target_scene_path, Node *p_desired_node);
+	bool _only_packed_scenes_selected() const;
 	void _create_nodes(Node *parent, Node *child, String &path, const Point2 &p_point);
 	bool _create_instance(Node *parent, String &path, const Point2 &p_point);
 	void _perform_drop_data();
+	void _show_resource_type_selector();
 
 	static void _bind_methods();
 

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef ERROR_MACROS_H
 #define ERROR_MACROS_H
 
@@ -76,6 +77,7 @@ void add_error_handler(ErrorHandlerList *p_handler);
 void remove_error_handler(ErrorHandlerList *p_handler);
 
 void _err_print_error(const char *p_function, const char *p_file, int p_line, const char *p_error, ErrorHandlerType p_type = ERR_HANDLER_ERROR);
+void _err_print_index_error(const char *p_function, const char *p_file, int p_line, int64_t p_index, int64_t p_size, const char *p_index_str, const char *p_size_str, bool fatal = false);
 
 #ifndef _STR
 #define _STR(m_x) #m_x
@@ -129,13 +131,13 @@ extern bool _err_error_exists;
 
 // (*): See https://stackoverflow.com/questions/257418/do-while-0-what-is-it-good-for
 
-#define ERR_FAIL_INDEX(m_index, m_size)                                                                                    \
-	do {                                                                                                                   \
-		if (unlikely((m_index) < 0 || (m_index) >= (m_size))) {                                                            \
-			_err_print_error(FUNCTION_STR, __FILE__, __LINE__, "Index " _STR(m_index) " out of size (" _STR(m_size) ")."); \
-			return;                                                                                                        \
-		} else                                                                                                             \
-			_err_error_exists = false;                                                                                     \
+#define ERR_FAIL_INDEX(m_index, m_size)                                                                             \
+	do {                                                                                                            \
+		if (unlikely((m_index) < 0 || (m_index) >= (m_size))) {                                                     \
+			_err_print_index_error(FUNCTION_STR, __FILE__, __LINE__, m_index, m_size, _STR(m_index), _STR(m_size)); \
+			return;                                                                                                 \
+		} else                                                                                                      \
+			_err_error_exists = false;                                                                              \
 	} while (0); // (*)
 
 /** An index has failed if m_index<0 or m_index >=m_size, the function exists.
@@ -143,24 +145,24 @@ extern bool _err_error_exists;
 * appropriate error condition from error_macros.h
 */
 
-#define ERR_FAIL_INDEX_V(m_index, m_size, m_retval)                                                                        \
-	do {                                                                                                                   \
-		if (unlikely((m_index) < 0 || (m_index) >= (m_size))) {                                                            \
-			_err_print_error(FUNCTION_STR, __FILE__, __LINE__, "Index " _STR(m_index) " out of size (" _STR(m_size) ")."); \
-			return m_retval;                                                                                               \
-		} else                                                                                                             \
-			_err_error_exists = false;                                                                                     \
+#define ERR_FAIL_INDEX_V(m_index, m_size, m_retval)                                                                 \
+	do {                                                                                                            \
+		if (unlikely((m_index) < 0 || (m_index) >= (m_size))) {                                                     \
+			_err_print_index_error(FUNCTION_STR, __FILE__, __LINE__, m_index, m_size, _STR(m_index), _STR(m_size)); \
+			return m_retval;                                                                                        \
+		} else                                                                                                      \
+			_err_error_exists = false;                                                                              \
 	} while (0); // (*)
 
 /** Use this one if there is no sensible fallback, that is, the error is unrecoverable.
 *   We'll return a null reference and try to keep running.
 */
-#define CRASH_BAD_INDEX(m_index, m_size)                                                                                          \
-	do {                                                                                                                          \
-		if (unlikely((m_index) < 0 || (m_index) >= (m_size))) {                                                                   \
-			_err_print_error(FUNCTION_STR, __FILE__, __LINE__, "FATAL: Index " _STR(m_index) " out of size (" _STR(m_size) ")."); \
-			GENERATE_TRAP                                                                                                         \
-		}                                                                                                                         \
+#define CRASH_BAD_INDEX(m_index, m_size)                                                                                  \
+	do {                                                                                                                  \
+		if (unlikely((m_index) < 0 || (m_index) >= (m_size))) {                                                           \
+			_err_print_index_error(FUNCTION_STR, __FILE__, __LINE__, m_index, m_size, _STR(m_index), _STR(m_size), true); \
+			GENERATE_TRAP                                                                                                 \
+		}                                                                                                                 \
 	} while (0); // (*)
 
 /** An error condition happened (m_cond tested true) (WARNING this is the opposite as assert().

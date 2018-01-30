@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef BASE_BUTTON_H
 #define BASE_BUTTON_H
 
@@ -89,8 +90,8 @@ public:
 
 	/* Signals */
 
-	bool is_pressed() const; ///< return wether button is pressed (toggled in)
-	bool is_pressing() const; ///< return wether button is pressed (toggled in)
+	bool is_pressed() const; ///< return whether button is pressed (toggled in)
+	bool is_pressing() const; ///< return whether button is pressed (toggled in)
 	bool is_hovered() const;
 
 	void set_pressed(bool p_pressed); ///only works in toggle mode

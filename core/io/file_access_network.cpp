@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "file_access_network.h"
 #include "io/ip.h"
 #include "marshalls.h"
@@ -147,7 +148,7 @@ void FileAccessNetworkClient::_thread_func() {
 
 				Vector<uint8_t> block;
 				block.resize(len);
-				client->get_data(block.ptr(), len);
+				client->get_data(block.ptrw(), len);
 
 				if (fa) //may have been queued
 					fa->_set_block(offset, block);
@@ -434,12 +435,12 @@ int FileAccessNetwork::get_buffer(uint8_t *p_dst, int p_length) const {
 
 					_queue_page(page + j);
 				}
-				buff = pages[page].buffer.ptr();
+				buff = pages[page].buffer.ptrw();
 				//queue pages
 				buffer_mutex->unlock();
 			}
 
-			buff = pages[page].buffer.ptr();
+			buff = pages[page].buffer.ptrw();
 			last_page_buff = buff;
 			last_page = page;
 		}
@@ -454,6 +455,10 @@ int FileAccessNetwork::get_buffer(uint8_t *p_dst, int p_length) const {
 Error FileAccessNetwork::get_error() const {
 
 	return pos == total_size ? ERR_FILE_EOF : OK;
+}
+
+void FileAccessNetwork::flush() {
+	ERR_FAIL();
 }
 
 void FileAccessNetwork::store_8(uint8_t p_dest) {

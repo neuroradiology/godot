@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "line_2d.h"
 #include "line_builder.h"
 
@@ -37,8 +38,8 @@ VARIANT_ENUM_CAST(Line2D::LineJointMode)
 VARIANT_ENUM_CAST(Line2D::LineCapMode)
 VARIANT_ENUM_CAST(Line2D::LineTextureMode)
 
-Line2D::Line2D()
-	: Node2D() {
+Line2D::Line2D() :
+		Node2D() {
 	_joint_mode = LINE_JOINT_SHARP;
 	_begin_cap_mode = LINE_CAP_NONE;
 	_end_cap_mode = LINE_CAP_NONE;
@@ -46,6 +47,32 @@ Line2D::Line2D()
 	_default_color = Color(0.4, 0.5, 1);
 	_sharp_limit = 2.f;
 	_round_precision = 8;
+}
+
+Rect2 Line2D::_edit_get_rect() const {
+
+	if (_points.size() == 0)
+		return Rect2(0, 0, 0, 0);
+	Vector2 d = Vector2(_width, _width);
+	Rect2 aabb = Rect2(_points[0] - d, 2 * d);
+	for (int i = 1; i < _points.size(); i++) {
+		aabb.expand_to(_points[i] - d);
+		aabb.expand_to(_points[i] + d);
+	}
+	return aabb;
+}
+
+bool Line2D::_edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const {
+
+	const real_t d = _width / 2 + p_tolerance;
+	PoolVector<Vector2>::Read points = _points.read();
+	for (int i = 0; i < _points.size() - 1; i++) {
+		Vector2 p = Geometry::get_closest_point_to_segment_2d(p_point, &points[i]);
+		if (p.distance_to(p_point) <= d)
+			return true;
+	}
+
+	return false;
 }
 
 void Line2D::set_points(const PoolVector<Vector2> &p_points) {

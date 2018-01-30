@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef MATH_2D_H
 #define MATH_2D_H
 
@@ -187,6 +188,70 @@ _FORCE_INLINE_ Vector2 operator*(real_t p_scalar, const Vector2 &p_vec) {
 	return p_vec * p_scalar;
 }
 
+_FORCE_INLINE_ Vector2 Vector2::operator+(const Vector2 &p_v) const {
+
+	return Vector2(x + p_v.x, y + p_v.y);
+}
+_FORCE_INLINE_ void Vector2::operator+=(const Vector2 &p_v) {
+
+	x += p_v.x;
+	y += p_v.y;
+}
+_FORCE_INLINE_ Vector2 Vector2::operator-(const Vector2 &p_v) const {
+
+	return Vector2(x - p_v.x, y - p_v.y);
+}
+_FORCE_INLINE_ void Vector2::operator-=(const Vector2 &p_v) {
+
+	x -= p_v.x;
+	y -= p_v.y;
+}
+
+_FORCE_INLINE_ Vector2 Vector2::operator*(const Vector2 &p_v1) const {
+
+	return Vector2(x * p_v1.x, y * p_v1.y);
+};
+
+_FORCE_INLINE_ Vector2 Vector2::operator*(const real_t &rvalue) const {
+
+	return Vector2(x * rvalue, y * rvalue);
+};
+_FORCE_INLINE_ void Vector2::operator*=(const real_t &rvalue) {
+
+	x *= rvalue;
+	y *= rvalue;
+};
+
+_FORCE_INLINE_ Vector2 Vector2::operator/(const Vector2 &p_v1) const {
+
+	return Vector2(x / p_v1.x, y / p_v1.y);
+};
+
+_FORCE_INLINE_ Vector2 Vector2::operator/(const real_t &rvalue) const {
+
+	return Vector2(x / rvalue, y / rvalue);
+};
+
+_FORCE_INLINE_ void Vector2::operator/=(const real_t &rvalue) {
+
+	x /= rvalue;
+	y /= rvalue;
+};
+
+_FORCE_INLINE_ Vector2 Vector2::operator-() const {
+
+	return Vector2(-x, -y);
+}
+
+_FORCE_INLINE_ bool Vector2::operator==(const Vector2 &p_vec2) const {
+
+	return x == p_vec2.x && y == p_vec2.y;
+}
+_FORCE_INLINE_ bool Vector2::operator!=(const Vector2 &p_vec2) const {
+
+	return x != p_vec2.x || y != p_vec2.y;
+}
+
 Vector2 Vector2::linear_interpolate(const Vector2 &p_b, real_t p_t) const {
 
 	Vector2 res = *this;
@@ -239,22 +304,31 @@ struct Rect2 {
 
 	inline real_t distance_to(const Vector2 &p_point) const {
 
-		real_t dist = 1e20;
+		real_t dist;
+		bool inside = true;
 
 		if (p_point.x < position.x) {
-			dist = MIN(dist, position.x - p_point.x);
+			real_t d = position.x - p_point.x;
+			dist = inside ? d : MIN(dist, d);
+			inside = false;
 		}
 		if (p_point.y < position.y) {
-			dist = MIN(dist, position.y - p_point.y);
+			real_t d = position.y - p_point.y;
+			dist = inside ? d : MIN(dist, d);
+			inside = false;
 		}
 		if (p_point.x >= (position.x + size.x)) {
-			dist = MIN(p_point.x - (position.x + size.x), dist);
+			real_t d = p_point.x - (position.x + size.x);
+			dist = inside ? d : MIN(dist, d);
+			inside = false;
 		}
 		if (p_point.y >= (position.y + size.y)) {
-			dist = MIN(p_point.y - (position.y + size.y), dist);
+			real_t d = p_point.y - (position.y + size.y);
+			dist = inside ? d : MIN(dist, d);
+			inside = false;
 		}
 
-		if (dist == 1e20)
+		if (inside)
 			return 0;
 		else
 			return dist;
@@ -336,9 +410,10 @@ struct Rect2 {
 		g.size.height += p_by * 2;
 		return g;
 	}
+
 	inline Rect2 grow_margin(Margin p_margin, real_t p_amount) const {
 		Rect2 g = *this;
-		g.grow_individual((MARGIN_LEFT == p_margin) ? p_amount : 0,
+		g = g.grow_individual((MARGIN_LEFT == p_margin) ? p_amount : 0,
 				(MARGIN_TOP == p_margin) ? p_amount : 0,
 				(MARGIN_RIGHT == p_margin) ? p_amount : 0,
 				(MARGIN_BOTTOM == p_margin) ? p_amount : 0);
@@ -382,16 +457,21 @@ struct Rect2 {
 		size = end - begin;
 	}
 
+	inline Rect2 abs() const {
+
+		return Rect2(Point2(position.x + MIN(size.x, 0), position.y + MIN(size.y, 0)), size.abs());
+	}
+
 	operator String() const { return String(position) + ", " + String(size); }
 
 	Rect2() {}
-	Rect2(real_t p_x, real_t p_y, real_t p_width, real_t p_height)
-		: position(Point2(p_x, p_y)),
-		  size(Size2(p_width, p_height)) {
+	Rect2(real_t p_x, real_t p_y, real_t p_width, real_t p_height) :
+			position(Point2(p_x, p_y)),
+			size(Size2(p_width, p_height)) {
 	}
-	Rect2(const Point2 &p_pos, const Size2 &p_size)
-		: position(p_pos),
-		  size(p_size) {
+	Rect2(const Point2 &p_pos, const Size2 &p_size) :
+			position(p_pos),
+			size(p_size) {
 	}
 };
 
@@ -578,18 +658,18 @@ struct Rect2i {
 	operator String() const { return String(position) + ", " + String(size); }
 
 	operator Rect2() const { return Rect2(position, size); }
-	Rect2i(const Rect2 &p_r2)
-		: position(p_r2.position),
-		  size(p_r2.size) {
+	Rect2i(const Rect2 &p_r2) :
+			position(p_r2.position),
+			size(p_r2.size) {
 	}
 	Rect2i() {}
-	Rect2i(int p_x, int p_y, int p_width, int p_height)
-		: position(Point2(p_x, p_y)),
-		  size(Size2(p_width, p_height)) {
+	Rect2i(int p_x, int p_y, int p_width, int p_height) :
+			position(Point2(p_x, p_y)),
+			size(Size2(p_width, p_height)) {
 	}
-	Rect2i(const Point2 &p_pos, const Size2 &p_size)
-		: position(p_pos),
-		  size(p_size) {
+	Rect2i(const Point2 &p_pos, const Size2 &p_size) :
+			position(p_pos),
+			size(p_size) {
 	}
 };
 

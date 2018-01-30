@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "editor_preview_plugins.h"
 
 #include "editor/editor_scale.h"
@@ -184,7 +185,7 @@ Ref<Texture> EditorPackedScenePreviewPlugin::generate(const RES &p_from) {
 
 Ref<Texture> EditorPackedScenePreviewPlugin::generate_from_path(const String &p_path) {
 
-	String temp_path = EditorSettings::get_singleton()->get_settings_path().plus_file("tmp");
+	String temp_path = EditorSettings::get_singleton()->get_cache_dir();
 	String cache_base = ProjectSettings::get_singleton()->globalize_path(p_path).md5_text();
 	cache_base = temp_path.plus_file("resthumb-" + cache_base);
 
@@ -235,29 +236,34 @@ Ref<Texture> EditorMaterialPreviewPlugin::generate(const RES &p_from) {
 	Ref<Material> material = p_from;
 	ERR_FAIL_COND_V(material.is_null(), Ref<Texture>());
 
-	VS::get_singleton()->mesh_surface_set_material(sphere, 0, material->get_rid());
+	if (material->get_shader_mode() == Shader::MODE_SPATIAL) {
 
-	VS::get_singleton()->viewport_set_update_mode(viewport, VS::VIEWPORT_UPDATE_ONCE); //once used for capture
+		VS::get_singleton()->mesh_surface_set_material(sphere, 0, material->get_rid());
 
-	preview_done = false;
-	VS::get_singleton()->request_frame_drawn_callback(this, "_preview_done", Variant());
+		VS::get_singleton()->viewport_set_update_mode(viewport, VS::VIEWPORT_UPDATE_ONCE); //once used for capture
 
-	while (!preview_done) {
-		OS::get_singleton()->delay_usec(10);
+		preview_done = false;
+		VS::get_singleton()->request_frame_drawn_callback(this, "_preview_done", Variant());
+
+		while (!preview_done) {
+			OS::get_singleton()->delay_usec(10);
+		}
+
+		Ref<Image> img = VS::get_singleton()->VS::get_singleton()->texture_get_data(viewport_texture);
+		VS::get_singleton()->mesh_surface_set_material(sphere, 0, RID());
+
+		ERR_FAIL_COND_V(!img.is_valid(), Ref<ImageTexture>());
+
+		int thumbnail_size = EditorSettings::get_singleton()->get("filesystem/file_dialog/thumbnail_size");
+		thumbnail_size *= EDSCALE;
+		img->convert(Image::FORMAT_RGBA8);
+		img->resize(thumbnail_size, thumbnail_size);
+		Ref<ImageTexture> ptex = Ref<ImageTexture>(memnew(ImageTexture));
+		ptex->create_from_image(img, 0);
+		return ptex;
 	}
 
-	Ref<Image> img = VS::get_singleton()->VS::get_singleton()->texture_get_data(viewport_texture);
-	VS::get_singleton()->mesh_surface_set_material(sphere, 0, RID());
-
-	ERR_FAIL_COND_V(!img.is_valid(), Ref<ImageTexture>());
-
-	int thumbnail_size = EditorSettings::get_singleton()->get("filesystem/file_dialog/thumbnail_size");
-	thumbnail_size *= EDSCALE;
-	img->convert(Image::FORMAT_RGBA8);
-	img->resize(thumbnail_size, thumbnail_size);
-	Ref<ImageTexture> ptex = Ref<ImageTexture>(memnew(ImageTexture));
-	ptex->create_from_image(img, 0);
-	return ptex;
+	return Ref<Texture>();
 }
 
 EditorMaterialPreviewPlugin::EditorMaterialPreviewPlugin() {
@@ -278,11 +284,11 @@ EditorMaterialPreviewPlugin::EditorMaterialPreviewPlugin() {
 	VS::get_singleton()->camera_set_transform(camera, Transform(Basis(), Vector3(0, 0, 3)));
 	VS::get_singleton()->camera_set_perspective(camera, 45, 0.1, 10);
 
-	light = VS::get_singleton()->light_create(VS::LIGHT_DIRECTIONAL);
+	light = VS::get_singleton()->directional_light_create();
 	light_instance = VS::get_singleton()->instance_create2(light, scenario);
 	VS::get_singleton()->instance_set_transform(light_instance, Transform().looking_at(Vector3(-1, -1, -1), Vector3(0, 1, 0)));
 
-	light2 = VS::get_singleton()->light_create(VS::LIGHT_DIRECTIONAL);
+	light2 = VS::get_singleton()->directional_light_create();
 	VS::get_singleton()->light_set_color(light2, Color(0.7, 0.7, 0.7));
 	//VS::get_singleton()->light_set_color(light2, Color(0.7, 0.7, 0.7));
 
@@ -790,13 +796,13 @@ Ref<Texture> EditorMeshPreviewPlugin::generate(const RES &p_from) {
 
 	VS::get_singleton()->instance_set_base(mesh_instance, mesh->get_rid());
 
-	Rect3 aabb = mesh->get_aabb();
+	AABB aabb = mesh->get_aabb();
 	Vector3 ofs = aabb.position + aabb.size * 0.5;
 	aabb.position -= ofs;
 	Transform xform;
 	xform.basis = Basis().rotated(Vector3(0, 1, 0), -Math_PI * 0.125);
 	xform.basis = Basis().rotated(Vector3(1, 0, 0), Math_PI * 0.125) * xform.basis;
-	Rect3 rot_aabb = xform.xform(aabb);
+	AABB rot_aabb = xform.xform(aabb);
 	float m = MAX(rot_aabb.size.x, rot_aabb.size.y) * 0.5;
 	if (m == 0)
 		return Ref<Texture>();
@@ -850,11 +856,11 @@ EditorMeshPreviewPlugin::EditorMeshPreviewPlugin() {
 	//VS::get_singleton()->camera_set_perspective(camera,45,0.1,10);
 	VS::get_singleton()->camera_set_orthogonal(camera, 1.0, 0.01, 1000.0);
 
-	light = VS::get_singleton()->light_create(VS::LIGHT_DIRECTIONAL);
+	light = VS::get_singleton()->directional_light_create();
 	light_instance = VS::get_singleton()->instance_create2(light, scenario);
 	VS::get_singleton()->instance_set_transform(light_instance, Transform().looking_at(Vector3(-1, -1, -1), Vector3(0, 1, 0)));
 
-	light2 = VS::get_singleton()->light_create(VS::LIGHT_DIRECTIONAL);
+	light2 = VS::get_singleton()->directional_light_create();
 	VS::get_singleton()->light_set_color(light2, Color(0.7, 0.7, 0.7));
 	//VS::get_singleton()->light_set_color(light2, VS::LIGHT_COLOR_SPECULAR, Color(0.0, 0.0, 0.0));
 	light_instance2 = VS::get_singleton()->instance_create2(light2, scenario);

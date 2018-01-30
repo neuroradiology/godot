@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,36 +27,31 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef OS_JAVASCRIPT_H
 #define OS_JAVASCRIPT_H
 
 #include "audio_driver_javascript.h"
-#include "audio_server_javascript.h"
 #include "drivers/unix/os_unix.h"
-#include "javascript_eval.h"
 #include "main/input_default.h"
 #include "os/input.h"
 #include "os/main_loop.h"
 #include "power_javascript.h"
 #include "servers/audio_server.h"
-#include "servers/physics/physics_server_sw.h"
-#include "servers/physics_2d/physics_2d_server_sw.h"
 #include "servers/visual/rasterizer.h"
 
 #include <emscripten/html5.h>
 
-typedef String (*GetDataDirFunc)();
+typedef String (*GetUserDataDirFunc)();
 
 class OS_JavaScript : public OS_Unix {
 
+	bool idbfs_available;
 	int64_t time_to_save_sync;
 	int64_t last_sync_time;
 
 	VisualServer *visual_server;
-	PhysicsServer *physics_server;
-	Physics2DServer *physics_2d_server;
 	AudioDriverJavaScript audio_driver_javascript;
-	const char *gl_extensions;
 
 	InputDefault *input;
 	Vector2 windowed_size;
@@ -67,13 +62,9 @@ class OS_JavaScript : public OS_Unix {
 	CursorShape cursor_shape;
 	MainLoop *main_loop;
 
-	GetDataDirFunc get_data_dir_func;
+	GetUserDataDirFunc get_user_data_dir_func;
 
 	PowerJavascript *power_manager;
-
-#ifdef JAVASCRIPT_EVAL_ENABLED
-	JavaScript *javascript_eval;
-#endif
 
 	static void _close_notification_funcs(const String &p_file, int p_flags);
 
@@ -87,13 +78,11 @@ public:
 	virtual int get_video_driver_count() const;
 	virtual const char *get_video_driver_name(int p_driver) const;
 
-	virtual VideoMode get_default_video_mode() const;
-
 	virtual int get_audio_driver_count() const;
 	virtual const char *get_audio_driver_name(int p_driver) const;
 
 	virtual void initialize_core();
-	virtual void initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver);
+	virtual Error initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver);
 
 	virtual void set_main_loop(MainLoop *p_main_loop);
 	virtual void delete_main_loop();
@@ -103,11 +92,6 @@ public:
 	typedef int64_t ProcessID;
 
 	//static OS* get_singleton();
-
-	virtual void print_error(const char *p_function, const char *p_file, int p_line, const char *p_code, const char *p_rationale, ErrorType p_type) {
-
-		OS::print_error(p_function, p_file, p_line, p_code, p_rationale, p_type);
-	}
 
 	virtual void alert(const String &p_alert, const String &p_title = "ALERT!");
 
@@ -140,7 +124,10 @@ public:
 
 	virtual bool can_draw() const;
 
+	virtual bool is_userfs_persistent() const;
+
 	virtual void set_cursor_shape(CursorShape p_shape);
+	virtual void set_custom_mouse_cursor(const RES &p_cursor, CursorShape p_shape, const Vector2 &p_hotspot);
 
 	void main_loop_begin();
 	bool main_loop_iterate();
@@ -151,10 +138,8 @@ public:
 
 	virtual bool has_touchscreen_ui_hint() const;
 
-	void set_opengl_extensions(const char *p_gl_extensions);
-
 	virtual Error shell_open(String p_uri);
-	virtual String get_data_dir() const;
+	virtual String get_user_data_dir() const;
 	String get_executable_path() const;
 	virtual String get_resource_dir() const;
 
@@ -171,7 +156,9 @@ public:
 
 	virtual bool _check_internal_feature_support(const String &p_feature);
 
-	OS_JavaScript(const char *p_execpath, GetDataDirFunc p_get_data_dir_func);
+	void set_idbfs_available(bool p_idbfs_available);
+
+	OS_JavaScript(const char *p_execpath, GetUserDataDirFunc p_get_user_data_dir_func);
 	~OS_JavaScript();
 };
 

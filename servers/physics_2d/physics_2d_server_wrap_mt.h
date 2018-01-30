@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef PHYSICS2DSERVERWRAPMT_H
 #define PHYSICS2DSERVERWRAPMT_H
 
@@ -64,21 +65,10 @@ class Physics2DServerWrapMT : public Physics2DServer {
 
 	void thread_exit();
 
-	Mutex *alloc_mutex;
 	bool first_frame;
 
-	int shape_pool_max_size;
-	List<RID> shape_id_pool;
-	int area_pool_max_size;
-	List<RID> area_id_pool;
-	int body_pool_max_size;
-	List<RID> body_id_pool;
-	int pin_joint_pool_max_size;
-	List<RID> pin_joint_id_pool;
-	int groove_joint_pool_max_size;
-	List<RID> groove_joint_id_pool;
-	int damped_spring_joint_pool_max_size;
-	List<RID> damped_spring_joint_id_pool;
+	Mutex *alloc_mutex;
+	int pool_max_size;
 
 public:
 #define ServerName Physics2DServer
@@ -87,7 +77,15 @@ public:
 #include "servers/server_wrap_mt_common.h"
 
 	//FUNC1RID(shape,ShapeType); todo fix
-	FUNC1R(RID, shape_create, ShapeType);
+	FUNCRID(line_shape)
+	FUNCRID(ray_shape)
+	FUNCRID(segment_shape)
+	FUNCRID(circle_shape)
+	FUNCRID(rectangle_shape)
+	FUNCRID(capsule_shape)
+	FUNCRID(convex_polygon_shape)
+	FUNCRID(concave_polygon_shape)
+
 	FUNC2(shape_set_data, RID, const Variant &);
 	FUNC2(shape_set_custom_solver_bias, RID, real_t);
 
@@ -104,14 +102,14 @@ public:
 
 	/* SPACE API */
 
-	FUNC0R(RID, space_create);
+	FUNCRID(space);
 	FUNC2(space_set_active, RID, bool);
 	FUNC1RC(bool, space_is_active, RID);
 
 	FUNC3(space_set_param, RID, SpaceParameter, real_t);
 	FUNC2RC(real_t, space_get_param, RID, SpaceParameter);
 
-	// this function only works on fixed process, errors and returns null otherwise
+	// this function only works on physics process, errors and returns null otherwise
 	Physics2DDirectSpaceState *space_get_direct_state(RID p_space) {
 
 		ERR_FAIL_COND_V(main_thread != Thread::get_caller_id(), NULL);
@@ -134,7 +132,7 @@ public:
 	/* AREA API */
 
 	//FUNC0RID(area);
-	FUNC0R(RID, area_create);
+	FUNCRID(area);
 
 	FUNC2(area_set_space, RID, RID);
 	FUNC1RC(RID, area_get_space, RID);
@@ -174,7 +172,7 @@ public:
 	/* BODY API */
 
 	//FUNC2RID(body,BodyMode,bool);
-	FUNC2R(RID, body_create, BodyMode, bool)
+	FUNCRID(body)
 
 	FUNC2(body_set_space, RID, RID);
 	FUNC1RC(RID, body_get_space, RID);
@@ -253,6 +251,13 @@ public:
 		return physics_2d_server->body_test_motion(p_body, p_from, p_motion, p_margin, r_result);
 	}
 
+	// this function only works on physics process, errors and returns null otherwise
+	Physics2DDirectBodyState *body_get_direct_state(RID p_body) {
+
+		ERR_FAIL_COND_V(main_thread != Thread::get_caller_id(), NULL);
+		return physics_2d_server->body_get_direct_state(p_body);
+	}
+
 	/* JOINT API */
 
 	FUNC3(joint_set_param, RID, JointParam, real_t);
@@ -261,6 +266,8 @@ public:
 	///FUNC3RID(pin_joint,const Vector2&,RID,RID);
 	///FUNC5RID(groove_joint,const Vector2&,const Vector2&,const Vector2&,RID,RID);
 	///FUNC4RID(damped_spring_joint,const Vector2&,const Vector2&,RID,RID);
+
+	//TODO need to convert this to FUNCRID, but it's a hassle..
 
 	FUNC3R(RID, pin_joint_create, const Vector2 &, RID, RID);
 	FUNC5R(RID, groove_joint_create, const Vector2 &, const Vector2 &, const Vector2 &, RID, RID);

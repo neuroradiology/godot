@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "editor_audio_buses.h"
 
 #include "editor_node.h"
@@ -251,7 +252,7 @@ void EditorAudioBus::_volume_db_changed(float p_db) {
 	updating_bus = true;
 
 	UndoRedo *ur = EditorNode::get_singleton()->get_undo_redo();
-	ur->create_action("Change Audio Bus Volume", UndoRedo::MERGE_ENDS);
+	ur->create_action(TTR("Change Audio Bus Volume"), UndoRedo::MERGE_ENDS);
 	ur->add_do_method(AudioServer::get_singleton(), "set_bus_volume_db", get_index(), p_db);
 	ur->add_undo_method(AudioServer::get_singleton(), "set_bus_volume_db", get_index(), AudioServer::get_singleton()->get_bus_volume_db(get_index()));
 	ur->add_do_method(buses, "_update_bus", get_index());
@@ -405,7 +406,6 @@ void EditorAudioBus::_gui_input(const Ref<InputEvent> &p_event) {
 
 		Vector2 pos = Vector2(mb->get_position().x, mb->get_position().y);
 		bus_popup->set_position(get_global_position() + pos);
-		bus_popup->set_item_disabled(1, get_index() == 0);
 		bus_popup->popup();
 	}
 }
@@ -755,8 +755,8 @@ EditorAudioBus::EditorAudioBus(EditorAudioBuses *p_buses, bool p_is_master) {
 
 	bus_popup = bus_options->get_popup();
 	bus_popup->add_item(TTR("Duplicate"));
-	if (!is_master)
-		bus_popup->add_item(TTR("Delete"));
+	bus_popup->add_item(TTR("Delete"));
+	bus_popup->set_item_disabled(1, is_master);
 	bus_popup->add_item(TTR("Reset Volume"));
 	bus_popup->connect("index_pressed", this, "_bus_popup_pressed");
 
@@ -813,7 +813,7 @@ void EditorAudioBuses::_update_buses() {
 EditorAudioBuses *EditorAudioBuses::register_editor() {
 
 	EditorAudioBuses *audio_buses = memnew(EditorAudioBuses);
-	EditorNode::get_singleton()->add_bottom_panel_item("Audio", audio_buses);
+	EditorNode::get_singleton()->add_bottom_panel_item(TTR("Audio"), audio_buses);
 	return audio_buses;
 }
 

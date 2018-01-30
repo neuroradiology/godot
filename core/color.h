@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef COLOR_H
 #define COLOR_H
 
@@ -98,6 +99,24 @@ struct Color {
 		res.b += (p_t * (p_b.b - b));
 		res.a += (p_t * (p_b.a - a));
 
+		return res;
+	}
+
+	_FORCE_INLINE_ Color darkened(float p_amount) const {
+
+		Color res = *this;
+		res.r = res.r * (1.0f - p_amount);
+		res.g = res.g * (1.0f - p_amount);
+		res.b = res.b * (1.0f - p_amount);
+		return res;
+	}
+
+	_FORCE_INLINE_ Color lightened(float p_amount) const {
+
+		Color res = *this;
+		res.r = res.r + (1.0f - res.r) * p_amount;
+		res.g = res.g + (1.0f - res.g) * p_amount;
+		res.b = res.b + (1.0f - res.b) * p_amount;
 		return res;
 	}
 

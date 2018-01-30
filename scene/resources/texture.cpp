@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "texture.h"
 #include "core/method_bind_ext.gen.inc"
 #include "core/os/os.h"
@@ -75,14 +76,16 @@ void Texture::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("draw_rect_region", "canvas_item", "rect", "src_rect", "modulate", "transpose", "normal_map", "clip_uv"), &Texture::draw_rect_region, DEFVAL(Color(1, 1, 1)), DEFVAL(false), DEFVAL(Variant()), DEFVAL(true));
 	ClassDB::bind_method(D_METHOD("get_data"), &Texture::get_data);
 
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "flags", PROPERTY_HINT_FLAGS, "Mipmaps,Repeat,Filter,Ansiotropic Linear,Convert to Linear,Mirrored Repeat,Video Surface"), "set_flags", "get_flags");
+
+	BIND_ENUM_CONSTANT(FLAGS_DEFAULT);
 	BIND_ENUM_CONSTANT(FLAG_MIPMAPS);
 	BIND_ENUM_CONSTANT(FLAG_REPEAT);
 	BIND_ENUM_CONSTANT(FLAG_FILTER);
-	BIND_ENUM_CONSTANT(FLAG_VIDEO_SURFACE);
-	BIND_ENUM_CONSTANT(FLAGS_DEFAULT);
 	BIND_ENUM_CONSTANT(FLAG_ANISOTROPIC_FILTER);
 	BIND_ENUM_CONSTANT(FLAG_CONVERT_TO_LINEAR);
 	BIND_ENUM_CONSTANT(FLAG_MIRRORED_REPEAT);
+	BIND_ENUM_CONSTANT(FLAG_VIDEO_SURFACE);
 }
 
 Texture::Texture() {
@@ -120,10 +123,6 @@ bool ImageTexture::_set(const StringName &p_name, const Variant &p_value) {
 		w = s.width;
 		h = s.height;
 		VisualServer::get_singleton()->texture_set_size_override(texture, w, h);
-	} else if (p_name == "storage") {
-		storage = Storage(p_value.operator int());
-	} else if (p_name == "lossy_quality") {
-		lossy_storage_quality = p_value;
 	} else if (p_name == "_data") {
 		_set_data(p_value);
 	} else
@@ -142,10 +141,6 @@ bool ImageTexture::_get(const StringName &p_name, Variant &r_ret) const {
 		r_ret = flags;
 	else if (p_name == "size")
 		r_ret = Size2(w, h);
-	else if (p_name == "storage")
-		r_ret = storage;
-	else if (p_name == "lossy_quality")
-		r_ret = lossy_storage_quality;
 	else
 		return false;
 
@@ -164,8 +159,6 @@ void ImageTexture::_get_property_list(List<PropertyInfo> *p_list) const {
 	p_list->push_back(PropertyInfo(Variant::INT, "flags", PROPERTY_HINT_FLAGS, "Mipmaps,Repeat,Filter,Anisotropic,sRGB,Mirrored Repeat"));
 	p_list->push_back(PropertyInfo(Variant::OBJECT, "image", PROPERTY_HINT_RESOURCE_TYPE, "Image"));
 	p_list->push_back(PropertyInfo(Variant::VECTOR2, "size", PROPERTY_HINT_NONE, ""));
-	p_list->push_back(PropertyInfo(Variant::INT, "storage", PROPERTY_HINT_ENUM, "Uncompressed,Compress Lossy,Compress Lossless"));
-	p_list->push_back(PropertyInfo(Variant::REAL, "lossy_quality", PROPERTY_HINT_RANGE, "0.0,1.0,0.01"));
 }
 
 void ImageTexture::_reload_hook(const RID &p_hook) {
@@ -361,6 +354,9 @@ void ImageTexture::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_size_override", "size"), &ImageTexture::set_size_override);
 	ClassDB::bind_method(D_METHOD("_reload_hook", "rid"), &ImageTexture::_reload_hook);
+
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "storage", PROPERTY_HINT_ENUM, "Uncompressed,Compress Lossy,Compress Lossless"), "set_storage", "get_storage");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "lossy_quality", PROPERTY_HINT_RANGE, "0.0,1.0,0.01"), "set_lossy_storage_quality", "get_lossy_storage_quality");
 
 	BIND_ENUM_CONSTANT(STORAGE_RAW);
 	BIND_ENUM_CONSTANT(STORAGE_COMPRESS_LOSSY);
@@ -707,6 +703,8 @@ Ref<Image> StreamTexture::get_data() const {
 }
 
 void StreamTexture::set_flags(uint32_t p_flags) {
+	flags = p_flags;
+	VS::get_singleton()->texture_set_flags(texture, flags);
 }
 
 void StreamTexture::reload_from_file() {
@@ -866,6 +864,18 @@ Rect2 AtlasTexture::get_margin() const {
 	return margin;
 }
 
+void AtlasTexture::set_filter_clip(const bool p_enable) {
+
+	filter_clip = p_enable;
+	emit_changed();
+	_change_notify("filter_clip");
+}
+
+bool AtlasTexture::has_filter_clip() const {
+
+	return filter_clip;
+}
+
 void AtlasTexture::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_atlas", "atlas"), &AtlasTexture::set_atlas);
@@ -877,9 +887,13 @@ void AtlasTexture::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_margin", "margin"), &AtlasTexture::set_margin);
 	ClassDB::bind_method(D_METHOD("get_margin"), &AtlasTexture::get_margin);
 
+	ClassDB::bind_method(D_METHOD("set_filter_clip", "enable"), &AtlasTexture::set_filter_clip);
+	ClassDB::bind_method(D_METHOD("has_filter_clip"), &AtlasTexture::has_filter_clip);
+
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "atlas", PROPERTY_HINT_RESOURCE_TYPE, "Texture"), "set_atlas", "get_atlas");
 	ADD_PROPERTY(PropertyInfo(Variant::RECT2, "region"), "set_region", "get_region");
 	ADD_PROPERTY(PropertyInfo(Variant::RECT2, "margin"), "set_margin", "get_margin");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "filter_clip"), "set_filter_clip", "has_filter_clip");
 }
 
 void AtlasTexture::draw(RID p_canvas_item, const Point2 &p_pos, const Color &p_modulate, bool p_transpose, const Ref<Texture> &p_normal_map) const {
@@ -898,7 +912,7 @@ void AtlasTexture::draw(RID p_canvas_item, const Point2 &p_pos, const Color &p_m
 	}
 
 	RID normal_rid = p_normal_map.is_valid() ? p_normal_map->get_rid() : RID();
-	VS::get_singleton()->canvas_item_add_texture_rect_region(p_canvas_item, Rect2(p_pos + margin.position, rc.size), atlas->get_rid(), rc, p_modulate, p_transpose, normal_rid);
+	VS::get_singleton()->canvas_item_add_texture_rect_region(p_canvas_item, Rect2(p_pos + margin.position, rc.size), atlas->get_rid(), rc, p_modulate, p_transpose, normal_rid, filter_clip);
 }
 
 void AtlasTexture::draw_rect(RID p_canvas_item, const Rect2 &p_rect, bool p_tile, const Color &p_modulate, bool p_transpose, const Ref<Texture> &p_normal_map) const {
@@ -920,7 +934,7 @@ void AtlasTexture::draw_rect(RID p_canvas_item, const Rect2 &p_rect, bool p_tile
 	Rect2 dr(p_rect.position + margin.position * scale, rc.size * scale);
 
 	RID normal_rid = p_normal_map.is_valid() ? p_normal_map->get_rid() : RID();
-	VS::get_singleton()->canvas_item_add_texture_rect_region(p_canvas_item, dr, atlas->get_rid(), rc, p_modulate, p_transpose, normal_rid);
+	VS::get_singleton()->canvas_item_add_texture_rect_region(p_canvas_item, dr, atlas->get_rid(), rc, p_modulate, p_transpose, normal_rid, filter_clip);
 }
 void AtlasTexture::draw_rect_region(RID p_canvas_item, const Rect2 &p_rect, const Rect2 &p_src_rect, const Color &p_modulate, bool p_transpose, const Ref<Texture> &p_normal_map, bool p_clip_uv) const {
 
@@ -951,7 +965,7 @@ void AtlasTexture::draw_rect_region(RID p_canvas_item, const Rect2 &p_rect, cons
 	Rect2 dr(p_rect.position + ofs * scale, src_c.size * scale);
 
 	RID normal_rid = p_normal_map.is_valid() ? p_normal_map->get_rid() : RID();
-	VS::get_singleton()->canvas_item_add_texture_rect_region(p_canvas_item, dr, atlas->get_rid(), src_c, p_modulate, p_transpose, normal_rid, p_clip_uv);
+	VS::get_singleton()->canvas_item_add_texture_rect_region(p_canvas_item, dr, atlas->get_rid(), src_c, p_modulate, p_transpose, normal_rid, filter_clip);
 }
 
 bool AtlasTexture::get_rect_region(const Rect2 &p_rect, const Rect2 &p_src_rect, Rect2 &r_rect, Rect2 &r_src_rect) const {
@@ -987,6 +1001,7 @@ bool AtlasTexture::get_rect_region(const Rect2 &p_rect, const Rect2 &p_src_rect,
 }
 
 AtlasTexture::AtlasTexture() {
+	filter_clip = false;
 }
 
 //////////////////////////////////////////
@@ -1113,7 +1128,7 @@ void LargeTexture::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_set_data", "data"), &LargeTexture::_set_data);
 	ClassDB::bind_method(D_METHOD("_get_data"), &LargeTexture::_get_data);
 
-	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "_data", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "_set_data", "_get_data");
+	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "_data", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR | PROPERTY_USAGE_INTERNAL), "_set_data", "_get_data");
 }
 
 void LargeTexture::draw(RID p_canvas_item, const Point2 &p_pos, const Color &p_modulate, bool p_transpose, const Ref<Texture> &p_normal_map) const {
@@ -1264,8 +1279,6 @@ bool CubeMap::_set(const StringName &p_name, const Variant &p_value) {
 		set_side(SIDE_FRONT, p_value);
 	} else if (p_name == "side/back") {
 		set_side(SIDE_BACK, p_value);
-	} else if (p_name == "flags") {
-		set_flags(p_value);
 	} else if (p_name == "storage") {
 		storage = Storage(p_value.operator int());
 	} else if (p_name == "lossy_quality") {
@@ -1290,8 +1303,6 @@ bool CubeMap::_get(const StringName &p_name, Variant &r_ret) const {
 		r_ret = get_side(SIDE_FRONT);
 	} else if (p_name == "side/back") {
 		r_ret = get_side(SIDE_BACK);
-	} else if (p_name == "flags") {
-		r_ret = flags;
 	} else if (p_name == "storage") {
 		r_ret = storage;
 	} else if (p_name == "lossy_quality") {
@@ -1311,7 +1322,6 @@ void CubeMap::_get_property_list(List<PropertyInfo> *p_list) const {
 		img_hint = PROPERTY_HINT_IMAGE_COMPRESS_LOSSLESS;
 	}
 
-	p_list->push_back(PropertyInfo(Variant::INT, "flags", PROPERTY_HINT_FLAGS, "Mipmaps,Repeat,Filter"));
 	p_list->push_back(PropertyInfo(Variant::OBJECT, "side/left", PROPERTY_HINT_RESOURCE_TYPE, "Image"));
 	p_list->push_back(PropertyInfo(Variant::OBJECT, "side/right", PROPERTY_HINT_RESOURCE_TYPE, "Image"));
 	p_list->push_back(PropertyInfo(Variant::OBJECT, "side/bottom", PROPERTY_HINT_RESOURCE_TYPE, "Image"));
@@ -1324,16 +1334,18 @@ void CubeMap::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("get_width"), &CubeMap::get_width);
 	ClassDB::bind_method(D_METHOD("get_height"), &CubeMap::get_height);
-	//ClassDB::bind_method(D_METHOD("get_rid"),&CubeMap::get_rid);
 	ClassDB::bind_method(D_METHOD("set_flags", "flags"), &CubeMap::set_flags);
 	ClassDB::bind_method(D_METHOD("get_flags"), &CubeMap::get_flags);
-
 	ClassDB::bind_method(D_METHOD("set_side", "side", "image"), &CubeMap::set_side);
 	ClassDB::bind_method(D_METHOD("get_side", "side"), &CubeMap::get_side);
 	ClassDB::bind_method(D_METHOD("set_storage", "mode"), &CubeMap::set_storage);
 	ClassDB::bind_method(D_METHOD("get_storage"), &CubeMap::get_storage);
 	ClassDB::bind_method(D_METHOD("set_lossy_storage_quality", "quality"), &CubeMap::set_lossy_storage_quality);
 	ClassDB::bind_method(D_METHOD("get_lossy_storage_quality"), &CubeMap::get_lossy_storage_quality);
+
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "flags", PROPERTY_HINT_FLAGS, "Mipmaps,Repeat,Filter"), "set_flags", "get_flags");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "storage_mode", PROPERTY_HINT_ENUM, "Raw,Lossy Compressed,Lossless Compressed"), "set_storage", "get_storage");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "lossy_storage_quality"), "set_lossy_storage_quality", "get_lossy_storage_quality");
 
 	BIND_ENUM_CONSTANT(STORAGE_RAW);
 	BIND_ENUM_CONSTANT(STORAGE_COMPRESS_LOSSY);
@@ -1582,4 +1594,73 @@ int GradientTexture::get_width() const {
 
 Ref<Image> GradientTexture::get_data() const {
 	return VisualServer::get_singleton()->texture_get_data(texture);
+}
+
+//////////////////////////////////////
+
+void ProxyTexture::_bind_methods() {
+
+	ClassDB::bind_method(D_METHOD("set_base", "base"), &ProxyTexture::set_base);
+	ClassDB::bind_method(D_METHOD("get_base"), &ProxyTexture::get_base);
+
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "base", PROPERTY_HINT_RESOURCE_TYPE, "Texture"), "set_base", "get_base");
+}
+
+void ProxyTexture::set_base(const Ref<Texture> &p_texture) {
+
+	base = p_texture;
+	if (base.is_valid()) {
+		VS::get_singleton()->texture_set_proxy(proxy, base->get_rid());
+	} else {
+		VS::get_singleton()->texture_set_proxy(proxy, RID());
+	}
+}
+
+Ref<Texture> ProxyTexture::get_base() const {
+
+	return base;
+}
+
+int ProxyTexture::get_width() const {
+
+	if (base.is_valid())
+		return base->get_width();
+	return 1;
+}
+int ProxyTexture::get_height() const {
+
+	if (base.is_valid())
+		return base->get_height();
+	return 1;
+}
+RID ProxyTexture::get_rid() const {
+
+	return proxy;
+}
+
+bool ProxyTexture::has_alpha() const {
+
+	if (base.is_valid())
+		return base->has_alpha();
+	return false;
+}
+
+void ProxyTexture::set_flags(uint32_t p_flags) {
+}
+
+uint32_t ProxyTexture::get_flags() const {
+
+	if (base.is_valid())
+		return base->get_flags();
+	return 0;
+}
+
+ProxyTexture::ProxyTexture() {
+
+	proxy = VS::get_singleton()->texture_create();
+}
+
+ProxyTexture::~ProxyTexture() {
+
+	VS::get_singleton()->free(proxy);
 }

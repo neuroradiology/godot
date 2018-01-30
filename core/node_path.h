@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef NODE_PATH_H
 #define NODE_PATH_H
 
@@ -41,10 +42,11 @@ class NodePath {
 	struct Data {
 
 		SafeRefCount refcount;
-		StringName property;
 		Vector<StringName> path;
 		Vector<StringName> subpath;
+		StringName concatenated_subpath;
 		bool absolute;
+		bool has_slashes;
 	};
 
 	Data *data;
@@ -53,7 +55,7 @@ class NodePath {
 public:
 	_FORCE_INLINE_ StringName get_sname() const {
 
-		if (data && data->path.size() == 1 && data->subpath.empty() && !data->property) {
+		if (data && data->path.size() == 1 && data->subpath.empty()) {
 			return data->path[0];
 		} else {
 			return operator String();
@@ -67,12 +69,12 @@ public:
 	StringName get_subname(int p_idx) const;
 	Vector<StringName> get_names() const;
 	Vector<StringName> get_subnames() const;
+	StringName get_concatenated_subnames() const;
 
 	NodePath rel_path_to(const NodePath &p_np) const;
+	NodePath get_as_property_path() const;
 
 	void prepend_period();
-
-	StringName get_property() const;
 
 	NodePath get_parent() const;
 
@@ -88,8 +90,8 @@ public:
 	void simplify();
 	NodePath simplified() const;
 
-	NodePath(const Vector<StringName> &p_path, bool p_absolute, const String &p_property = "");
-	NodePath(const Vector<StringName> &p_path, const Vector<StringName> &p_subpath, bool p_absolute, const String &p_property = "");
+	NodePath(const Vector<StringName> &p_path, bool p_absolute);
+	NodePath(const Vector<StringName> &p_path, const Vector<StringName> &p_subpath, bool p_absolute);
 	NodePath(const NodePath &p_path);
 	NodePath(const String &p_path);
 	NodePath();

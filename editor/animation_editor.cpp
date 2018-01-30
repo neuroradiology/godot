@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "animation_editor.h"
 
 #include "editor/plugins/animation_player_editor_plugin.h"
@@ -63,6 +64,8 @@ private:
 	Set<float> multiples;
 	float transition;
 	Mode mode;
+
+	LineEdit *value_edit;
 
 	void _notification(int p_what) {
 
@@ -144,14 +147,11 @@ private:
 				}
 			}
 
-			String txt = String::num(exp, 2);
 			if (mode == MODE_DISABLED) {
-				txt = TTR("Disabled");
+				f->draw(ci, Point2(5, 5 + f->get_ascent()), TTR("Disabled"), color);
 			} else if (mode == MODE_MULTIPLE) {
-				txt += " - " + TTR("All Selection");
+				f->draw(ci, Point2(5, 5 + f->get_ascent() + value_edit->get_size().height), TTR("All Selection"), color);
 			}
-
-			f->draw(ci, Point2(10, 10 + f->get_ascent()), txt, color);
 		}
 	}
 
@@ -162,6 +162,8 @@ private:
 
 			if (mode == MODE_DISABLED)
 				return;
+
+			value_edit->release_focus();
 
 			float rel = mm->get_relative().x;
 			if (rel == 0)
@@ -187,11 +189,13 @@ private:
 			if (sg)
 				val = -val;
 
-			transition = val;
-			update();
-			//emit_signal("variant_changed");
-			emit_signal("transition_changed", transition);
+			force_transition(val);
 		}
+	}
+
+	void _edit_value_changed(const String &p_value_str) {
+
+		force_transition(p_value_str.to_float());
 	}
 
 public:
@@ -199,12 +203,14 @@ public:
 
 		//ClassDB::bind_method("_update_obj",&AnimationKeyEdit::_update_obj);
 		ClassDB::bind_method("_gui_input", &AnimationCurveEdit::_gui_input);
+		ClassDB::bind_method("_edit_value_changed", &AnimationCurveEdit::_edit_value_changed);
 		ADD_SIGNAL(MethodInfo("transition_changed"));
 	}
 
 	void set_mode(Mode p_mode) {
 
 		mode = p_mode;
+		value_edit->set_visible(mode != MODE_DISABLED);
 		update();
 	}
 
@@ -218,7 +224,8 @@ public:
 	}
 
 	void set_transition(float p_transition) {
-		transition = p_transition;
+		transition = Math::stepify(p_transition, 0.01);
+		value_edit->set_text(String::num(transition));
 		update();
 	}
 
@@ -229,9 +236,8 @@ public:
 	void force_transition(float p_value) {
 		if (mode == MODE_DISABLED)
 			return;
-		transition = p_value;
+		set_transition(p_value);
 		emit_signal("transition_changed", p_value);
-		update();
 	}
 
 	AnimationCurveEdit() {
@@ -239,6 +245,11 @@ public:
 		transition = 1.0;
 		set_default_cursor_shape(CURSOR_HSPLIT);
 		mode = MODE_DISABLED;
+
+		value_edit = memnew(LineEdit);
+		value_edit->hide();
+		value_edit->connect("text_entered", this, "_edit_value_changed");
+		add_child(value_edit);
 	}
 };
 
@@ -314,7 +325,7 @@ public:
 			int existing = animation->track_find_key(track, new_time, true);
 
 			setting = true;
-			undo_redo->create_action(TTR("Move Add Key"), UndoRedo::MERGE_ENDS);
+			undo_redo->create_action(TTR("Anim Change Keyframe Time"), UndoRedo::MERGE_ENDS);
 
 			Variant val = animation->track_get_key_value(track, key);
 			float trans = animation->track_get_key_transition(track, key);
@@ -381,7 +392,7 @@ public:
 					}
 
 					setting = true;
-					undo_redo->create_action(TTR("Anim Change Value"), UndoRedo::MERGE_ENDS);
+					undo_redo->create_action(TTR("Anim Change Keyframe Value"), UndoRedo::MERGE_ENDS);
 					Variant prev = animation->track_get_key_value(track, key);
 					undo_redo->add_do_method(animation.ptr(), "track_set_key_value", track, key, value);
 					undo_redo->add_undo_method(animation.ptr(), "track_set_key_value", track, key, prev);
@@ -956,7 +967,9 @@ void AnimationKeyEditor::_cleanup_animation(Ref<Animation> p_animation) {
 		Object *obj = NULL;
 
 		RES res;
-		Node *node = root->get_node_and_resource(p_animation->track_get_path(i), res);
+		Vector<StringName> leftover_path;
+
+		Node *node = root->get_node_and_resource(p_animation->track_get_path(i), res, leftover_path);
 
 		if (res.is_valid()) {
 			obj = res.ptr();
@@ -965,7 +978,7 @@ void AnimationKeyEditor::_cleanup_animation(Ref<Animation> p_animation) {
 		}
 
 		if (obj && p_animation->track_get_type(i) == Animation::TYPE_VALUE) {
-			valid_type = obj->get_static_property_type(p_animation->track_get_path(i).get_property(), &prop_exists);
+			valid_type = obj->get_static_property_type_indexed(leftover_path, &prop_exists);
 		}
 
 		if (!obj && cleanup_tracks->is_pressed()) {
@@ -1101,7 +1114,7 @@ void AnimationKeyEditor::_track_editor_draw() {
 	Color select_color = color;
 	select_color.a = 0.1;
 	Color invalid_path_color = get_color("error_color", "Editor");
-	Color track_select_color = get_color("accent", "Editor");
+	Color track_select_color = get_color("highlighted_font_color", "Editor");
 
 	Ref<Texture> remove_icon = get_icon("Remove", "EditorIcons");
 	Ref<Texture> move_up_icon = get_icon("MoveUp", "EditorIcons");
@@ -1112,6 +1125,8 @@ void AnimationKeyEditor::_track_editor_draw() {
 	Ref<Texture> add_key_icon = get_icon("TrackAddKey", "EditorIcons");
 	Ref<Texture> add_key_icon_hl = get_icon("TrackAddKeyHl", "EditorIcons");
 	Ref<Texture> down_icon = get_icon("select_arrow", "Tree");
+	Ref<Texture> checked = get_icon("checked", "Tree");
+	Ref<Texture> unchecked = get_icon("unchecked", "Tree");
 
 	Ref<Texture> wrap_icon[2] = {
 		get_icon("InterpWrapClamp", "EditorIcons"),
@@ -1158,6 +1173,7 @@ void AnimationKeyEditor::_track_editor_draw() {
 		v_scroll->set_page(fit);
 	}
 
+	int left_check_ofs = checked->get_width();
 	int settings_limit = size.width - right_separator_ofs;
 	int name_limit = settings_limit * name_column_ratio;
 
@@ -1305,7 +1321,9 @@ void AnimationKeyEditor::_track_editor_draw() {
 		Object *obj = NULL;
 
 		RES res;
-		Node *node = root ? root->get_node_and_resource(animation->track_get_path(idx), res) : (Node *)NULL;
+		Vector<StringName> leftover_path;
+
+		Node *node = root ? root->get_node_and_resource(animation->track_get_path(idx), res, leftover_path) : (Node *)NULL;
 
 		if (res.is_valid()) {
 			obj = res.ptr();
@@ -1314,9 +1332,11 @@ void AnimationKeyEditor::_track_editor_draw() {
 		}
 
 		if (obj && animation->track_get_type(idx) == Animation::TYPE_VALUE) {
-			valid_type = obj->get_static_property_type(animation->track_get_path(idx).get_property(), &prop_exists);
+			// While leftover_path might be still empty, we wouldn't be able to get here anyway
+			valid_type = obj->get_static_property_type_indexed(leftover_path, &prop_exists);
 		}
 
+		// Draw background color of the whole track
 		if (/*mouse_over.over!=MouseOver::OVER_NONE &&*/ idx == mouse_over.track) {
 			Color sepc = hover_color;
 			te->draw_rect(Rect2(ofs + Point2(0, y), Size2(size.width, h - 1)), sepc);
@@ -1328,14 +1348,20 @@ void AnimationKeyEditor::_track_editor_draw() {
 			te->draw_rect(Rect2(ofs + Point2(0, y), Size2(size.width - 1, h - 1)), tc);
 		}
 
-		te->draw_texture(type_icon[animation->track_get_type(idx)], ofs + Point2(0, y + (h - type_icon[0]->get_height()) / 2).floor());
+		// Draw track enabled state check box
+		Ref<Texture> check_box = animation->track_is_enabled(idx) ? checked : unchecked;
+		te->draw_texture(check_box, ofs + Point2(0, y + (h - checked->get_height()) / 2).floor());
+
+		// Draw track type glyph and node path
+		te->draw_texture(type_icon[animation->track_get_type(idx)], ofs + Point2(left_check_ofs + sep, y + (h - type_icon[0]->get_height()) / 2).floor());
 		NodePath np = animation->track_get_path(idx);
 		Node *n = root ? root->get_node(np) : (Node *)NULL;
 		Color ncol = color;
 		if (n && editor_selection->is_selected(n))
 			ncol = track_select_color;
-		te->draw_string(font, Point2(ofs + Point2(type_icon[0]->get_width() + sep, y + font->get_ascent() + (sep / 2))).floor(), np, ncol, name_limit - (type_icon[0]->get_width() + sep) - 5);
+		te->draw_string(font, Point2(ofs + Point2(left_check_ofs + sep + type_icon[0]->get_width() + sep, y + font->get_ascent() + (sep / 2))).floor(), np, ncol, name_limit - (type_icon[0]->get_width() + sep) - 5);
 
+		// Draw separator line below track area
 		if (!obj)
 			te->draw_line(ofs + Point2(0, y + h / 2), ofs + Point2(name_limit, y + h / 2), invalid_path_color);
 
@@ -1358,7 +1384,7 @@ void AnimationKeyEditor::_track_editor_draw() {
 
 		icon_ofs.x-=hsep;
 		*/
-		track_ofs[0] = size.width - icon_ofs.x;
+		track_ofs[0] = size.width - icon_ofs.x + ofs.x;
 		icon_ofs.x -= down_icon->get_width();
 		te->draw_texture(down_icon, icon_ofs - Size2(0, 4 * EDSCALE));
 
@@ -1370,7 +1396,7 @@ void AnimationKeyEditor::_track_editor_draw() {
 		icon_ofs.x -= hsep;
 		te->draw_line(Point2(icon_ofs.x, ofs.y + y), Point2(icon_ofs.x, ofs.y + y + h), sepcolor);
 
-		track_ofs[1] = size.width - icon_ofs.x;
+		track_ofs[1] = size.width - icon_ofs.x + ofs.x;
 
 		icon_ofs.x -= down_icon->get_width();
 		te->draw_texture(down_icon, icon_ofs - Size2(0, 4 * EDSCALE));
@@ -1384,7 +1410,7 @@ void AnimationKeyEditor::_track_editor_draw() {
 		icon_ofs.x -= hsep;
 		te->draw_line(Point2(icon_ofs.x, ofs.y + y), Point2(icon_ofs.x, ofs.y + y + h), sepcolor);
 
-		track_ofs[2] = size.width - icon_ofs.x;
+		track_ofs[2] = size.width - icon_ofs.x + ofs.x;
 
 		if (animation->track_get_type(idx) == Animation::TYPE_VALUE) {
 
@@ -1405,13 +1431,12 @@ void AnimationKeyEditor::_track_editor_draw() {
 		icon_ofs.x -= hsep;
 		te->draw_line(Point2(icon_ofs.x, ofs.y + y), Point2(icon_ofs.x, ofs.y + y + h), sepcolor);
 
-		track_ofs[3] = size.width - icon_ofs.x;
+		track_ofs[3] = size.width - icon_ofs.x + ofs.x;
 
 		icon_ofs.x -= hsep;
 		icon_ofs.x -= add_key_icon->get_width();
 		te->draw_texture((mouse_over.over == MouseOver::OVER_ADD_KEY && mouse_over.track == idx) ? add_key_icon_hl : add_key_icon, icon_ofs);
-
-		track_ofs[4] = size.width - icon_ofs.x;
+		track_ofs[4] = size.width - icon_ofs.x + ofs.x;
 
 		//draw the keys;
 		int tt = animation->track_get_type(idx);
@@ -1509,7 +1534,7 @@ void AnimationKeyEditor::_track_editor_draw() {
 			for (Map<SelectedKey, KeyInfo>::Element *E = selection.front(); E; E = E->next()) {
 
 				int idx = E->key().track;
-				int i = idx - v_scroll->get_value();
+				int i = idx - (int)v_scroll->get_value();
 				if (i < 0 || i >= fit)
 					continue;
 				int y = h + i * h + sep;
@@ -1639,26 +1664,34 @@ PropertyInfo AnimationKeyEditor::_find_hint_for_track(int p_idx, NodePath &r_bas
 		return PropertyInfo();
 
 	RES res;
-	Node *node = root->get_node_and_resource(path, res);
+	Vector<StringName> leftover_path;
+	Node *node = root->get_node_and_resource(path, res, leftover_path, true);
 
 	if (node) {
 		r_base_path = node->get_path();
 	}
 
-	String property = path.get_property();
-	if (property == "")
+	if (leftover_path.empty())
 		return PropertyInfo();
 
-	List<PropertyInfo> pinfo;
+	Variant property_info_base;
 	if (res.is_valid())
-		res->get_property_list(&pinfo);
+		property_info_base = res;
 	else if (node)
-		node->get_property_list(&pinfo);
+		property_info_base = node;
+
+	for (int i = 0; i < leftover_path.size() - 1; i++) {
+		property_info_base = property_info_base.get_named(leftover_path[i]);
+	}
+
+	List<PropertyInfo> pinfo;
+	property_info_base.get_property_list(&pinfo);
 
 	for (List<PropertyInfo>::Element *E = pinfo.front(); E; E = E->next()) {
 
-		if (E->get().name == property)
+		if (E->get().name == leftover_path[leftover_path.size() - 1]) {
 			return E->get();
+		}
 	}
 
 	return PropertyInfo();
@@ -1776,6 +1809,7 @@ void AnimationKeyEditor::_track_editor_gui_input(const Ref<InputEvent> &p_input)
 	Ref<Texture> down_icon = get_icon("select_arrow", "Tree");
 	Ref<Texture> hsize_icon = get_icon("Hsize", "EditorIcons");
 	Ref<Texture> add_key_icon = get_icon("TrackAddKey", "EditorIcons");
+	Ref<Texture> check_icon = get_icon("checked", "Tree");
 
 	Ref<Texture> wrap_icon[2] = {
 		get_icon("InterpWrapClamp", "EditorIcons"),
@@ -1810,6 +1844,7 @@ void AnimationKeyEditor::_track_editor_gui_input(const Ref<InputEvent> &p_input)
 		v_scroll->set_page(fit);
 	}
 
+	int left_check_ofs = check_icon->get_width();
 	int settings_limit = size.width - right_separator_ofs;
 	int name_limit = settings_limit * name_column_ratio;
 
@@ -2070,7 +2105,12 @@ void AnimationKeyEditor::_track_editor_gui_input(const Ref<InputEvent> &p_input)
 					return;
 				}
 
-				if (mpos.x < name_limit) {
+				if (mpos.x < left_check_ofs) {
+					// Checkbox on the very left to enable/disable tracks.
+
+					animation->track_set_enabled(idx, !animation->track_is_enabled(idx));
+
+				} else if (mpos.x < name_limit - (type_icon[0]->get_width() / 2.0)) {
 					//name column
 
 					// area
@@ -2081,7 +2121,7 @@ void AnimationKeyEditor::_track_editor_gui_input(const Ref<InputEvent> &p_input)
 						return;
 					}
 
-					Rect2 area(ofs.x, ofs.y + ((int(mpos.y) / h) + 1) * h, name_limit, h);
+					Rect2 area(ofs.x + left_check_ofs + sep, ofs.y + ((int(mpos.y) / h) + 1) * h, name_limit - left_check_ofs - sep, h);
 					track_name->set_text(animation->track_get_path(idx));
 					track_name->set_position(te->get_global_position() + area.position);
 					track_name->set_size(area.size);
@@ -2770,7 +2810,8 @@ void AnimationKeyEditor::_track_editor_gui_input(const Ref<InputEvent> &p_input)
 							Object *obj = NULL;
 
 							RES res;
-							Node *node = root->get_node_and_resource(animation->track_get_path(idx), res);
+							Vector<StringName> leftover_path;
+							Node *node = root->get_node_and_resource(animation->track_get_path(idx), res, leftover_path);
 
 							if (res.is_valid()) {
 								obj = res.ptr();
@@ -2779,7 +2820,7 @@ void AnimationKeyEditor::_track_editor_gui_input(const Ref<InputEvent> &p_input)
 							}
 
 							if (obj) {
-								valid_type = obj->get_static_property_type(animation->track_get_path(idx).get_property(), &prop_exists);
+								valid_type = obj->get_static_property_type_indexed(leftover_path, &prop_exists);
 							}
 
 							text += "type: " + Variant::get_type_name(v.get_type()) + "\n";
@@ -2879,6 +2920,18 @@ void AnimationKeyEditor::_track_editor_gui_input(const Ref<InputEvent> &p_input)
 				}
 			}
 		}
+	}
+
+	Ref<InputEventMagnifyGesture> magnify_gesture = p_input;
+	if (magnify_gesture.is_valid()) {
+		zoom->set_value(zoom->get_value() * magnify_gesture->get_factor());
+	}
+
+	Ref<InputEventPanGesture> pan_gesture = p_input;
+	if (pan_gesture.is_valid()) {
+
+		h_scroll->set_value(h_scroll->get_value() - h_scroll->get_page() * pan_gesture->get_delta().x / 8);
+		v_scroll->set_value(v_scroll->get_value() - v_scroll->get_page() * pan_gesture->get_delta().y / 8);
 	}
 }
 
@@ -3066,12 +3119,12 @@ void AnimationKeyEditor::set_animation(const Ref<Animation> &p_anim) {
 void AnimationKeyEditor::set_root(Node *p_root) {
 
 	if (root)
-		root->disconnect("tree_exited", this, "_root_removed");
+		root->disconnect("tree_exiting", this, "_root_removed");
 
 	root = p_root;
 
 	if (root)
-		root->connect("tree_exited", this, "_root_removed", make_binds(), CONNECT_ONESHOT);
+		root->connect("tree_exiting", this, "_root_removed", make_binds(), CONNECT_ONESHOT);
 }
 
 Node *AnimationKeyEditor::get_root() const {
@@ -3320,7 +3373,7 @@ int AnimationKeyEditor::_confirm_insert(InsertData p_id, int p_last_track) {
 						h.type == Variant::VECTOR2 ||
 						h.type == Variant::RECT2 ||
 						h.type == Variant::VECTOR3 ||
-						h.type == Variant::RECT3 ||
+						h.type == Variant::AABB ||
 						h.type == Variant::QUAT ||
 						h.type == Variant::COLOR ||
 						h.type == Variant::TRANSFORM) {

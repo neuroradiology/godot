@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,10 +27,18 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "segment_shape_2d.h"
 
 #include "servers/physics_2d_server.h"
 #include "servers/visual_server.h"
+
+bool SegmentShape2D::_edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const {
+
+	Vector2 l[2] = { a, b };
+	Vector2 closest = Geometry::get_closest_point_to_segment_2d(p_point, l);
+	return p_point.distance_to(closest) < p_tolerance;
+}
 
 void SegmentShape2D::_update_shape() {
 
@@ -86,8 +94,8 @@ void SegmentShape2D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "b"), "set_b", "get_b");
 }
 
-SegmentShape2D::SegmentShape2D()
-	: Shape2D(Physics2DServer::get_singleton()->shape_create(Physics2DServer::SHAPE_SEGMENT)) {
+SegmentShape2D::SegmentShape2D() :
+		Shape2D(Physics2DServer::get_singleton()->segment_shape_create()) {
 
 	a = Vector2();
 	b = Vector2(0, 10);
@@ -145,8 +153,8 @@ real_t RayShape2D::get_length() const {
 	return length;
 }
 
-RayShape2D::RayShape2D()
-	: Shape2D(Physics2DServer::get_singleton()->shape_create(Physics2DServer::SHAPE_RAY)) {
+RayShape2D::RayShape2D() :
+		Shape2D(Physics2DServer::get_singleton()->ray_shape_create()) {
 
 	length = 20;
 	_update_shape();

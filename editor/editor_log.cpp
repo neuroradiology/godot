@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,8 +27,10 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "editor_log.h"
 
+#include "core/os/keyboard.h"
 #include "editor_node.h"
 #include "scene/gui/center_container.h"
 #include "scene/resources/dynamic_font.h"
@@ -65,7 +67,9 @@ void EditorLog::_notification(int p_what) {
 		Ref<DynamicFont> df_output_code = get_font("output_source", "EditorFonts");
 		if (df_output_code.is_valid()) {
 			df_output_code->set_size(int(EDITOR_DEF("run/output/font_size", 13)) * EDSCALE);
-			log->add_font_override("normal_font", get_font("output_source", "EditorFonts"));
+			if (log != NULL) {
+				log->add_font_override("normal_font", get_font("output_source", "EditorFonts"));
+			}
 		}
 	}
 
@@ -154,6 +158,7 @@ EditorLog::EditorLog() {
 	clearbutton = memnew(Button);
 	hb->add_child(clearbutton);
 	clearbutton->set_text(TTR("Clear"));
+	clearbutton->set_shortcut(ED_SHORTCUT("editor/clear_output", TTR("Clear Output"), KEY_MASK_CMD | KEY_MASK_SHIFT | KEY_K));
 	clearbutton->connect("pressed", this, "_clear_request");
 
 	log = memnew(RichTextLabel);
@@ -164,7 +169,7 @@ EditorLog::EditorLog() {
 	log->set_v_size_flags(SIZE_EXPAND_FILL);
 	log->set_h_size_flags(SIZE_EXPAND_FILL);
 	vb->add_child(log);
-	add_message(VERSION_FULL_NAME " (c) 2008-2017 Juan Linietsky, Ariel Manzur.");
+	add_message(VERSION_FULL_NAME " (c) 2007-2018 Juan Linietsky, Ariel Manzur & Godot Contributors.");
 	//log->add_text("Initialization Complete.\n"); //because it looks cool.
 
 	eh.errfunc = _error_handler;

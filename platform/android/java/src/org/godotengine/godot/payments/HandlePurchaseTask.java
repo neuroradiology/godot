@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 package org.godotengine.godot.payments;
 
 import org.json.JSONException;
@@ -50,28 +51,26 @@ import android.util.Log;
 abstract public class HandlePurchaseTask {
 
 	private Activity context;
-	
-	public HandlePurchaseTask(Activity context ){
+
+	public HandlePurchaseTask(Activity context) {
 		this.context = context;
 	}
-	
-	
-	public void handlePurchaseRequest(int resultCode, Intent data){
+
+	public void handlePurchaseRequest(int resultCode, Intent data) {
 		//Log.d("XXX", "Handling purchase response");
 		//int responseCode = data.getIntExtra("RESPONSE_CODE", 0);
 		PaymentsCache pc = new PaymentsCache(context);
-		
+
 		String purchaseData = data.getStringExtra("INAPP_PURCHASE_DATA");
 		//Log.d("XXX", "Purchase data:" + purchaseData);
 		String dataSignature = data.getStringExtra("INAPP_DATA_SIGNATURE");
 		//Log.d("XXX", "Purchase signature:" + dataSignature);
-		
+
 		if (resultCode == Activity.RESULT_OK) {
-			
+
 			try {
 				//Log.d("SARLANGA", purchaseData);
-				
-				
+
 				JSONObject jo = new JSONObject(purchaseData);
 				//String sku = jo.getString("productId");
 				//alert("You have bought the " + sku + ". Excellent choice, aventurer!");
@@ -82,8 +81,8 @@ abstract public class HandlePurchaseTask {
 				//Integer state = jo.getInt("purchaseState");
 				String developerPayload = jo.getString("developerPayload");
 				String purchaseToken = jo.getString("purchaseToken");
-				
-				if(! pc.getConsumableValue("validation_hash", productId).equals(developerPayload) ) {
+
+				if (!pc.getConsumableValue("validation_hash", productId).equals(developerPayload)) {
 					error("Untrusted callback");
 					return;
 				}
@@ -92,13 +91,13 @@ abstract public class HandlePurchaseTask {
 				pc.setConsumableValue("ticket", productId, purchaseData);
 				pc.setConsumableFlag("block", productId, true);
 				pc.setConsumableValue("token", productId, purchaseToken);
-				
+
 				success(productId, dataSignature, purchaseData);
 				return;
-			}	catch (JSONException e) {
+			} catch (JSONException e) {
 				error(e.getMessage());
 			}
-		}else if( resultCode == Activity.RESULT_CANCELED){
+		} else if (resultCode == Activity.RESULT_CANCELED) {
 			canceled();
 		}
 	}
@@ -106,6 +105,4 @@ abstract public class HandlePurchaseTask {
 	abstract protected void success(String sku, String signature, String ticket);
 	abstract protected void error(String message);
 	abstract protected void canceled();
-
-	
 }

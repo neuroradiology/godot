@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,13 +27,10 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifdef STOREKIT_ENABLED
 
 #include "in_app_store.h"
-
-#ifdef MODULE_FUSEBOXX_ENABLED
-#import "modules/fuseboxx/ios/FuseSDK.h"
-#endif
 
 extern "C" {
 #import <Foundation/Foundation.h>
@@ -92,6 +89,7 @@ void InAppStore::_bind_methods() {
 	PoolRealArray prices;
 	PoolStringArray ids;
 	PoolStringArray localized_prices;
+	PoolStringArray currency_codes;
 
 	for (int i = 0; i < [products count]; i++) {
 
@@ -105,12 +103,14 @@ void InAppStore::_bind_methods() {
 		prices.push_back([product.price doubleValue]);
 		ids.push_back(String::utf8([product.productIdentifier UTF8String]));
 		localized_prices.push_back(String::utf8([product.localizedPrice UTF8String]));
+		currency_codes.push_back(String::utf8([[[product priceLocale] objectForKey:NSLocaleCurrencyCode] UTF8String]));
 	};
 	ret["titles"] = titles;
 	ret["descriptions"] = descriptions;
 	ret["prices"] = prices;
 	ret["ids"] = ids;
 	ret["localized_prices"] = localized_prices;
+	ret["currency_codes"] = currency_codes;
 
 	PoolStringArray invalid_ids;
 
@@ -221,10 +221,6 @@ Error InAppStore::request_product_info(Variant p_params) {
 					[pending_transactions setObject:transaction forKey:transaction.payment.productIdentifier];
 				}
 
-#ifdef MODULE_FUSEBOXX_ENABLED
-				printf("Registering transaction on Fuseboxx!\n");
-				[FuseSDK registerInAppPurchase:transaction];
-#endif
 			}; break;
 			case SKPaymentTransactionStateFailed: {
 				printf("status transaction failed!\n");

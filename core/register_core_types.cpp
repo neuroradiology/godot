@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "register_core_types.h"
 
 #include "bind/core_bind.h"
@@ -34,12 +35,14 @@
 #include "compressed_translation.h"
 #include "core/io/xml_parser.h"
 #include "core_string_names.h"
+#include "engine.h"
 #include "func_ref.h"
 #include "geometry.h"
 #include "input_map.h"
 #include "io/config_file.h"
 #include "io/http_client.h"
 #include "io/marshalls.h"
+#include "io/networked_multiplayer_peer.h"
 #include "io/packet_peer.h"
 #include "io/packet_peer_udp.h"
 #include "io/pck_packer.h"
@@ -109,6 +112,8 @@ void register_core_types() {
 
 	ClassDB::register_class<Object>();
 
+	ClassDB::register_virtual_class<Script>();
+
 	ClassDB::register_class<Reference>();
 	ClassDB::register_class<WeakRef>();
 	ClassDB::register_class<Resource>();
@@ -125,6 +130,9 @@ void register_core_types() {
 	ClassDB::register_class<InputEventScreenDrag>();
 	ClassDB::register_class<InputEventScreenTouch>();
 	ClassDB::register_class<InputEventAction>();
+	ClassDB::register_virtual_class<InputEventGesture>();
+	ClassDB::register_class<InputEventMagnifyGesture>();
+	ClassDB::register_class<InputEventPanGesture>();
 
 	ClassDB::register_class<FuncRef>();
 	ClassDB::register_virtual_class<StreamPeer>();
@@ -136,6 +144,7 @@ void register_core_types() {
 	ClassDB::register_virtual_class<IP>();
 	ClassDB::register_virtual_class<PacketPeer>();
 	ClassDB::register_class<PacketPeerStream>();
+	ClassDB::register_virtual_class<NetworkedMultiplayerPeer>();
 	ClassDB::register_class<MainLoop>();
 	//ClassDB::register_type<OptimizedSaver>();
 	ClassDB::register_class<Translation>();
@@ -185,19 +194,33 @@ void register_core_settings() {
 
 void register_core_singletons() {
 
-	ProjectSettings::get_singleton()->add_singleton(ProjectSettings::Singleton("ProjectSettings", ProjectSettings::get_singleton()));
-	ProjectSettings::get_singleton()->add_singleton(ProjectSettings::Singleton("IP", IP::get_singleton()));
-	ProjectSettings::get_singleton()->add_singleton(ProjectSettings::Singleton("Geometry", _Geometry::get_singleton()));
-	ProjectSettings::get_singleton()->add_singleton(ProjectSettings::Singleton("ResourceLoader", _ResourceLoader::get_singleton()));
-	ProjectSettings::get_singleton()->add_singleton(ProjectSettings::Singleton("ResourceSaver", _ResourceSaver::get_singleton()));
-	ProjectSettings::get_singleton()->add_singleton(ProjectSettings::Singleton("OS", _OS::get_singleton()));
-	ProjectSettings::get_singleton()->add_singleton(ProjectSettings::Singleton("Engine", _Engine::get_singleton()));
-	ProjectSettings::get_singleton()->add_singleton(ProjectSettings::Singleton("ClassDB", _classdb));
-	ProjectSettings::get_singleton()->add_singleton(ProjectSettings::Singleton("Marshalls", _Marshalls::get_singleton()));
-	ProjectSettings::get_singleton()->add_singleton(ProjectSettings::Singleton("TranslationServer", TranslationServer::get_singleton()));
-	ProjectSettings::get_singleton()->add_singleton(ProjectSettings::Singleton("Input", Input::get_singleton()));
-	ProjectSettings::get_singleton()->add_singleton(ProjectSettings::Singleton("InputMap", InputMap::get_singleton()));
-	ProjectSettings::get_singleton()->add_singleton(ProjectSettings::Singleton("JSON", _JSON::get_singleton()));
+	ClassDB::register_class<ProjectSettings>();
+	ClassDB::register_virtual_class<IP>();
+	ClassDB::register_class<_Geometry>();
+	ClassDB::register_class<_ResourceLoader>();
+	ClassDB::register_class<_ResourceSaver>();
+	ClassDB::register_class<_OS>();
+	ClassDB::register_class<_Engine>();
+	ClassDB::register_class<_ClassDB>();
+	ClassDB::register_class<_Marshalls>();
+	ClassDB::register_class<TranslationServer>();
+	ClassDB::register_virtual_class<Input>();
+	ClassDB::register_class<InputMap>();
+	ClassDB::register_class<_JSON>();
+
+	Engine::get_singleton()->add_singleton(Engine::Singleton("ProjectSettings", ProjectSettings::get_singleton()));
+	Engine::get_singleton()->add_singleton(Engine::Singleton("IP", IP::get_singleton()));
+	Engine::get_singleton()->add_singleton(Engine::Singleton("Geometry", _Geometry::get_singleton()));
+	Engine::get_singleton()->add_singleton(Engine::Singleton("ResourceLoader", _ResourceLoader::get_singleton()));
+	Engine::get_singleton()->add_singleton(Engine::Singleton("ResourceSaver", _ResourceSaver::get_singleton()));
+	Engine::get_singleton()->add_singleton(Engine::Singleton("OS", _OS::get_singleton()));
+	Engine::get_singleton()->add_singleton(Engine::Singleton("Engine", _Engine::get_singleton()));
+	Engine::get_singleton()->add_singleton(Engine::Singleton("ClassDB", _classdb));
+	Engine::get_singleton()->add_singleton(Engine::Singleton("Marshalls", _Marshalls::get_singleton()));
+	Engine::get_singleton()->add_singleton(Engine::Singleton("TranslationServer", TranslationServer::get_singleton()));
+	Engine::get_singleton()->add_singleton(Engine::Singleton("Input", Input::get_singleton()));
+	Engine::get_singleton()->add_singleton(Engine::Singleton("InputMap", InputMap::get_singleton()));
+	Engine::get_singleton()->add_singleton(Engine::Singleton("JSON", _JSON::get_singleton()));
 }
 
 void unregister_core_types() {

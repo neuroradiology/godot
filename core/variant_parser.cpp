@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "variant_parser.h"
 
 #include "core/string_buffer.h"
@@ -595,7 +596,7 @@ Error VariantParser::parse_value(Token &token, Variant &value, Stream *p_stream,
 			value = Quat(args[0], args[1], args[2], args[3]);
 			return OK;
 
-		} else if (id == "Rect3" || id == "AABB") {
+		} else if (id == "AABB" || id == "Rect3") {
 
 			Vector<float> args;
 			Error err = _parse_construct<float>(p_stream, args, line, r_err_str);
@@ -606,7 +607,7 @@ Error VariantParser::parse_value(Token &token, Variant &value, Stream *p_stream,
 				r_err_str = "Expected 6 arguments for constructor";
 			}
 
-			value = Rect3(Vector3(args[0], args[1], args[2]), Vector3(args[3], args[4], args[5]));
+			value = AABB(Vector3(args[0], args[1], args[2]), Vector3(args[3], args[4], args[5]));
 			return OK;
 
 		} else if (id == "Basis" || id == "Matrix3") { //compatibility
@@ -1634,10 +1635,10 @@ Error VariantWriter::write(const Variant &p_variant, StoreStringFunc p_store_str
 			p_store_string_func(p_store_string_ud, "Plane( " + rtosfix(p.normal.x) + ", " + rtosfix(p.normal.y) + ", " + rtosfix(p.normal.z) + ", " + rtosfix(p.d) + " )");
 
 		} break;
-		case Variant::RECT3: {
+		case Variant::AABB: {
 
-			Rect3 aabb = p_variant;
-			p_store_string_func(p_store_string_ud, "Rect3( " + rtosfix(aabb.position.x) + ", " + rtosfix(aabb.position.y) + ", " + rtosfix(aabb.position.z) + ", " + rtosfix(aabb.size.x) + ", " + rtosfix(aabb.size.y) + ", " + rtosfix(aabb.size.z) + " )");
+			AABB aabb = p_variant;
+			p_store_string_func(p_store_string_ud, "AABB( " + rtosfix(aabb.position.x) + ", " + rtosfix(aabb.position.y) + ", " + rtosfix(aabb.position.z) + ", " + rtosfix(aabb.size.x) + ", " + rtosfix(aabb.size.y) + ", " + rtosfix(aabb.size.z) + " )");
 
 		} break;
 		case Variant::QUAT: {

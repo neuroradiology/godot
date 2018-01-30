@@ -1,12 +1,12 @@
 /*************************************************************************/
-/*  gi_probe_editor_plugin.cpp                                           */
+/*  gi_probe_editor_plugin.h                                             */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef GIPROBEEDITORPLUGIN_H
 #define GIPROBEEDITORPLUGIN_H
 
@@ -43,6 +44,11 @@ class GIProbeEditorPlugin : public EditorPlugin {
 
 	Button *bake;
 	EditorNode *editor;
+
+	static EditorProgress *tmp_progress;
+	static void bake_func_begin(int p_steps);
+	static void bake_func_step(int p_step, const String &p_description);
+	static void bake_func_end();
 
 	void _bake();
 

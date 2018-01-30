@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "sky_box.h"
 #include "io/image_loader.h"
 
@@ -180,7 +181,7 @@ Ref<Image> ProceduralSky::_generate_sky() {
 
 				normal.normalize();
 
-				float v_angle = Math::acos(normal.y);
+				float v_angle = Math::acos(CLAMP(normal.y, -1.0, 1.0));
 
 				Color color;
 
@@ -193,7 +194,7 @@ Ref<Image> ProceduralSky::_generate_sky() {
 					float c = v_angle / (Math_PI * 0.5);
 					color = sky_horizon_linear.linear_interpolate(sky_top_linear, Math::ease(1.0 - c, sky_curve));
 
-					float sun_angle = Math::rad2deg(Math::acos(sun.dot(normal)));
+					float sun_angle = Math::rad2deg(Math::acos(CLAMP(sun.dot(normal), -1.0, 1.0)));
 
 					if (sun_angle < sun_angle_min) {
 						color = color.blend(sun_color);

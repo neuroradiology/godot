@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,8 +27,20 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "geometry.h"
 #include "print_string.h"
+
+bool Geometry::is_point_in_polygon(const Vector2 &p_point, const Vector<Vector2> &p_polygon) {
+
+	Vector<int> indices = Geometry::triangulate_polygon(p_polygon);
+	for (int j = 0; j + 3 <= indices.size(); j += 3) {
+		int i1 = indices[j], i2 = indices[j + 1], i3 = indices[j + 2];
+		if (Geometry::is_point_in_triangle(p_point, p_polygon[i1], p_polygon[i2], p_polygon[i3]))
+			return true;
+	}
+	return false;
+}
 
 void Geometry::MeshData::optimize_vertices() {
 
@@ -300,7 +312,7 @@ enum _CellFlags {
 
 static inline void _plot_face(uint8_t ***p_cell_status, int x, int y, int z, int len_x, int len_y, int len_z, const Vector3 &voxelsize, const Face3 &p_face) {
 
-	Rect3 aabb(Vector3(x, y, z), Vector3(len_x, len_y, len_z));
+	AABB aabb(Vector3(x, y, z), Vector3(len_x, len_y, len_z));
 	aabb.position = aabb.position * voxelsize;
 	aabb.size = aabb.size * voxelsize;
 
@@ -575,7 +587,7 @@ PoolVector<Face3> Geometry::wrap_geometry(PoolVector<Face3> p_array, real_t *p_e
 	PoolVector<Face3>::Read facesr = p_array.read();
 	const Face3 *faces = facesr.ptr();
 
-	Rect3 global_aabb;
+	AABB global_aabb;
 
 	for (int i = 0; i < face_count; i++) {
 

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef PLANE_H
 #define PLANE_H
 
@@ -74,9 +75,9 @@ public:
 	operator String() const;
 
 	_FORCE_INLINE_ Plane() { d = 0; }
-	_FORCE_INLINE_ Plane(real_t p_a, real_t p_b, real_t p_c, real_t p_d)
-		: normal(p_a, p_b, p_c),
-		  d(p_d){};
+	_FORCE_INLINE_ Plane(real_t p_a, real_t p_b, real_t p_c, real_t p_d) :
+			normal(p_a, p_b, p_c),
+			d(p_d){};
 
 	_FORCE_INLINE_ Plane(const Vector3 &p_normal, real_t p_d);
 	_FORCE_INLINE_ Plane(const Vector3 &p_point, const Vector3 &p_normal);
@@ -100,14 +101,14 @@ bool Plane::has_point(const Vector3 &p_point, real_t _epsilon) const {
 	return (dist <= _epsilon);
 }
 
-Plane::Plane(const Vector3 &p_normal, real_t p_d)
-	: normal(p_normal),
-	  d(p_d) {
+Plane::Plane(const Vector3 &p_normal, real_t p_d) :
+		normal(p_normal),
+		d(p_d) {
 }
 
-Plane::Plane(const Vector3 &p_point, const Vector3 &p_normal)
-	: normal(p_normal),
-	  d(p_normal.dot(p_point)) {
+Plane::Plane(const Vector3 &p_point, const Vector3 &p_normal) :
+		normal(p_normal),
+		d(p_normal.dot(p_point)) {
 }
 
 Plane::Plane(const Vector3 &p_point1, const Vector3 &p_point2, const Vector3 &p_point3, ClockDirection p_dir) {

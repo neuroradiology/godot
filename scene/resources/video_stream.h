@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef VIDEO_STREAM_H
 #define VIDEO_STREAM_H
 
@@ -40,7 +41,7 @@ protected:
 	static void _bind_methods();
 
 public:
-	typedef int (*AudioMixCallback)(void *p_udata, const int16_t *p_data, int p_frames);
+	typedef int (*AudioMixCallback)(void *p_udata, const float *p_data, int p_frames);
 
 	virtual void stop() = 0;
 	virtual void play() = 0;
@@ -48,7 +49,7 @@ public:
 	virtual bool is_playing() const = 0;
 
 	virtual void set_paused(bool p_paused) = 0;
-	virtual bool is_paused(bool p_paused) const = 0;
+	virtual bool is_paused() const = 0;
 
 	virtual void set_loop(bool p_enable) = 0;
 	virtual bool has_loop() const = 0;
@@ -60,7 +61,7 @@ public:
 
 	virtual void set_audio_track(int p_idx) = 0;
 
-	//virtual int mix(int16_t* p_bufer,int p_frames)=0;
+	//virtual int mix(int16_t* p_buffer,int p_frames)=0;
 
 	virtual Ref<Texture> get_texture() = 0;
 	virtual void update(float p_delta) = 0;

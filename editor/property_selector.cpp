@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "property_selector.h"
 
 #include "editor_scale.h"
@@ -363,23 +364,6 @@ void PropertySelector::_item_selected() {
 
 			at_class = ClassDB::get_parent_class(at_class);
 		}
-
-		if (text == String()) {
-
-			StringName setter;
-			StringName type;
-			if (ClassDB::get_setter_and_type_for_property(class_type, name, type, setter)) {
-				Map<String, DocData::ClassDoc>::Element *E = dd->class_list.find(type);
-				if (E) {
-					for (int i = 0; i < E->get().methods.size(); i++) {
-						if (E->get().methods[i].name == setter.operator String()) {
-							text = E->get().methods[i].description;
-						}
-					}
-				}
-			}
-		}
-
 	} else {
 
 		String at_class = class_type;
@@ -516,6 +500,7 @@ void PropertySelector::select_property_from_script(const Ref<Script> &p_script, 
 	search_box->grab_focus();
 	_update_search();
 }
+
 void PropertySelector::select_property_from_basic_type(Variant::Type p_type, const String &p_current) {
 
 	ERR_FAIL_COND(p_type == Variant::NIL);

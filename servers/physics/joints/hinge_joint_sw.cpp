@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -68,8 +68,8 @@ static void plane_space(const Vector3 &n, Vector3 &p, Vector3 &q) {
 	}
 }
 
-HingeJointSW::HingeJointSW(BodySW *rbA, BodySW *rbB, const Transform &frameA, const Transform &frameB)
-	: JointSW(_arr, 2) {
+HingeJointSW::HingeJointSW(BodySW *rbA, BodySW *rbB, const Transform &frameA, const Transform &frameB) :
+		JointSW(_arr, 2) {
 
 	A = rbA;
 	B = rbB;
@@ -101,8 +101,8 @@ HingeJointSW::HingeJointSW(BodySW *rbA, BodySW *rbB, const Transform &frameA, co
 }
 
 HingeJointSW::HingeJointSW(BodySW *rbA, BodySW *rbB, const Vector3 &pivotInA, const Vector3 &pivotInB,
-		const Vector3 &axisInA, const Vector3 &axisInB)
-	: JointSW(_arr, 2) {
+		const Vector3 &axisInA, const Vector3 &axisInB) :
+		JointSW(_arr, 2) {
 
 	A = rbA;
 	B = rbB;

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "editor_run.h"
 
 #include "editor_settings.h"
@@ -101,7 +102,14 @@ Error EditorRun::run(const String &p_scene, const String p_custom_args, const Li
 			args.push_back(itos(screen_rect.position.x) + "," + itos(screen_rect.position.y));
 		} break;
 		case 1: { // centered
-			Vector2 pos = screen_rect.position + ((screen_rect.size - desired_size) / 2).floor();
+			int display_scale = 1;
+#ifdef OSX_ENABLED
+			if (OS::get_singleton()->get_screen_dpi(screen) >= 192 && OS::get_singleton()->get_screen_size(screen).x > 2000) {
+				display_scale = 2;
+			}
+#endif
+
+			Vector2 pos = screen_rect.position + ((screen_rect.size / display_scale - desired_size) / 2).floor();
 			args.push_back("--position");
 			args.push_back(itos(pos.x) + "," + itos(pos.y));
 		} break;

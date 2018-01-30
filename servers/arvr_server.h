@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -68,6 +68,12 @@ public:
 		TRACKER_ANY = 0xff /* used by get_connected_trackers to return all types */
 	};
 
+	enum RotationMode {
+		RESET_FULL_ROTATION = 0, /* we reset the full rotation, regardless of how the HMD is oriented, we're looking dead ahead */
+		RESET_BUT_KEEP_TILT = 1, /* reset rotation but keep tilt. */
+		DONT_RESET_ROTATION = 2, /* don't reset the rotation, we will only center on position */
+	};
+
 private:
 	Vector<Ref<ARVRInterface> > interfaces;
 	Vector<ARVRPositionalTracker *> trackers;
@@ -77,8 +83,6 @@ private:
 	real_t world_scale; /* scale by which we multiply our tracker positions */
 	Transform world_origin; /* our world origin point, maps a location in our virtual world to the origin point in our real world tracking volume */
 	Transform reference_frame; /* our reference frame */
-
-	bool is_tracker_id_in_use_for_type(TrackerType p_tracker_type, int p_tracker_id) const;
 
 protected:
 	static ARVRServer *singleton;
@@ -91,7 +95,7 @@ public:
 	/*
 		World scale allows you to specify a scale factor that is applied to all positioning vectors in our VR world in essence scaling up, or scaling down the world.
 		For stereoscopic rendering specifically this is very important to give an accurate sense of scale.
-		Add controllers into the mix and an accurate mapping of real world movement to percieved virtual movement becomes very important.
+		Add controllers into the mix and an accurate mapping of real world movement to perceived virtual movement becomes very important.
 
 		Most VR platforms, and our assumption, is that 1 unit in our virtual world equates to 1 meter in the real mode.
 		This scale basically effects the unit size relationship to real world size.
@@ -108,7 +112,7 @@ public:
 		in relation to this point.
 
 		Note that the ARVROrigin spatial node in your scene automatically updates this property and it should be used instead of
-		direct access to this property and it therefor is not available in GDScript
+		direct access to this property and it therefore is not available in GDScript
 
 		Note: this should not be used in AR and should be ignored by an AR based interface as it would throw what you're looking at in the real world
 		and in the virtual world out of sync
@@ -117,14 +121,17 @@ public:
 	void set_world_origin(const Transform p_world_origin);
 
 	/*
-		Requesting a reference frame results in a matrix being calculated that ensures the HMD is positioned to 0,0,0 facing 0,0,-1 (need to verify this direction)
+		center_on_hmd calculates a new reference frame. This ensures the HMD is positioned to 0,0,0 facing 0,0,-1 (need to verify this direction)
 		in the virtual world.
+
+		You can ignore the tilt of the device ensuring you're looking straight forward even if the player is looking down or sideways.
+		You can chose to keep the height the tracking provides which is important for room scale capable tracking.
 
 		Note: this should not be used in AR and should be ignored by an AR based interface as it would throw what you're looking at in the real world
 		and in the virtual world out of sync
 	*/
 	Transform get_reference_frame() const;
-	void request_reference_frame(bool p_ignore_tilt, bool p_keep_height);
+	void center_on_hmd(RotationMode p_rotation_mode, bool p_keep_height);
 
 	/*
 		Interfaces are objects that 'glue' Godot to an AR or VR SDK such as the Oculus SDK, OpenVR, OpenHMD, etc.
@@ -134,6 +141,7 @@ public:
 	int get_interface_count() const;
 	Ref<ARVRInterface> get_interface(int p_index) const;
 	Ref<ARVRInterface> find_interface(const String &p_name) const;
+	Array get_interfaces() const;
 
 	/*
 		note, more then one interface can technically be active, especially on mobile, but only one interface is used for
@@ -146,9 +154,8 @@ public:
 	/*
 		Our trackers are objects that expose the orientation and position of physical devices such as controller, anchor points, etc.
 		They are created and managed by our active AR/VR interfaces.
-
-		Note that for trackers that
 	*/
+	bool is_tracker_id_in_use_for_type(TrackerType p_tracker_type, int p_tracker_id) const;
 	int get_free_tracker_id_for_type(TrackerType p_tracker_type);
 	void add_tracker(ARVRPositionalTracker *p_tracker);
 	void remove_tracker(ARVRPositionalTracker *p_tracker);
@@ -163,5 +170,6 @@ public:
 #define ARVR ARVRServer
 
 VARIANT_ENUM_CAST(ARVRServer::TrackerType);
+VARIANT_ENUM_CAST(ARVRServer::RotationMode);
 
 #endif

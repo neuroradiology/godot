@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 //
 // This file demonstrates how to initialize EGL in a Windows Store app, using ICoreWindow.
 //
@@ -77,15 +78,15 @@ public:
 	return 0;
 }
 
-App::App()
-	: mWindowClosed(false),
-	  mWindowVisible(true),
-	  mWindowWidth(0),
-	  mWindowHeight(0),
-	  mEglDisplay(EGL_NO_DISPLAY),
-	  mEglContext(EGL_NO_CONTEXT),
-	  mEglSurface(EGL_NO_SURFACE),
-	  number_of_contacts(0) {
+App::App() :
+		mWindowClosed(false),
+		mWindowVisible(true),
+		mWindowWidth(0),
+		mWindowHeight(0),
+		mEglDisplay(EGL_NO_DISPLAY),
+		mEglContext(EGL_NO_CONTEXT),
+		mEglSurface(EGL_NO_SURFACE),
+		number_of_contacts(0) {
 }
 
 // The first method called when the IFrameworkView is being created.

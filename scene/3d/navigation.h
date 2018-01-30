@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
 
@@ -58,9 +59,9 @@ class Navigation : public Spatial {
 			return (a.key == p_key.a.key) ? (b.key < p_key.b.key) : (a.key < p_key.a.key);
 		};
 
-		EdgeKey(const Point &p_a = Point(), const Point &p_b = Point())
-			: a(p_a),
-			  b(p_b) {
+		EdgeKey(const Point &p_a = Point(), const Point &p_b = Point()) :
+				a(p_a),
+				b(p_b) {
 			if (a.key > b.key) {
 				SWAP(a, b);
 			}
@@ -166,7 +167,7 @@ public:
 	Vector3 get_up_vector() const;
 
 	//API should be as dynamic as possible
-	int navmesh_create(const Ref<NavigationMesh> &p_mesh, const Transform &p_xform, Object *p_owner = NULL);
+	int navmesh_add(const Ref<NavigationMesh> &p_mesh, const Transform &p_xform, Object *p_owner = NULL);
 	void navmesh_set_transform(int p_id, const Transform &p_xform);
 	void navmesh_remove(int p_id);
 

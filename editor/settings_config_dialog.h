@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef SETTINGS_CONFIG_DIALOG_H
 #define SETTINGS_CONFIG_DIALOG_H
 
@@ -41,6 +42,8 @@ class EditorSettingsDialog : public AcceptDialog {
 	bool updating;
 
 	TabContainer *tabs;
+	Control *tab_general;
+	Control *tab_shortcuts;
 
 	LineEdit *search_box;
 	LineEdit *shortcut_search_box;
@@ -50,6 +53,7 @@ class EditorSettingsDialog : public AcceptDialog {
 
 	Timer *timer;
 
+	UndoRedo *undo_redo;
 	Tree *shortcuts;
 
 	ConfirmationDialog *press_a_key;
@@ -65,10 +69,15 @@ class EditorSettingsDialog : public AcceptDialog {
 	void _settings_property_edited(const String &p_name);
 	void _settings_save();
 
+	void _unhandled_input(const Ref<InputEvent> &p_event);
 	void _notification(int p_what);
+	void _update_icons();
 
 	void _press_a_key_confirm();
 	void _wait_for_key(const Ref<InputEvent> &p_event);
+
+	void _tabs_tab_changed(int p_tab);
+	void _focus_current_search_box();
 
 	void _clear_shortcut_search_box();
 	void _clear_search_box();
@@ -78,6 +87,8 @@ class EditorSettingsDialog : public AcceptDialog {
 	void _update_shortcuts();
 	void _shortcut_button_pressed(Object *p_item, int p_column, int p_idx);
 
+	static void _undo_redo_callback(void *p_self, const String &p_name);
+
 protected:
 	static void _bind_methods();
 
@@ -85,6 +96,7 @@ public:
 	void popup_edit_settings();
 
 	EditorSettingsDialog();
+	~EditorSettingsDialog();
 };
 
 #endif // SETTINGS_CONFIG_DIALOG_H

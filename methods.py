@@ -1149,24 +1149,28 @@ def build_gles3_headers(target, source, env):
         build_legacygl_header(str(x), include="drivers/gles3/shader_gles3.h", class_suffix="GLES3", output_attribs=True)
 
 
-def update_version():
+def add_module_version_string(self,s):
+    self.module_version_string += "." + s
 
-    rev = "custom_build"
+def update_version(module_version_string=""):
 
-    if (os.getenv("BUILD_REVISION") != None):
-        rev = os.getenv("BUILD_REVISION")
-        print("Using custom revision: " + rev)
+    build_name = "custom_build"
+    if (os.getenv("BUILD_NAME") != None):
+        build_name = os.getenv("BUILD_NAME")
+        print("Using custom build name: " + build_name)
+
     import version
 
     f = open("core/version_generated.gen.h", "w")
-    f.write("#define VERSION_SHORT_NAME " + str(version.short_name) + "\n")
-    f.write("#define VERSION_NAME " + str(version.name) + "\n")
+    f.write("#define VERSION_SHORT_NAME \"" + str(version.short_name) + "\"\n")
+    f.write("#define VERSION_NAME \"" + str(version.name) + "\"\n")
     f.write("#define VERSION_MAJOR " + str(version.major) + "\n")
     f.write("#define VERSION_MINOR " + str(version.minor) + "\n")
     if (hasattr(version, 'patch')):
         f.write("#define VERSION_PATCH " + str(version.patch) + "\n")
-    f.write("#define VERSION_REVISION " + str(rev) + "\n")
-    f.write("#define VERSION_STATUS " + str(version.status) + "\n")
+    f.write("#define VERSION_STATUS \"" + str(version.status) + "\"\n")
+    f.write("#define VERSION_BUILD \"" + str(build_name) + "\"\n")
+    f.write("#define VERSION_MODULE_CONFIG \"" + str(version.module_config) + module_version_string + "\"\n")
     import datetime
     f.write("#define VERSION_YEAR " + str(datetime.datetime.now().year) + "\n")
     f.close()
@@ -1270,6 +1274,8 @@ def detect_modules():
     for x in files:
         if (not os.path.isdir(x)):
             continue
+        if (not os.path.exists(x + "/config.py")):
+            continue
         x = x.replace("modules/", "")  # rest of world
         x = x.replace("modules\\", "")  # win32
         module_list.append(x)
@@ -1289,21 +1295,15 @@ def detect_modules():
 // modules.cpp - THIS FILE IS GENERATED, DO NOT EDIT!!!!!!!
 #include "register_module_types.h"
 
-
 """ + includes_cpp + """
 
 void register_module_types() {
-
 """ + register_cpp + """
-
 }
 
 void unregister_module_types() {
-
 """ + unregister_cpp + """
-
 }
-
 """
 
     f = open("modules/register_module_types.gen.cpp", "w")
@@ -1359,6 +1359,10 @@ def win32_spawn(sh, escape, cmd, args, spawnenv):
 		win32file.CloseHandle(hThread);
 	return exit_code
 """
+
+def android_add_flat_dir(self, dir):
+    if (dir not in self.android_flat_dirs):
+        self.android_flat_dirs.append(dir)
 
 def android_add_maven_repository(self, url):
     if (url not in self.android_maven_repos):
@@ -1473,7 +1477,7 @@ def use_windows_spawn_fix(self, platform=None):
     self['SPAWN'] = mySpawn
 
 
-def split_lib(self, libname):
+def split_lib(self, libname, src_list = None, env_lib = None):
     import string
     env = self
 
@@ -1483,7 +1487,13 @@ def split_lib(self, libname):
     list = []
     lib_list = []
 
-    for f in getattr(env, libname + "_sources"):
+    if src_list == None:
+        src_list = getattr(env, libname + "_sources")
+
+    if type(env_lib) == type(None):
+        env_lib = env
+
+    for f in src_list:
         fname = ""
         if type(f) == type(""):
             fname = env.File(f).path
@@ -1493,26 +1503,27 @@ def split_lib(self, libname):
         base = string.join(fname.split("/")[:2], "/")
         if base != cur_base and len(list) > max_src:
             if num > 0:
-                lib = env.Library(libname + str(num), list)
+                lib = env_lib.add_library(libname + str(num), list)
                 lib_list.append(lib)
                 list = []
             num = num + 1
         cur_base = base
         list.append(f)
 
-    lib = env.Library(libname + str(num), list)
+    lib = env_lib.add_library(libname + str(num), list)
     lib_list.append(lib)
 
     if len(lib_list) > 0:
         import os, sys
         if os.name == 'posix' and sys.platform == 'msys':
             env.Replace(ARFLAGS=['rcsT'])
-            lib = env.Library(libname + "_collated", lib_list)
+            lib = env_lib.add_library(libname + "_collated", lib_list)
             lib_list = [lib]
 
     lib_base = []
-    env.add_source_files(lib_base, "*.cpp")
-    lib_list.insert(0, env.Library(libname, lib_base))
+    env_lib.add_source_files(lib_base, "*.cpp")
+    lib = env_lib.add_library(libname, lib_base)
+    lib_list.insert(0, lib)
 
     env.Prepend(LIBS=lib_list)
 
@@ -1544,18 +1555,26 @@ def save_active_platforms(apnames, ap):
 
 def no_verbose(sys, env):
 
-    # If the output is not a terminal, do nothing
-    if not sys.stdout.isatty():
-        return
-
     colors = {}
-    colors['cyan'] = '\033[96m'
-    colors['purple'] = '\033[95m'
-    colors['blue'] = '\033[94m'
-    colors['green'] = '\033[92m'
-    colors['yellow'] = '\033[93m'
-    colors['red'] = '\033[91m'
-    colors['end'] = '\033[0m'
+
+    # Colors are disabled in non-TTY environments such as pipes. This means
+    # that if output is redirected to a file, it will not contain color codes
+    if sys.stdout.isatty():
+        colors['cyan'] = '\033[96m'
+        colors['purple'] = '\033[95m'
+        colors['blue'] = '\033[94m'
+        colors['green'] = '\033[92m'
+        colors['yellow'] = '\033[93m'
+        colors['red'] = '\033[91m'
+        colors['end'] = '\033[0m'
+    else:
+        colors['cyan'] = ''
+        colors['purple'] = ''
+        colors['blue'] = ''
+        colors['green'] = ''
+        colors['yellow'] = ''
+        colors['red'] = ''
+        colors['end'] = ''
 
     compile_source_message = '%sCompiling %s==> %s$SOURCE%s' % (colors['blue'], colors['purple'], colors['yellow'], colors['end'])
     java_compile_source_message = '%sCompiling %s==> %s$SOURCE%s' % (colors['blue'], colors['purple'], colors['yellow'], colors['end'])
@@ -1585,10 +1604,10 @@ def detect_visual_c_compiler_version(tools_env):
     # and not scons setup environment (env)... so make sure you call the right environment on it or it will fail to detect
     # the proper vc version that will be called
 
-    # These is no flag to give to visual c compilers to set the architecture, ie scons bits argument (32,64,ARM etc)
+    # There is no flag to give to visual c compilers to set the architecture, ie scons bits argument (32,64,ARM etc)
     # There are many different cl.exe files that are run, and each one compiles & links to a different architecture
     # As far as I know, the only way to figure out what compiler will be run when Scons calls cl.exe via Program()
-    # is to check the PATH varaible and figure out which one will be called first. Code bellow does that and returns:
+    # is to check the PATH variable and figure out which one will be called first. Code bellow does that and returns:
     # the following string values:
 
     # ""              Compiler not detected
@@ -1684,6 +1703,17 @@ def find_visual_c_batch_file(env):
     (host_platform, target_platform,req_target_platform) = get_host_target(env)
     return find_batch_file(env, version, host_platform, target_platform)[0]
 
+def generate_cpp_hint_file(filename):
+    import os.path
+    if os.path.isfile(filename):
+        # Don't overwrite an existing hint file since the user may have customized it.
+        pass
+    else:
+        try:
+            fd = open(filename, "w")
+            fd.write("#define GDCLASS(m_class, m_inherits)\n")
+        except IOError:
+            print("Could not write cpp.hint file.")
 
 def generate_vs_project(env, num_jobs):
     batch_file = find_visual_c_batch_file(env)
@@ -1706,9 +1736,13 @@ def generate_vs_project(env, num_jobs):
         env.AddToVSProject(env.servers_sources)
         env.AddToVSProject(env.editor_sources)
 
-        env['MSVSBUILDCOM'] = build_commandline('scons platform=windows target=$(Configuration) tools=!tools! -j' + str(num_jobs))
-        env['MSVSREBUILDCOM'] = build_commandline('scons platform=windows target=$(Configuration) tools=!tools! vsproj=yes -j' + str(num_jobs))
-        env['MSVSCLEANCOM'] = build_commandline('scons --clean platform=windows target=$(Configuration) tools=!tools! -j' + str(num_jobs))
+        # windows allows us to have spaces in paths, so we need
+        # to double quote off the directory. However, the path ends
+        # in a backslash, so we need to remove this, lest it escape the
+        # last double quote off, confusing MSBuild
+        env['MSVSBUILDCOM'] = build_commandline('scons --directory="$(ProjectDir.TrimEnd(\'\\\'))" platform=windows progress=no target=$(Configuration) tools=!tools! -j' + str(num_jobs))
+        env['MSVSREBUILDCOM'] = build_commandline('scons --directory="$(ProjectDir.TrimEnd(\'\\\'))" platform=windows progress=no target=$(Configuration) tools=!tools! vsproj=yes -j' + str(num_jobs))
+        env['MSVSCLEANCOM'] = build_commandline('scons --directory="$(ProjectDir.TrimEnd(\'\\\'))" --clean platform=windows progress=no target=$(Configuration) tools=!tools! -j' + str(num_jobs))
 
         # This version information (Win32, x64, Debug, Release, Release_Debug seems to be
         # required for Visual Studio to understand that it needs to generate an NMAKE
@@ -1734,4 +1768,19 @@ def generate_vs_project(env, num_jobs):
 def precious_program(env, program, sources, **args):
     program = env.ProgramOriginal(program, sources, **args)
     env.Precious(program)
+    return program
+
+def add_shared_library(env, name, sources, **args):
+    library = env.SharedLibrary(name, sources, **args)
+    env.NoCache(library)
+    return library
+
+def add_library(env, name, sources, **args):
+    library = env.Library(name, sources, **args)
+    env.NoCache(library)
+    return library
+
+def add_program(env, name, sources, **args):
+    program = env.Program(name, sources, **args)
+    env.NoCache(program)
     return program

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,24 +27,59 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "sprite.h"
 #include "core/core_string_names.h"
 #include "os/os.h"
 #include "scene/main/viewport.h"
 #include "scene/scene_string_names.h"
 
-void Sprite::edit_set_pivot(const Point2 &p_pivot) {
+void Sprite::_edit_set_pivot(const Point2 &p_pivot) {
 
 	set_offset(p_pivot);
 }
 
-Point2 Sprite::edit_get_pivot() const {
+Point2 Sprite::_edit_get_pivot() const {
 
 	return get_offset();
 }
-bool Sprite::edit_has_pivot() const {
+bool Sprite::_edit_use_pivot() const {
 
 	return true;
+}
+
+void Sprite::_get_rects(Rect2 &r_src_rect, Rect2 &r_dst_rect, bool &r_filter_clip) const {
+
+	Size2 s;
+	r_filter_clip = false;
+
+	if (region) {
+
+		s = region_rect.size;
+		r_src_rect = region_rect;
+		r_filter_clip = region_filter_clip;
+	} else {
+		s = Size2(texture->get_size());
+		s = s / Size2(hframes, vframes);
+
+		r_src_rect.size = s;
+		r_src_rect.position.x += float(frame % hframes) * s.x;
+		r_src_rect.position.y += float(frame / hframes) * s.y;
+	}
+
+	Point2 ofs = offset;
+	if (centered)
+		ofs -= s / 2;
+	if (Engine::get_singleton()->get_use_pixel_snap()) {
+		ofs = ofs.floor();
+	}
+
+	r_dst_rect = Rect2(ofs, s);
+
+	if (hflip)
+		r_dst_rect.size.x = -r_dst_rect.size.x;
+	if (vflip)
+		r_dst_rect.size.y = -r_dst_rect.size.y;
 }
 
 void Sprite::_notification(int p_what) {
@@ -63,38 +98,9 @@ void Sprite::_notification(int p_what) {
 			break;
 			*/
 
-			Size2 s;
-			Rect2 src_rect;
-			bool filter_clip = false;
-
-			if (region) {
-
-				s = region_rect.size;
-				src_rect = region_rect;
-				filter_clip = region_filter_clip;
-			} else {
-				s = Size2(texture->get_size());
-				s = s / Size2(hframes, vframes);
-
-				src_rect.size = s;
-				src_rect.position.x += float(frame % hframes) * s.x;
-				src_rect.position.y += float(frame / hframes) * s.y;
-			}
-
-			Point2 ofs = offset;
-			if (centered)
-				ofs -= s / 2;
-			if (Engine::get_singleton()->get_use_pixel_snap()) {
-				ofs = ofs.floor();
-			}
-
-			Rect2 dst_rect(ofs, s);
-
-			if (hflip)
-				dst_rect.size.x = -dst_rect.size.x;
-			if (vflip)
-				dst_rect.size.y = -dst_rect.size.y;
-
+			Rect2 src_rect, dst_rect;
+			bool filter_clip;
+			_get_rects(src_rect, dst_rect, filter_clip);
 			texture->draw_rect_region(ci, dst_rect, src_rect, Color(1, 1, 1), false, normal_map, filter_clip);
 
 		} break;
@@ -257,13 +263,37 @@ int Sprite::get_hframes() const {
 	return hframes;
 }
 
-Rect2 Sprite::get_item_rect() const {
+bool Sprite::_edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const {
+
+	if (texture.is_null())
+		return false;
+
+	Rect2 src_rect, dst_rect;
+	bool filter_clip;
+	_get_rects(src_rect, dst_rect, filter_clip);
+
+	if (!dst_rect.has_point(p_point))
+		return false;
+
+	Vector2 q = ((p_point - dst_rect.position) / dst_rect.size) * src_rect.size + src_rect.position;
+
+	Ref<Image> image = texture->get_data();
+	ERR_FAIL_COND_V(image.is_null(), false);
+
+	image->lock();
+	const Color c = image->get_pixel((int)q.x, (int)q.y);
+	image->unlock();
+
+	return c.a > 0.01;
+}
+
+Rect2 Sprite::_edit_get_rect() const {
 
 	if (texture.is_null())
 		return Rect2(0, 0, 1, 1);
 	/*
 	if (texture.is_null())
-		return CanvasItem::get_item_rect();
+		return CanvasItem::_edit_get_rect();
 	*/
 
 	Size2i s;
@@ -368,224 +398,3 @@ Sprite::Sprite() {
 	vframes = 1;
 	hframes = 1;
 }
-
-//////////////////////////// VPSPRITE
-///
-///
-///
-
-#if 0
-void ViewportSprite::edit_set_pivot(const Point2& p_pivot) {
-
-	set_offset(p_pivot);
-}
-
-Point2 ViewportSprite::edit_get_pivot() const {
-
-	return get_offset();
-}
-bool ViewportSprite::edit_has_pivot() const {
-
-	return true;
-}
-
-void ViewportSprite::_notification(int p_what) {
-
-	switch(p_what) {
-
-		case NOTIFICATION_ENTER_TREE: {
-
-			if (!viewport_path.is_empty()) {
-
-				Node *n = get_node(viewport_path);
-				ERR_FAIL_COND(!n);
-				Viewport *vp=Object::cast_to<Viewport>(n);
-				ERR_FAIL_COND(!vp);
-
-				Ref<RenderTargetTexture> rtt = vp->get_render_target_texture();
-				texture=rtt;
-				texture->connect("changed",this,"update");
-				item_rect_changed();
-			}
-		} break;
-		case NOTIFICATION_EXIT_TREE: {
-
-			if (texture.is_valid()) {
-
-				texture->disconnect("changed",this,"update");
-				texture=Ref<Texture>();
-			}
-		} break;
-		case NOTIFICATION_DRAW: {
-
-			if (texture.is_null())
-				return;
-
-			RID ci = get_canvas_item();
-
-			/*
-			texture->draw(ci,Point2());
-			break;
-			*/
-
-			Size2i s;
-			Rect2i src_rect;
-
-			s = texture->get_size();
-
-			src_rect.size=s;
-
-			Point2 ofs=offset;
-			if (centered)
-				ofs-=s/2;
-
-			if (OS::get_singleton()->get_use_pixel_snap()) {
-				ofs=ofs.floor();
-			}
-			Rect2 dst_rect(ofs,s);
-			texture->draw_rect_region(ci,dst_rect,src_rect,modulate);
-
-		} break;
-	}
-}
-
-void ViewportSprite::set_viewport_path(const NodePath& p_viewport) {
-
-	viewport_path=p_viewport;
-	update();
-	if (!is_inside_tree())
-		return;
-
-	if (texture.is_valid()) {
-		texture->disconnect("changed",this,"update");
-		texture=Ref<Texture>();
-	}
-
-	if (viewport_path.is_empty())
-		return;
-
-
-	Node *n = get_node(viewport_path);
-	ERR_FAIL_COND(!n);
-	Viewport *vp=Object::cast_to<Viewport>(n);
-	ERR_FAIL_COND(!vp);
-
-	Ref<RenderTargetTexture> rtt = vp->get_render_target_texture();
-	texture=rtt;
-
-	if (texture.is_valid()) {
-		texture->connect("changed",this,"update");
-	}
-
-	item_rect_changed();
-
-}
-
-NodePath ViewportSprite::get_viewport_path() const {
-
-	return viewport_path;
-}
-
-void ViewportSprite::set_centered(bool p_center) {
-
-	centered=p_center;
-	update();
-	item_rect_changed();
-}
-
-bool ViewportSprite::is_centered() const {
-
-	return centered;
-}
-
-void ViewportSprite::set_offset(const Point2& p_offset) {
-
-	offset=p_offset;
-	update();
-	item_rect_changed();
-}
-Point2 ViewportSprite::get_offset() const {
-
-	return offset;
-}
-void ViewportSprite::set_modulate(const Color& p_color) {
-
-	modulate=p_color;
-	update();
-}
-
-Color ViewportSprite::get_modulate() const{
-
-	return modulate;
-}
-
-
-Rect2 ViewportSprite::get_item_rect() const {
-
-	if (texture.is_null())
-		return Rect2(0,0,1,1);
-	/*
-	if (texture.is_null())
-		return CanvasItem::get_item_rect();
-	*/
-
-	Size2i s;
-
-	s = texture->get_size();
-	Point2 ofs=offset;
-	if (centered)
-		ofs-=s/2;
-
-	if (s==Size2(0,0))
-		s=Size2(1,1);
-
-	return Rect2(ofs,s);
-}
-
-String ViewportSprite::get_configuration_warning() const {
-
-	if (!has_node(viewport_path) || !Object::cast_to<Viewport>(get_node(viewport_path))) {
-		return TTR("Path property must point to a valid Viewport node to work. Such Viewport must be set to 'render target' mode.");
-	} else {
-
-		Node *n = get_node(viewport_path);
-		if (n) {
-			Viewport *vp = Object::cast_to<Viewport>(n);
-			if (!vp->is_set_as_render_target()) {
-
-				return TTR("The Viewport set in the path property must be set as 'render target' in order for this sprite to work.");
-			}
-		}
-	}
-
-	return String();
-
-}
-
-void ViewportSprite::_bind_methods() {
-
-	ClassDB::bind_method(D_METHOD("set_viewport_path","path"),&ViewportSprite::set_viewport_path);
-	ClassDB::bind_method(D_METHOD("get_viewport_path"),&ViewportSprite::get_viewport_path);
-
-	ClassDB::bind_method(D_METHOD("set_centered","centered"),&ViewportSprite::set_centered);
-	ClassDB::bind_method(D_METHOD("is_centered"),&ViewportSprite::is_centered);
-
-	ClassDB::bind_method(D_METHOD("set_offset","offset"),&ViewportSprite::set_offset);
-	ClassDB::bind_method(D_METHOD("get_offset"),&ViewportSprite::get_offset);
-
-	ClassDB::bind_method(D_METHOD("set_modulate","modulate"),&ViewportSprite::set_modulate);
-	ClassDB::bind_method(D_METHOD("get_modulate"),&ViewportSprite::get_modulate);
-
-	ADD_PROPERTYNZ( PropertyInfo( Variant::NODE_PATH, "viewport"), "set_viewport_path","get_viewport_path");
-	ADD_PROPERTYNO( PropertyInfo( Variant::BOOL, "centered"), "set_centered","is_centered");
-	ADD_PROPERTYNZ( PropertyInfo( Variant::VECTOR2, "offset"), "set_offset","get_offset");
-	ADD_PROPERTYNO( PropertyInfo( Variant::COLOR, "modulate"), "set_modulate","get_modulate");
-
-}
-
-ViewportSprite::ViewportSprite() {
-
-	centered=true;
-	modulate=Color(1,1,1,1);
-}
-#endif

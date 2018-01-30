@@ -1,12 +1,12 @@
 /*************************************************************************/
-/*  graph_edit.cpp                                                       */
+/*  graph_edit.h                                                         */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef GRAPH_EDIT_H
 #define GRAPH_EDIT_H
 
@@ -179,6 +180,7 @@ public:
 	bool is_valid_connection_type(int p_type, int p_with_type) const;
 
 	void set_zoom(float p_zoom);
+	void set_zoom_custom(float p_zoom, const Vector2 &p_center);
 	float get_zoom() const;
 
 	GraphEditFilter *get_top_layer() const { return top_layer; }

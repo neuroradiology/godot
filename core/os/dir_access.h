@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef DIR_ACCESS_H
 #define DIR_ACCESS_H
 
@@ -52,6 +53,9 @@ public:
 private:
 	AccessType _access_type;
 	static CreateFunc create_func[ACCESS_MAX]; ///< set this to instance a filesystem object
+
+	Error _copy_dir(DirAccess *p_target_da, String p_to, int p_chmod_flags);
+
 protected:
 	String _get_root_path() const;
 	String _get_root_string() const;
@@ -89,7 +93,8 @@ public:
 	static bool exists(String p_dir);
 	virtual size_t get_space_left() = 0;
 
-	virtual Error copy(String p_from, String p_to, int chmod_flags = -1);
+	Error copy_dir(String p_from, String p_to, int p_chmod_flags = -1);
+	virtual Error copy(String p_from, String p_to, int p_chmod_flags = -1);
 	virtual Error rename(String p_from, String p_to) = 0;
 	virtual Error remove(String p_name) = 0;
 

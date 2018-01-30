@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef TYPEDEFS_H
 #define TYPEDEFS_H
 
@@ -73,7 +74,7 @@ T *_nullptr() {
 
 #define OFFSET_OF(st, m) \
 	((size_t)((char *)&(_nullptr<st>()->m) - (char *)0))
-/**
+	/**
  * Some platforms (devices) not define NULL
  */
 
@@ -81,7 +82,7 @@ T *_nullptr() {
 #define NULL 0
 #endif
 
-/**
+	/**
  * Windows defines a lot of badly stuff we'll never ever use. undefine it.
  */
 
@@ -98,12 +99,12 @@ T *_nullptr() {
 #undef OK
 #endif
 
+#include "int_types.h"
+
 #include "error_list.h"
 #include "error_macros.h"
 
-#include "int_types.h"
-
-/** Generic ABS function, for math uses please use Math::abs */
+	/** Generic ABS function, for math uses please use Math::abs */
 
 #ifndef ABS
 #define ABS(m_v) ((m_v < 0) ? (-(m_v)) : (m_v))

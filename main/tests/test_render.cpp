@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "test_render.h"
 
 #include "math_funcs.h"
@@ -180,7 +181,7 @@ public:
 		*/
 		RID lightaux;
 
-		lightaux = vs->light_create(VisualServer::LIGHT_DIRECTIONAL);
+		lightaux = vs->directional_light_create();
 		//vs->light_set_color( lightaux, VisualServer::LIGHT_COLOR_AMBIENT, Color(0.0,0.0,0.0) );
 		vs->light_set_color(lightaux, Color(1.0, 1.0, 1.0));
 		//vs->light_set_shadow( lightaux, true );
@@ -191,7 +192,7 @@ public:
 
 		vs->instance_set_transform(light, lla);
 
-		lightaux = vs->light_create(VisualServer::LIGHT_OMNI);
+		lightaux = vs->omni_light_create();
 		//vs->light_set_color( lightaux, VisualServer::LIGHT_COLOR_AMBIENT, Color(0.0,0.0,1.0) );
 		vs->light_set_color(lightaux, Color(1.0, 1.0, 0.0));
 		vs->light_set_param(lightaux, VisualServer::LIGHT_PARAM_RANGE, 4);
@@ -241,4 +242,4 @@ MainLoop *test() {
 
 	return memnew(TestMainLoop);
 }
-}
+} // namespace TestRender

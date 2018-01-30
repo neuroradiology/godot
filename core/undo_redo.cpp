@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "undo_redo.h"
 
 #include "os/os.h"
@@ -107,6 +108,7 @@ void UndoRedo::create_action(const String &p_name, MergeMode p_mode) {
 void UndoRedo::add_do_method(Object *p_object, const String &p_method, VARIANT_ARG_DECLARE) {
 
 	VARIANT_ARGPTRS
+	ERR_FAIL_COND(p_object == NULL);
 	ERR_FAIL_COND(action_level <= 0);
 	ERR_FAIL_COND((current_action + 1) >= actions.size());
 	Operation do_op;
@@ -126,6 +128,7 @@ void UndoRedo::add_do_method(Object *p_object, const String &p_method, VARIANT_A
 void UndoRedo::add_undo_method(Object *p_object, const String &p_method, VARIANT_ARG_DECLARE) {
 
 	VARIANT_ARGPTRS
+	ERR_FAIL_COND(p_object == NULL);
 	ERR_FAIL_COND(action_level <= 0);
 	ERR_FAIL_COND((current_action + 1) >= actions.size());
 
@@ -148,6 +151,7 @@ void UndoRedo::add_undo_method(Object *p_object, const String &p_method, VARIANT
 }
 void UndoRedo::add_do_property(Object *p_object, const String &p_property, const Variant &p_value) {
 
+	ERR_FAIL_COND(p_object == NULL);
 	ERR_FAIL_COND(action_level <= 0);
 	ERR_FAIL_COND((current_action + 1) >= actions.size());
 	Operation do_op;
@@ -162,6 +166,7 @@ void UndoRedo::add_do_property(Object *p_object, const String &p_property, const
 }
 void UndoRedo::add_undo_property(Object *p_object, const String &p_property, const Variant &p_value) {
 
+	ERR_FAIL_COND(p_object == NULL);
 	ERR_FAIL_COND(action_level <= 0);
 	ERR_FAIL_COND((current_action + 1) >= actions.size());
 
@@ -181,6 +186,7 @@ void UndoRedo::add_undo_property(Object *p_object, const String &p_property, con
 }
 void UndoRedo::add_do_reference(Object *p_object) {
 
+	ERR_FAIL_COND(p_object == NULL);
 	ERR_FAIL_COND(action_level <= 0);
 	ERR_FAIL_COND((current_action + 1) >= actions.size());
 	Operation do_op;
@@ -193,6 +199,7 @@ void UndoRedo::add_do_reference(Object *p_object) {
 }
 void UndoRedo::add_undo_reference(Object *p_object) {
 
+	ERR_FAIL_COND(p_object == NULL);
 	ERR_FAIL_COND(action_level <= 0);
 	ERR_FAIL_COND((current_action + 1) >= actions.size());
 
@@ -238,13 +245,6 @@ void UndoRedo::commit_action() {
 		return; //still nested
 
 	redo(); // perform action
-
-	if (max_steps > 0 && actions.size() > max_steps) {
-		//clear early steps
-
-		while (actions.size() > max_steps)
-			_pop_history_tail();
-	}
 
 	if (callback && actions.size() > 0) {
 		callback(callback_ud, actions[actions.size() - 1].name);
@@ -340,16 +340,6 @@ String UndoRedo::get_current_action_name() const {
 	return actions[current_action].name;
 }
 
-void UndoRedo::set_max_steps(int p_max_steps) {
-
-	max_steps = p_max_steps;
-}
-
-int UndoRedo::get_max_steps() const {
-
-	return max_steps;
-}
-
 uint64_t UndoRedo::get_version() const {
 
 	return version;
@@ -378,7 +368,6 @@ UndoRedo::UndoRedo() {
 	version = 1;
 	action_level = 0;
 	current_action = -1;
-	max_steps = -1;
 	merge_mode = MERGE_DISABLE;
 	callback = NULL;
 	callback_ud = NULL;
@@ -503,8 +492,6 @@ void UndoRedo::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("clear_history"), &UndoRedo::clear_history);
 	ClassDB::bind_method(D_METHOD("get_current_action_name"), &UndoRedo::get_current_action_name);
 	ClassDB::bind_method(D_METHOD("get_version"), &UndoRedo::get_version);
-	ClassDB::bind_method(D_METHOD("set_max_steps", "max_steps"), &UndoRedo::set_max_steps);
-	ClassDB::bind_method(D_METHOD("get_max_steps"), &UndoRedo::get_max_steps);
 	ClassDB::bind_method(D_METHOD("redo"), &UndoRedo::redo);
 	ClassDB::bind_method(D_METHOD("undo"), &UndoRedo::undo);
 

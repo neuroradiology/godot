@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -44,10 +44,10 @@ Variant fieldwise_assign(const Variant &p_target, const Variant &p_source, const
 
 	ERR_FAIL_COND_V(p_target.get_type() != p_source.get_type(), p_target);
 
-	switch (p_source.get_type()) {
+	/* clang-format makes a mess of this macro usage */
+	/* clang-format off */
 
-		/* clang-format makes a mess of this macro usage */
-		/* clang-format off */
+	switch (p_source.get_type()) {
 
 		case Variant::VECTOR2: {
 
@@ -106,9 +106,9 @@ Variant fieldwise_assign(const Variant &p_target, const Variant &p_source, const
 			return target;
 		}
 
-		case Variant::RECT3: {
+		case Variant::AABB: {
 
-			SETUP_TYPE(Rect3)
+			SETUP_TYPE(AABB)
 
 			/**/ TRY_TRANSFER_FIELD("px", position.x)
 			else TRY_TRANSFER_FIELD("py", position.y)
@@ -174,9 +174,8 @@ Variant fieldwise_assign(const Variant &p_target, const Variant &p_source, const
 		default: {
 			ERR_FAIL_V(p_target);
 		}
-
-			/* clang-format on */
 	}
+	/* clang-format on */
 }
 
 #endif // TOOLS_ENABLED

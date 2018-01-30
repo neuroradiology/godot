@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "path_2d_editor_plugin.h"
 
 #include "canvas_item_editor_plugin.h"
@@ -46,7 +47,7 @@ void Path2DEditor::_notification(int p_what) {
 			//button_edit->set_pressed(true);
 
 		} break;
-		case NOTIFICATION_FIXED_PROCESS: {
+		case NOTIFICATION_PHYSICS_PROCESS: {
 
 		} break;
 	}
@@ -76,10 +77,7 @@ bool Path2DEditor::forward_gui_input(const Ref<InputEvent> &p_event) {
 		Transform2D xform = canvas_item_editor->get_canvas_transform() * node->get_global_transform();
 
 		Vector2 gpoint = mb->get_position();
-		Vector2 cpoint =
-				!mb->get_alt() ?
-						canvas_item_editor->snap_point(xform.affine_inverse().xform(gpoint)) :
-						node->get_global_transform().affine_inverse().xform(canvas_item_editor->snap_point(canvas_item_editor->get_canvas_transform().affine_inverse().xform(gpoint)));
+		Vector2 cpoint = node->get_global_transform().affine_inverse().xform(canvas_item_editor->snap_point(canvas_item_editor->get_canvas_transform().affine_inverse().xform(mb->get_position())));
 
 		real_t grab_threshold = EDITOR_DEF("editors/poly_editor/point_grab_radius", 8);
 
@@ -239,10 +237,7 @@ bool Path2DEditor::forward_gui_input(const Ref<InputEvent> &p_event) {
 			// Handle point/control movement.
 			Transform2D xform = canvas_item_editor->get_canvas_transform() * node->get_global_transform();
 			Vector2 gpoint = mm->get_position();
-			Vector2 cpoint =
-					!mm->get_alt() ?
-							canvas_item_editor->snap_point(xform.affine_inverse().xform(gpoint)) :
-							node->get_global_transform().affine_inverse().xform(canvas_item_editor->snap_point(canvas_item_editor->get_canvas_transform().affine_inverse().xform(gpoint)));
+			Vector2 cpoint = node->get_global_transform().affine_inverse().xform(canvas_item_editor->snap_point(canvas_item_editor->get_canvas_transform().affine_inverse().xform(mm->get_position())));
 
 			Ref<Curve2D> curve = node->get_curve();
 
@@ -274,7 +269,8 @@ bool Path2DEditor::forward_gui_input(const Ref<InputEvent> &p_event) {
 
 	return false;
 }
-void Path2DEditor::_canvas_draw() {
+
+void Path2DEditor::forward_draw_over_viewport(Control *p_overlay) {
 
 	if (!node)
 		return;
@@ -329,15 +325,10 @@ void Path2DEditor::edit(Node *p_path2d) {
 	if (p_path2d) {
 
 		node = Object::cast_to<Path2D>(p_path2d);
-		if (!canvas_item_editor->get_viewport_control()->is_connected("draw", this, "_canvas_draw"))
-			canvas_item_editor->get_viewport_control()->connect("draw", this, "_canvas_draw");
 		if (!node->is_connected("visibility_changed", this, "_node_visibility_changed"))
 			node->connect("visibility_changed", this, "_node_visibility_changed");
 
 	} else {
-
-		if (canvas_item_editor->get_viewport_control()->is_connected("draw", this, "_canvas_draw"))
-			canvas_item_editor->get_viewport_control()->disconnect("draw", this, "_canvas_draw");
 
 		// node may have been deleted at this point
 		if (node && node->is_connected("visibility_changed", this, "_node_visibility_changed"))
@@ -349,7 +340,6 @@ void Path2DEditor::edit(Node *p_path2d) {
 void Path2DEditor::_bind_methods() {
 
 	//ClassDB::bind_method(D_METHOD("_menu_option"),&Path2DEditor::_menu_option);
-	ClassDB::bind_method(D_METHOD("_canvas_draw"), &Path2DEditor::_canvas_draw);
 	ClassDB::bind_method(D_METHOD("_node_visibility_changed"), &Path2DEditor::_node_visibility_changed);
 	ClassDB::bind_method(D_METHOD("_mode_selected"), &Path2DEditor::_mode_selected);
 }

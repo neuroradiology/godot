@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,24 +27,12 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
-#if defined(OPENGL_ENABLED) || defined(LEGACYGL_ENABLED) || defined(GLES2_ENABLED)
 
-//
-// C++ Implementation: context_gl_x11
-//
-// Description:
-//
-//
+#if defined(OPENGL_ENABLED) || defined(GLES_ENABLED)
+
 // Author: Juan Linietsky <reduzio@gmail.com>, (C) 2008
-//
-// Copyright: See COPYING file that comes with this distribution
-//
-//
 
 #include "context_gl_win.h"
-
-//#include "drivers/opengl/glwrapper.h"
-//#include "ctxgl_procaddr.h"
 
 #define WGL_CONTEXT_MAJOR_VERSION_ARB 0x2091
 #define WGL_CONTEXT_MINOR_VERSION_ARB 0x2092
@@ -165,7 +153,7 @@ Error ContextGL_Win::initialize() {
 			WGL_CONTEXT_MAJOR_VERSION_ARB, 3, //we want a 3.3 context
 			WGL_CONTEXT_MINOR_VERSION_ARB, 3,
 			//and it shall be forward compatible so that we can only use up to date functionality
-			WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB | _WGL_CONTEXT_DEBUG_BIT_ARB,
+			WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB /*| _WGL_CONTEXT_DEBUG_BIT_ARB*/,
 			0
 		}; //zero indicates the end of the array
 
@@ -194,8 +182,6 @@ Error ContextGL_Win::initialize() {
 			MessageBox(NULL, "Can't Activate The GL 3.3 Rendering Context.", "ERROR", MB_OK | MB_ICONEXCLAMATION);
 			return ERR_CANT_CREATE; // Return FALSE
 		}
-
-		printf("Activated GL 3.3 context");
 	}
 
 	wglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "grid_map.h"
 #include "message_queue.h"
 #include "scene/3d/light.h"
@@ -42,28 +43,7 @@ bool GridMap::_set(const StringName &p_name, const Variant &p_value) {
 
 	String name = p_name;
 
-	if (name == "theme") {
-
-		set_theme(p_value);
-	} else if (name == "cell_size") {
-		if (p_value.get_type() == Variant::INT || p_value.get_type() == Variant::REAL) {
-			//compatibility
-			float cs = p_value;
-			set_cell_size(Vector3(cs, cs, cs));
-		} else {
-			set_cell_size(p_value);
-		}
-	} else if (name == "cell_octant_size") {
-		set_octant_size(p_value);
-	} else if (name == "cell_center_x") {
-		set_center_x(p_value);
-	} else if (name == "cell_center_y") {
-		set_center_y(p_value);
-	} else if (name == "cell_center_z") {
-		set_center_z(p_value);
-	} else if (name == "cell_scale") {
-		set_cell_scale(p_value);
-		/*	} else if (name=="cells") {
+	/*	} else if (name=="cells") {
 		PoolVector<int> cells = p_value;
 		int amount=cells.size();
 		PoolVector<int>::Read r = cells.read();
@@ -80,7 +60,7 @@ bool GridMap::_set(const StringName &p_name, const Variant &p_value) {
 
 		}
 		_recreate_octant_data();*/
-	} else if (name == "data") {
+	if (name == "data") {
 
 		Dictionary d = p_value;
 
@@ -101,6 +81,27 @@ bool GridMap::_set(const StringName &p_name, const Variant &p_value) {
 			}
 		}
 		_recreate_octant_data();
+	} else if (name == "baked_meshes") {
+
+		clear_baked_meshes();
+
+		Array meshes = p_value;
+
+		for (int i = 0; i < meshes.size(); i++) {
+			BakedMesh bm;
+			bm.mesh = meshes[i];
+			ERR_CONTINUE(!bm.mesh.is_valid());
+			bm.instance = VS::get_singleton()->instance_create();
+			VS::get_singleton()->get_singleton()->instance_set_base(bm.instance, bm.mesh->get_rid());
+			VS::get_singleton()->instance_attach_object_instance_id(bm.instance, get_instance_id());
+			if (is_inside_tree()) {
+				VS::get_singleton()->instance_set_scenario(bm.instance, get_world()->get_scenario());
+				VS::get_singleton()->instance_set_transform(bm.instance, get_global_transform());
+			}
+			baked_meshes.push_back(bm);
+		}
+
+		_recreate_octant_data();
 
 	} else
 		return false;
@@ -112,21 +113,7 @@ bool GridMap::_get(const StringName &p_name, Variant &r_ret) const {
 
 	String name = p_name;
 
-	if (name == "theme") {
-		r_ret = get_theme();
-	} else if (name == "cell_size") {
-		r_ret = get_cell_size();
-	} else if (name == "cell_octant_size") {
-		r_ret = get_octant_size();
-	} else if (name == "cell_center_x") {
-		r_ret = get_center_x();
-	} else if (name == "cell_center_y") {
-		r_ret = get_center_y();
-	} else if (name == "cell_center_z") {
-		r_ret = get_center_z();
-	} else if (name == "cell_scale") {
-		r_ret = cell_scale;
-	} else if (name == "data") {
+	if (name == "data") {
 
 		Dictionary d;
 
@@ -145,6 +132,15 @@ bool GridMap::_get(const StringName &p_name, Variant &r_ret) const {
 		d["cells"] = cells;
 
 		r_ret = d;
+	} else if (name == "baked_meshes") {
+
+		Array ret;
+		ret.resize(baked_meshes.size());
+		for (int i = 0; i < baked_meshes.size(); i++) {
+			ret.push_back(baked_meshes[i].mesh);
+		}
+		r_ret = ret;
+
 	} else
 		return false;
 
@@ -153,16 +149,63 @@ bool GridMap::_get(const StringName &p_name, Variant &r_ret) const {
 
 void GridMap::_get_property_list(List<PropertyInfo> *p_list) const {
 
-	p_list->push_back(PropertyInfo(Variant::OBJECT, "theme", PROPERTY_HINT_RESOURCE_TYPE, "MeshLibrary"));
-	p_list->push_back(PropertyInfo(Variant::NIL, "Cell", PROPERTY_HINT_NONE, "cell_", PROPERTY_USAGE_GROUP));
-	p_list->push_back(PropertyInfo(Variant::VECTOR3, "cell_size"));
-	p_list->push_back(PropertyInfo(Variant::INT, "cell_octant_size", PROPERTY_HINT_RANGE, "1,1024,1"));
-	p_list->push_back(PropertyInfo(Variant::BOOL, "cell_center_x"));
-	p_list->push_back(PropertyInfo(Variant::BOOL, "cell_center_y"));
-	p_list->push_back(PropertyInfo(Variant::BOOL, "cell_center_z"));
-	p_list->push_back(PropertyInfo(Variant::REAL, "cell_scale"));
+	if (baked_meshes.size()) {
+		p_list->push_back(PropertyInfo(Variant::ARRAY, "baked_meshes", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_STORAGE));
+	}
 
 	p_list->push_back(PropertyInfo(Variant::DICTIONARY, "data", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_STORAGE));
+}
+
+void GridMap::set_collision_layer(uint32_t p_layer) {
+
+	collision_layer = p_layer;
+	_reset_physic_bodies_collision_filters();
+}
+
+uint32_t GridMap::get_collision_layer() const {
+
+	return collision_layer;
+}
+
+void GridMap::set_collision_mask(uint32_t p_mask) {
+
+	collision_mask = p_mask;
+	_reset_physic_bodies_collision_filters();
+}
+
+uint32_t GridMap::get_collision_mask() const {
+
+	return collision_mask;
+}
+
+void GridMap::set_collision_mask_bit(int p_bit, bool p_value) {
+
+	uint32_t mask = get_collision_mask();
+	if (p_value)
+		mask |= 1 << p_bit;
+	else
+		mask &= ~(1 << p_bit);
+	set_collision_mask(mask);
+}
+
+bool GridMap::get_collision_mask_bit(int p_bit) const {
+
+	return get_collision_mask() & (1 << p_bit);
+}
+
+void GridMap::set_collision_layer_bit(int p_bit, bool p_value) {
+
+	uint32_t mask = get_collision_layer();
+	if (p_value)
+		mask |= 1 << p_bit;
+	else
+		mask &= ~(1 << p_bit);
+	set_collision_layer(mask);
+}
+
+bool GridMap::get_collision_layer_bit(int p_bit) const {
+
+	return get_collision_layer() & (1 << p_bit);
 }
 
 void GridMap::set_theme(const Ref<MeshLibrary> &p_theme) {
@@ -235,6 +278,12 @@ bool GridMap::get_center_z() const {
 
 void GridMap::set_cell_item(int p_x, int p_y, int p_z, int p_item, int p_rot) {
 
+	if (baked_meshes.size() && !recreating_octants) {
+		//if you set a cell item, baked meshes go good bye
+		clear_baked_meshes();
+		_recreate_octant_data();
+	}
+
 	ERR_FAIL_INDEX(ABS(p_x), 1 << 20);
 	ERR_FAIL_INDEX(ABS(p_y), 1 << 20);
 	ERR_FAIL_INDEX(ABS(p_z), 1 << 20);
@@ -272,6 +321,8 @@ void GridMap::set_cell_item(int p_x, int p_y, int p_z, int p_item, int p_rot) {
 		g->dirty = true;
 		g->static_body = PhysicsServer::get_singleton()->body_create(PhysicsServer::BODY_MODE_STATIC);
 		PhysicsServer::get_singleton()->body_attach_object_instance_id(g->static_body, get_instance_id());
+		PhysicsServer::get_singleton()->body_set_collision_layer(g->static_body, collision_layer);
+		PhysicsServer::get_singleton()->body_set_collision_mask(g->static_body, collision_mask);
 		SceneTree *st = SceneTree::get_singleton();
 
 		if (st && st->is_debugging_collisions_hint()) {
@@ -331,6 +382,23 @@ int GridMap::get_cell_item_orientation(int p_x, int p_y, int p_z) const {
 	if (!cell_map.has(key))
 		return -1;
 	return cell_map[key].rot;
+}
+
+Vector3 GridMap::world_to_map(const Vector3 &p_world_pos) const {
+	Vector3 map_pos = p_world_pos / cell_size;
+	map_pos.x = floor(map_pos.x);
+	map_pos.y = floor(map_pos.y);
+	map_pos.z = floor(map_pos.z);
+	return map_pos;
+}
+
+Vector3 GridMap::map_to_world(int p_x, int p_y, int p_z) const {
+	Vector3 offset = _get_offset();
+	Vector3 world_pos(
+			p_x * cell_size.x + offset.x,
+			p_y * cell_size.y + offset.y,
+			p_z * cell_size.z + offset.z);
+	return world_pos;
 }
 
 void GridMap::_octant_transform(const OctantKey &p_key) {
@@ -407,7 +475,7 @@ bool GridMap::_octant_update(const OctantKey &p_key) {
 		//print_line("OCTANT, CELLS: "+itos(ii.cells.size()));
 
 		Vector3 cellpos = Vector3(E->get().x, E->get().y, E->get().z);
-		Vector3 ofs(cell_size.x * 0.5 * int(center_x), cell_size.y * 0.5 * int(center_y), cell_size.z * 0.5 * int(center_z));
+		Vector3 ofs = _get_offset();
 
 		Transform xform;
 
@@ -419,16 +487,17 @@ bool GridMap::_octant_update(const OctantKey &p_key) {
 		xform.basis.set_orthogonal_index(c.rot);
 		xform.set_origin(cellpos * cell_size + ofs);
 		xform.basis.scale(Vector3(cell_scale, cell_scale, cell_scale));
+		if (baked_meshes.size() == 0) {
+			if (theme->get_item_mesh(c.item).is_valid()) {
+				if (!multimesh_items.has(c.item)) {
+					multimesh_items[c.item] = List<Pair<Transform, IndexKey> >();
+				}
 
-		if (theme->get_item_mesh(c.item).is_valid()) {
-			if (!multimesh_items.has(c.item)) {
-				multimesh_items[c.item] = List<Pair<Transform, IndexKey> >();
+				Pair<Transform, IndexKey> p;
+				p.first = xform;
+				p.second = E->get();
+				multimesh_items[c.item].push_back(p);
 			}
-
-			Pair<Transform, IndexKey> p;
-			p.first = xform;
-			p.second = E->get();
-			multimesh_items[c.item].push_back(p);
 		}
 
 		Vector<MeshLibrary::ShapeData> shapes = theme->get_item_shapes(c.item);
@@ -452,7 +521,7 @@ bool GridMap::_octant_update(const OctantKey &p_key) {
 			nm.xform = xform;
 
 			if (navigation) {
-				nm.id = navigation->navmesh_create(navmesh, xform, this);
+				nm.id = navigation->navmesh_add(navmesh, xform, this);
 			} else {
 				nm.id = -1;
 			}
@@ -460,41 +529,44 @@ bool GridMap::_octant_update(const OctantKey &p_key) {
 		}
 	}
 
-	//update multimeshes
-	for (Map<int, List<Pair<Transform, IndexKey> > >::Element *E = multimesh_items.front(); E; E = E->next()) {
-		Octant::MultimeshInstance mmi;
+	//update multimeshes, only if not baked
+	if (baked_meshes.size() == 0) {
 
-		RID mm = VS::get_singleton()->multimesh_create();
-		VS::get_singleton()->multimesh_allocate(mm, E->get().size(), VS::MULTIMESH_TRANSFORM_3D, VS::MULTIMESH_COLOR_NONE);
-		VS::get_singleton()->multimesh_set_mesh(mm, theme->get_item_mesh(E->key())->get_rid());
+		for (Map<int, List<Pair<Transform, IndexKey> > >::Element *E = multimesh_items.front(); E; E = E->next()) {
+			Octant::MultimeshInstance mmi;
 
-		int idx = 0;
-		for (List<Pair<Transform, IndexKey> >::Element *F = E->get().front(); F; F = F->next()) {
-			VS::get_singleton()->multimesh_instance_set_transform(mm, idx, F->get().first);
+			RID mm = VS::get_singleton()->multimesh_create();
+			VS::get_singleton()->multimesh_allocate(mm, E->get().size(), VS::MULTIMESH_TRANSFORM_3D, VS::MULTIMESH_COLOR_NONE);
+			VS::get_singleton()->multimesh_set_mesh(mm, theme->get_item_mesh(E->key())->get_rid());
+
+			int idx = 0;
+			for (List<Pair<Transform, IndexKey> >::Element *F = E->get().front(); F; F = F->next()) {
+				VS::get_singleton()->multimesh_instance_set_transform(mm, idx, F->get().first);
 #ifdef TOOLS_ENABLED
 
-			Octant::MultimeshInstance::Item it;
-			it.index = idx;
-			it.transform = F->get().first;
-			it.key = F->get().second;
-			mmi.items.push_back(it);
+				Octant::MultimeshInstance::Item it;
+				it.index = idx;
+				it.transform = F->get().first;
+				it.key = F->get().second;
+				mmi.items.push_back(it);
 #endif
 
-			idx++;
+				idx++;
+			}
+
+			RID instance = VS::get_singleton()->instance_create();
+			VS::get_singleton()->instance_set_base(instance, mm);
+
+			if (is_inside_tree()) {
+				VS::get_singleton()->instance_set_scenario(instance, get_world()->get_scenario());
+				VS::get_singleton()->instance_set_transform(instance, get_global_transform());
+			}
+
+			mmi.multimesh = mm;
+			mmi.instance = instance;
+
+			g.multimesh_instances.push_back(mmi);
 		}
-
-		RID instance = VS::get_singleton()->instance_create();
-		VS::get_singleton()->instance_set_base(instance, mm);
-
-		if (is_inside_tree()) {
-			VS::get_singleton()->instance_set_scenario(instance, get_world()->get_scenario());
-			VS::get_singleton()->instance_set_transform(instance, get_global_transform());
-		}
-
-		mmi.multimesh = mm;
-		mmi.instance = instance;
-
-		g.multimesh_instances.push_back(mmi);
 	}
 
 	if (col_debug.size()) {
@@ -513,6 +585,13 @@ bool GridMap::_octant_update(const OctantKey &p_key) {
 	g.dirty = false;
 
 	return false;
+}
+
+void GridMap::_reset_physic_bodies_collision_filters() {
+	for (Map<OctantKey, Octant *>::Element *E = octant_map.front(); E; E = E->next()) {
+		PhysicsServer::get_singleton()->body_set_collision_layer(E->get()->static_body, collision_layer);
+		PhysicsServer::get_singleton()->body_set_collision_mask(E->get()->static_body, collision_mask);
+	}
 }
 
 void GridMap::_octant_enter_world(const OctantKey &p_key) {
@@ -539,7 +618,7 @@ void GridMap::_octant_enter_world(const OctantKey &p_key) {
 			if (cell_map.has(F->key()) && F->get().id < 0) {
 				Ref<NavigationMesh> nm = theme->get_item_navmesh(cell_map[F->key()].item);
 				if (nm.is_valid()) {
-					F->get().id = navigation->navmesh_create(nm, F->get().xform, this);
+					F->get().id = navigation->navmesh_add(nm, F->get().xform, this);
 				}
 			}
 		}
@@ -625,6 +704,11 @@ void GridMap::_notification(int p_what) {
 				_octant_enter_world(E->key());
 			}
 
+			for (int i = 0; i < baked_meshes.size(); i++) {
+				VS::get_singleton()->instance_set_scenario(baked_meshes[i].instance, get_world()->get_scenario());
+				VS::get_singleton()->instance_set_transform(baked_meshes[i].instance, get_global_transform());
+			}
+
 		} break;
 		case NOTIFICATION_TRANSFORM_CHANGED: {
 
@@ -638,6 +722,10 @@ void GridMap::_notification(int p_what) {
 
 			last_transform = new_xform;
 
+			for (int i = 0; i < baked_meshes.size(); i++) {
+				VS::get_singleton()->instance_set_transform(baked_meshes[i].instance, get_global_transform());
+			}
+
 		} break;
 		case NOTIFICATION_EXIT_WORLD: {
 
@@ -650,6 +738,9 @@ void GridMap::_notification(int p_what) {
 			//_queue_octants_dirty(MAP_DIRTY_INSTANCES|MAP_DIRTY_TRANSFORMS);
 			//_update_octants_callback();
 			//_update_area_instances();
+			for (int i = 0; i < baked_meshes.size(); i++) {
+				VS::get_singleton()->instance_set_scenario(baked_meshes[i].instance, RID());
+			}
 
 		} break;
 		case NOTIFICATION_VISIBILITY_CHANGED: {
@@ -684,12 +775,14 @@ void GridMap::_queue_octants_dirty() {
 
 void GridMap::_recreate_octant_data() {
 
+	recreating_octants = true;
 	Map<IndexKey, Cell> cell_copy = cell_map;
 	_clear_internal();
 	for (Map<IndexKey, Cell>::Element *E = cell_copy.front(); E; E = E->next()) {
 
 		set_cell_item(E->key().x, E->key().y, E->key().z, E->get().item, E->get().rot);
 	}
+	recreating_octants = false;
 }
 
 void GridMap::_clear_internal() {
@@ -709,6 +802,7 @@ void GridMap::_clear_internal() {
 void GridMap::clear() {
 
 	_clear_internal();
+	clear_baked_meshes();
 }
 
 void GridMap::resource_changed(const RES &p_res) {
@@ -730,7 +824,6 @@ void GridMap::_update_octants_callback() {
 	}
 
 	while (to_delete.front()) {
-		memdelete(octant_map[to_delete.front()->get()]);
 		octant_map.erase(to_delete.front()->get());
 		to_delete.pop_back();
 	}
@@ -741,11 +834,26 @@ void GridMap::_update_octants_callback() {
 
 void GridMap::_bind_methods() {
 
+	ClassDB::bind_method(D_METHOD("set_collision_layer", "layer"), &GridMap::set_collision_layer);
+	ClassDB::bind_method(D_METHOD("get_collision_layer"), &GridMap::get_collision_layer);
+
+	ClassDB::bind_method(D_METHOD("set_collision_mask", "mask"), &GridMap::set_collision_mask);
+	ClassDB::bind_method(D_METHOD("get_collision_mask"), &GridMap::get_collision_mask);
+
+	ClassDB::bind_method(D_METHOD("set_collision_mask_bit", "bit", "value"), &GridMap::set_collision_mask_bit);
+	ClassDB::bind_method(D_METHOD("get_collision_mask_bit", "bit"), &GridMap::get_collision_mask_bit);
+
+	ClassDB::bind_method(D_METHOD("set_collision_layer_bit", "bit", "value"), &GridMap::set_collision_layer_bit);
+	ClassDB::bind_method(D_METHOD("get_collision_layer_bit", "bit"), &GridMap::get_collision_layer_bit);
+
 	ClassDB::bind_method(D_METHOD("set_theme", "theme"), &GridMap::set_theme);
 	ClassDB::bind_method(D_METHOD("get_theme"), &GridMap::get_theme);
 
 	ClassDB::bind_method(D_METHOD("set_cell_size", "size"), &GridMap::set_cell_size);
 	ClassDB::bind_method(D_METHOD("get_cell_size"), &GridMap::get_cell_size);
+
+	ClassDB::bind_method(D_METHOD("set_cell_scale", "scale"), &GridMap::set_cell_scale);
+	ClassDB::bind_method(D_METHOD("get_cell_scale"), &GridMap::get_cell_scale);
 
 	ClassDB::bind_method(D_METHOD("set_octant_size", "size"), &GridMap::set_octant_size);
 	ClassDB::bind_method(D_METHOD("get_octant_size"), &GridMap::get_octant_size);
@@ -753,6 +861,9 @@ void GridMap::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_cell_item", "x", "y", "z", "item", "orientation"), &GridMap::set_cell_item, DEFVAL(0));
 	ClassDB::bind_method(D_METHOD("get_cell_item", "x", "y", "z"), &GridMap::get_cell_item);
 	ClassDB::bind_method(D_METHOD("get_cell_item_orientation", "x", "y", "z"), &GridMap::get_cell_item_orientation);
+
+	ClassDB::bind_method(D_METHOD("world_to_map", "pos"), &GridMap::world_to_map);
+	ClassDB::bind_method(D_METHOD("map_to_world", "x", "y", "z"), &GridMap::map_to_world);
 
 	//ClassDB::bind_method(D_METHOD("_recreate_octants"),&GridMap::_recreate_octants);
 	ClassDB::bind_method(D_METHOD("_update_octants_callback"), &GridMap::_update_octants_callback);
@@ -769,7 +880,26 @@ void GridMap::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("clear"), &GridMap::clear);
 
+	ClassDB::bind_method(D_METHOD("get_used_cells"), &GridMap::get_used_cells);
+
 	ClassDB::bind_method(D_METHOD("get_meshes"), &GridMap::get_meshes);
+	ClassDB::bind_method(D_METHOD("get_bake_meshes"), &GridMap::get_bake_meshes);
+	ClassDB::bind_method(D_METHOD("get_bake_mesh_instance", "idx"), &GridMap::get_bake_mesh_instance);
+
+	ClassDB::bind_method(D_METHOD("clear_baked_meshes"), &GridMap::clear_baked_meshes);
+	ClassDB::bind_method(D_METHOD("make_baked_meshes", "gen_lightmap_uv", "lightmap_uv_texel_size"), &GridMap::make_baked_meshes, DEFVAL(false), DEFVAL(0.1));
+
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "theme", PROPERTY_HINT_RESOURCE_TYPE, "MeshLibrary"), "set_theme", "get_theme");
+	ADD_GROUP("Cell", "cell_");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "cell_size"), "set_cell_size", "get_cell_size");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "cell_octant_size", PROPERTY_HINT_RANGE, "1,1024,1"), "set_octant_size", "get_octant_size");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "cell_center_x"), "set_center_x", "get_center_x");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "cell_center_y"), "set_center_y", "get_center_y");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "cell_center_z"), "set_center_z", "get_center_z");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "cell_scale"), "set_cell_scale", "get_cell_scale");
+	ADD_GROUP("Collision", "collision_");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "collision_layer", PROPERTY_HINT_LAYERS_3D_PHYSICS), "set_collision_layer", "get_collision_layer");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "collision_mask", PROPERTY_HINT_LAYERS_3D_PHYSICS), "set_collision_mask", "get_collision_mask");
 
 	BIND_CONSTANT(INVALID_CELL_ITEM);
 }
@@ -799,7 +929,7 @@ void GridMap::set_clip(bool p_enabled, bool p_clip_above, int p_floor, Vector3::
 void GridMap::set_cell_scale(float p_scale) {
 
 	cell_scale = p_scale;
-	_queue_octants_dirty();
+	_recreate_octant_data();
 }
 
 float GridMap::get_cell_scale() const {
@@ -807,12 +937,25 @@ float GridMap::get_cell_scale() const {
 	return cell_scale;
 }
 
+Array GridMap::get_used_cells() const {
+
+	Array a;
+	a.resize(cell_map.size());
+	int i = 0;
+	for (Map<IndexKey, Cell>::Element *E = cell_map.front(); E; E = E->next()) {
+		Vector3 p(E->key().x, E->key().y, E->key().z);
+		a[i++] = p;
+	}
+
+	return a;
+}
+
 Array GridMap::get_meshes() {
 
 	if (theme.is_null())
 		return Array();
 
-	Vector3 ofs(cell_size.x * 0.5 * int(center_x), cell_size.y * 0.5 * int(center_y), cell_size.z * 0.5 * int(center_z));
+	Vector3 ofs = _get_offset();
 	Array meshes;
 
 	for (Map<IndexKey, Cell>::Element *E = cell_map.front(); E; E = E->next()) {
@@ -842,10 +985,139 @@ Array GridMap::get_meshes() {
 	return meshes;
 }
 
+Vector3 GridMap::_get_offset() const {
+	return Vector3(
+			cell_size.x * 0.5 * int(center_x),
+			cell_size.y * 0.5 * int(center_y),
+			cell_size.z * 0.5 * int(center_z));
+}
+
+void GridMap::clear_baked_meshes() {
+
+	for (int i = 0; i < baked_meshes.size(); i++) {
+		VS::get_singleton()->free(baked_meshes[i].instance);
+	}
+	baked_meshes.clear();
+
+	_recreate_octant_data();
+}
+
+void GridMap::make_baked_meshes(bool p_gen_lightmap_uv, float p_lightmap_uv_texel_size) {
+
+	if (!theme.is_valid())
+		return;
+
+	//generate
+	Map<OctantKey, Map<Ref<Material>, Ref<SurfaceTool> > > surface_map;
+
+	for (Map<IndexKey, Cell>::Element *E = cell_map.front(); E; E = E->next()) {
+
+		IndexKey key = E->key();
+
+		int item = E->get().item;
+		if (!theme->has_item(item))
+			continue;
+
+		Ref<Mesh> mesh = theme->get_item_mesh(item);
+		if (!mesh.is_valid())
+			continue;
+
+		Vector3 cellpos = Vector3(key.x, key.y, key.z);
+		Vector3 ofs = _get_offset();
+
+		Transform xform;
+
+		xform.basis.set_orthogonal_index(E->get().rot);
+		xform.set_origin(cellpos * cell_size + ofs);
+		xform.basis.scale(Vector3(cell_scale, cell_scale, cell_scale));
+
+		OctantKey ok;
+		ok.x = key.x / octant_size;
+		ok.y = key.y / octant_size;
+		ok.z = key.z / octant_size;
+
+		if (!surface_map.has(ok)) {
+			surface_map[ok] = Map<Ref<Material>, Ref<SurfaceTool> >();
+		}
+
+		Map<Ref<Material>, Ref<SurfaceTool> > &mat_map = surface_map[ok];
+
+		for (int i = 0; i < mesh->get_surface_count(); i++) {
+
+			if (mesh->surface_get_primitive_type(i) != Mesh::PRIMITIVE_TRIANGLES)
+				continue;
+
+			Ref<Material> surf_mat = mesh->surface_get_material(i);
+			if (!mat_map.has(surf_mat)) {
+				Ref<SurfaceTool> st;
+				st.instance();
+				st->begin(Mesh::PRIMITIVE_TRIANGLES);
+				st->set_material(surf_mat);
+				mat_map[surf_mat] = st;
+			}
+
+			mat_map[surf_mat]->append_from(mesh, i, xform);
+		}
+	}
+
+	int ofs = 0;
+
+	for (Map<OctantKey, Map<Ref<Material>, Ref<SurfaceTool> > >::Element *E = surface_map.front(); E; E = E->next()) {
+
+		print_line("generating mesh " + itos(ofs++) + "/" + itos(surface_map.size()));
+		Ref<ArrayMesh> mesh;
+		mesh.instance();
+		for (Map<Ref<Material>, Ref<SurfaceTool> >::Element *F = E->get().front(); F; F = F->next()) {
+			F->get()->commit(mesh);
+		}
+
+		BakedMesh bm;
+		bm.mesh = mesh;
+		bm.instance = VS::get_singleton()->instance_create();
+		VS::get_singleton()->get_singleton()->instance_set_base(bm.instance, bm.mesh->get_rid());
+		VS::get_singleton()->instance_attach_object_instance_id(bm.instance, get_instance_id());
+		if (is_inside_tree()) {
+			VS::get_singleton()->instance_set_scenario(bm.instance, get_world()->get_scenario());
+			VS::get_singleton()->instance_set_transform(bm.instance, get_global_transform());
+		}
+
+		if (p_gen_lightmap_uv) {
+			mesh->lightmap_unwrap(get_global_transform(), p_lightmap_uv_texel_size);
+		}
+		baked_meshes.push_back(bm);
+	}
+
+	_recreate_octant_data();
+}
+
+Array GridMap::get_bake_meshes() {
+
+	if (!baked_meshes.size()) {
+		make_baked_meshes(true);
+	}
+
+	Array arr;
+	for (int i = 0; i < baked_meshes.size(); i++) {
+		arr.push_back(baked_meshes[i].mesh);
+		arr.push_back(Transform());
+	}
+
+	return arr;
+}
+
+RID GridMap::get_bake_mesh_instance(int p_idx) {
+
+	ERR_FAIL_INDEX_V(p_idx, baked_meshes.size(), RID());
+	return baked_meshes[p_idx].instance;
+}
+
 GridMap::GridMap() {
 
+	collision_layer = 1;
+	collision_mask = 1;
+
 	cell_size = Vector3(2, 2, 2);
-	octant_size = 4;
+	octant_size = 8;
 	awaiting_update = false;
 	_in_tree = false;
 	center_x = true;
@@ -860,6 +1132,7 @@ GridMap::GridMap() {
 
 	navigation = NULL;
 	set_notify_transform(true);
+	recreating_octants = false;
 }
 
 GridMap::~GridMap() {

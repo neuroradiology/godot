@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "resource_format_binary.h"
 
 #include "core/image.h"
@@ -52,7 +53,7 @@ enum {
 	VARIANT_VECTOR3 = 12,
 	VARIANT_PLANE = 13,
 	VARIANT_QUAT = 14,
-	VARIANT_RECT3 = 15,
+	VARIANT_AABB = 15,
 	VARIANT_MATRIX3 = 16,
 	VARIANT_TRANSFORM = 17,
 	VARIANT_MATRIX32 = 18,
@@ -84,8 +85,10 @@ enum {
 	OBJECT_INTERNAL_RESOURCE = 2,
 	OBJECT_EXTERNAL_RESOURCE_INDEX = 3,
 	//version 2: added 64 bits support for float and int
-	FORMAT_VERSION = 2,
-	FORMAT_VERSION_CAN_RENAME_DEPS = 1
+	//version 3: changed nodepath encoding
+	FORMAT_VERSION = 3,
+	FORMAT_VERSION_CAN_RENAME_DEPS = 1,
+	FORMAT_VERSION_NO_NODEPATH_PROPERTY = 3,
 
 };
 
@@ -102,7 +105,7 @@ StringName ResourceInteractiveLoaderBinary::_get_string() {
 
 	uint32_t id = f->get_32();
 	if (id & 0x80000000) {
-		int len = id & 0x7FFFFFFF;
+		uint32_t len = id & 0x7FFFFFFF;
 		if (len > str_buf.size()) {
 			str_buf.resize(len);
 		}
@@ -196,9 +199,9 @@ Error ResourceInteractiveLoaderBinary::parse_variant(Variant &r_v) {
 			r_v = v;
 
 		} break;
-		case VARIANT_RECT3: {
+		case VARIANT_AABB: {
 
-			Rect3 v;
+			AABB v;
 			v.position.x = f->get_real();
 			v.position.y = f->get_real();
 			v.position.z = f->get_real();
@@ -267,22 +270,22 @@ Error ResourceInteractiveLoaderBinary::parse_variant(Variant &r_v) {
 
 			Vector<StringName> names;
 			Vector<StringName> subnames;
-			StringName property;
 			bool absolute;
 
 			int name_count = f->get_16();
 			uint32_t subname_count = f->get_16();
 			absolute = subname_count & 0x8000;
 			subname_count &= 0x7FFF;
+			if (ver_format < FORMAT_VERSION_NO_NODEPATH_PROPERTY) {
+				subname_count += 1; // has a property field, so we should count it as well
+			}
 
 			for (int i = 0; i < name_count; i++)
 				names.push_back(_get_string());
 			for (uint32_t i = 0; i < subname_count; i++)
 				subnames.push_back(_get_string());
-			property = _get_string();
 
-			NodePath np = NodePath(names, subnames, absolute, property);
-			//print_line("got path: "+String(np));
+			NodePath np = NodePath(names, subnames, absolute);
 
 			r_v = np;
 
@@ -640,7 +643,6 @@ Error ResourceInteractiveLoaderBinary::poll() {
 
 		String path = external_resources[s].path;
 
-		print_line("load external res: " + path);
 		if (remaps.has(path)) {
 			path = remaps[path];
 		}
@@ -706,8 +708,6 @@ Error ResourceInteractiveLoaderBinary::poll() {
 
 	String t = get_unicode_string();
 
-	//	print_line("loading resource of type "+t+" path is "+path);
-
 	Object *obj = ClassDB::instance(t);
 	if (!obj) {
 		error = ERR_FILE_CORRUPT;
@@ -735,6 +735,7 @@ Error ResourceInteractiveLoaderBinary::poll() {
 	for (int i = 0; i < pc; i++) {
 
 		StringName name = _get_string();
+
 		if (name == StringName()) {
 			error = ERR_FILE_CORRUPT;
 			ERR_FAIL_V(ERR_FILE_CORRUPT);
@@ -860,7 +861,7 @@ void ResourceInteractiveLoaderBinary::open(FileAccess *p_f) {
 
 	uint32_t ver_major = f->get_32();
 	uint32_t ver_minor = f->get_32();
-	uint32_t ver_format = f->get_32();
+	ver_format = f->get_32();
 
 	print_bl("big endian: " + itos(big_endian));
 #ifdef BIG_ENDIAN_ENABLED
@@ -903,23 +904,11 @@ void ResourceInteractiveLoaderBinary::open(FileAccess *p_f) {
 
 		ExtResource er;
 		er.type = get_unicode_string();
+
 		er.path = get_unicode_string();
+
 		external_resources.push_back(er);
 	}
-
-	//see if the exporter has different set of external resources for more efficient loading
-	/*
-	String preload_depts = "deps/"+res_path.md5_text();
-	if (Globals::get_singleton()->has(preload_depts)) {
-		external_resources.clear();
-		//ignore external resources and use these
-		NodePath depts=Globals::get_singleton()->get(preload_depts);
-		external_resources.resize(depts.get_name_count());
-		for(int i=0;i<depts.get_name_count();i++) {
-			external_resources[i].path=depts.get_name(i);
-		}
-		print_line(res_path+" - EXTERNAL RESOURCES: "+itos(external_resources.size()));
-	}*/
 
 	print_bl("ext resources: " + itos(ext_resources_size));
 	uint32_t int_resources_size = f->get_32();
@@ -1286,7 +1275,7 @@ String ResourceFormatLoaderBinary::get_resource_type(const String &p_path) const
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
 
-void ResourceFormatSaverBinaryInstance::_pad_buffer(int p_bytes) {
+void ResourceFormatSaverBinaryInstance::_pad_buffer(FileAccess *f, int p_bytes) {
 
 	int extra = 4 - (p_bytes % 4);
 	if (extra < 4) {
@@ -1295,7 +1284,12 @@ void ResourceFormatSaverBinaryInstance::_pad_buffer(int p_bytes) {
 	}
 }
 
-void ResourceFormatSaverBinaryInstance::write_variant(const Variant &p_property, const PropertyInfo &p_hint) {
+void ResourceFormatSaverBinaryInstance::_write_variant(const Variant &p_property, const PropertyInfo &p_hint) {
+
+	write_variant(f, p_property, resource_set, external_resources, string_map, p_hint);
+}
+
+void ResourceFormatSaverBinaryInstance::write_variant(FileAccess *f, const Variant &p_property, Set<RES> &resource_set, Map<RES, int> &external_resources, Map<StringName, int> &string_map, const PropertyInfo &p_hint) {
 
 	switch (p_property.get_type()) {
 
@@ -1342,7 +1336,7 @@ void ResourceFormatSaverBinaryInstance::write_variant(const Variant &p_property,
 
 			f->store_32(VARIANT_STRING);
 			String val = p_property;
-			save_unicode_string(val);
+			save_unicode_string(f, val);
 
 		} break;
 		case Variant::VECTOR2: {
@@ -1392,10 +1386,10 @@ void ResourceFormatSaverBinaryInstance::write_variant(const Variant &p_property,
 			f->store_real(val.w);
 
 		} break;
-		case Variant::RECT3: {
+		case Variant::AABB: {
 
-			f->store_32(VARIANT_RECT3);
-			Rect3 val = p_property;
+			f->store_32(VARIANT_AABB);
+			AABB val = p_property;
 			f->store_real(val.position.x);
 			f->store_real(val.position.y);
 			f->store_real(val.position.z);
@@ -1468,11 +1462,20 @@ void ResourceFormatSaverBinaryInstance::write_variant(const Variant &p_property,
 			if (np.is_absolute())
 				snc |= 0x8000;
 			f->store_16(snc);
-			for (int i = 0; i < np.get_name_count(); i++)
-				f->store_32(get_string_index(np.get_name(i)));
-			for (int i = 0; i < np.get_subname_count(); i++)
-				f->store_32(get_string_index(np.get_subname(i)));
-			f->store_32(get_string_index(np.get_property()));
+			for (int i = 0; i < np.get_name_count(); i++) {
+				if (string_map.has(np.get_name(i))) {
+					f->store_32(string_map[np.get_name(i)]);
+				} else {
+					save_unicode_string(f, np.get_name(i), true);
+				}
+			}
+			for (int i = 0; i < np.get_subname_count(); i++) {
+				if (string_map.has(np.get_subname(i))) {
+					f->store_32(string_map[np.get_subname(i)]);
+				} else {
+					save_unicode_string(f, np.get_subname(i), true);
+				}
+			}
 
 		} break;
 		case Variant::_RID: {
@@ -1524,8 +1527,8 @@ void ResourceFormatSaverBinaryInstance::write_variant(const Variant &p_property,
 					continue;
 				*/
 
-				write_variant(E->get());
-				write_variant(d[E->get()]);
+				write_variant(f, E->get(), resource_set, external_resources, string_map);
+				write_variant(f, d[E->get()], resource_set, external_resources, string_map);
 			}
 
 		} break;
@@ -1536,7 +1539,7 @@ void ResourceFormatSaverBinaryInstance::write_variant(const Variant &p_property,
 			f->store_32(uint32_t(a.size()));
 			for (int i = 0; i < a.size(); i++) {
 
-				write_variant(a[i]);
+				write_variant(f, a[i], resource_set, external_resources, string_map);
 			}
 
 		} break;
@@ -1548,7 +1551,7 @@ void ResourceFormatSaverBinaryInstance::write_variant(const Variant &p_property,
 			f->store_32(len);
 			PoolVector<uint8_t>::Read r = arr.read();
 			f->store_buffer(r.ptr(), len);
-			_pad_buffer(len);
+			_pad_buffer(f, len);
 
 		} break;
 		case Variant::POOL_INT_ARRAY: {
@@ -1582,7 +1585,7 @@ void ResourceFormatSaverBinaryInstance::write_variant(const Variant &p_property,
 			f->store_32(len);
 			PoolVector<String>::Read r = arr.read();
 			for (int i = 0; i < len; i++) {
-				save_unicode_string(r[i]);
+				save_unicode_string(f, r[i]);
 			}
 
 		} break;
@@ -1703,17 +1706,20 @@ void ResourceFormatSaverBinaryInstance::_find_resources(const Variant &p_variant
 				get_string_index(np.get_name(i));
 			for (int i = 0; i < np.get_subname_count(); i++)
 				get_string_index(np.get_subname(i));
-			get_string_index(np.get_property());
 
 		} break;
 		default: {}
 	}
 }
 
-void ResourceFormatSaverBinaryInstance::save_unicode_string(const String &p_string) {
+void ResourceFormatSaverBinaryInstance::save_unicode_string(FileAccess *f, const String &p_string, bool p_bit_on_len) {
 
 	CharString utf8 = p_string.utf8();
-	f->store_32(utf8.length() + 1);
+	if (p_bit_on_len) {
+		f->store_32(utf8.length() + 1 | 0x80000000);
+	} else {
+		f->store_32(utf8.length() + 1);
+	}
 	f->store_buffer((const uint8_t *)utf8.get_data(), utf8.length() + 1);
 }
 
@@ -1780,7 +1786,7 @@ Error ResourceFormatSaverBinaryInstance::save(const String &p_path, const RES &p
 		return ERR_CANT_CREATE;
 	}
 
-	save_unicode_string(p_resource->get_class());
+	save_unicode_string(f, p_resource->get_class());
 	f->store_64(0); //offset to import metadata
 	for (int i = 0; i < 14; i++)
 		f->store_32(0); // reserved
@@ -1817,7 +1823,7 @@ Error ResourceFormatSaverBinaryInstance::save(const String &p_path, const RES &p
 
 	f->store_32(strings.size()); //string table size
 	for (int i = 0; i < strings.size(); i++) {
-		save_unicode_string(strings[i]);
+		save_unicode_string(f, strings[i]);
 	}
 
 	// save external resource table
@@ -1831,10 +1837,10 @@ Error ResourceFormatSaverBinaryInstance::save(const String &p_path, const RES &p
 
 	for (int i = 0; i < save_order.size(); i++) {
 
-		save_unicode_string(save_order[i]->get_save_class());
+		save_unicode_string(f, save_order[i]->get_save_class());
 		String path = save_order[i]->get_path();
 		path = relative_paths ? local_path.path_to_file(path) : path;
-		save_unicode_string(path);
+		save_unicode_string(f, path);
 	}
 	// save internal resource table
 	f->store_32(saved_resources.size()); //amount of internal resources
@@ -1870,7 +1876,7 @@ Error ResourceFormatSaverBinaryInstance::save(const String &p_path, const RES &p
 				used_indices.insert(new_subindex);
 			}
 
-			save_unicode_string("local://" + itos(r->get_subindex()));
+			save_unicode_string(f, "local://" + itos(r->get_subindex()));
 			if (takeover_paths) {
 				r->set_path(p_path + "::" + itos(r->get_subindex()), true);
 			}
@@ -1878,7 +1884,7 @@ Error ResourceFormatSaverBinaryInstance::save(const String &p_path, const RES &p
 			r->set_edited(false);
 #endif
 		} else {
-			save_unicode_string(r->get_path()); //actual external
+			save_unicode_string(f, r->get_path()); //actual external
 		}
 		ofs_pos.push_back(f->get_position());
 		f->store_64(0); //offset in 64 bits
@@ -1892,14 +1898,14 @@ Error ResourceFormatSaverBinaryInstance::save(const String &p_path, const RES &p
 		ResourceData &rd = E->get();
 
 		ofs_table.push_back(f->get_position());
-		save_unicode_string(rd.type);
+		save_unicode_string(f, rd.type);
 		f->store_32(rd.properties.size());
 
 		for (List<Property>::Element *F = rd.properties.front(); F; F = F->next()) {
 
 			Property &p = F->get();
 			f->store_32(p.name_idx);
-			write_variant(p.value, F->get().pi);
+			_write_variant(p.value, F->get().pi);
 		}
 	}
 

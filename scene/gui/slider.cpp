@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "slider.h"
 #include "os/keyboard.h"
 
@@ -157,6 +158,12 @@ void Slider::_notification(int p_what) {
 			mouse_inside = false;
 			update();
 		} break;
+		case NOTIFICATION_VISIBILITY_CHANGED: // fallthrough
+		case NOTIFICATION_EXIT_TREE: {
+
+			mouse_inside = false;
+			grab.active = false;
+		} break;
 		case NOTIFICATION_DRAW: {
 			RID ci = get_canvas_item();
 			Size2i size = get_size();
@@ -165,47 +172,48 @@ void Slider::_notification(int p_what) {
 			Ref<StyleBox> grabber_area = get_stylebox("grabber_area");
 			Ref<Texture> grabber = get_icon(editable ? ((mouse_inside || has_focus()) ? "grabber_highlight" : "grabber") : "grabber_disabled");
 			Ref<Texture> tick = get_icon("tick");
+			double ratio = Math::is_nan(get_as_ratio()) ? 0 : get_as_ratio();
 
 			if (orientation == VERTICAL) {
 
 				int widget_width = style->get_minimum_size().width + style->get_center_size().width;
 				float areasize = size.height - grabber->get_size().height;
 				style->draw(ci, Rect2i(Point2i(size.width / 2 - widget_width / 2, 0), Size2i(widget_width, size.height)));
-				grabber_area->draw(ci, Rect2i(Point2i((size.width - widget_width) / 2, size.height - areasize * get_as_ratio() - grabber->get_size().height / 2), Size2i(widget_width, areasize * get_as_ratio() + grabber->get_size().width / 2)));
+				grabber_area->draw(ci, Rect2i(Point2i((size.width - widget_width) / 2, size.height - areasize * ratio - grabber->get_size().height / 2), Size2i(widget_width, areasize * ratio + grabber->get_size().width / 2)));
 				/*
 				if (mouse_inside||has_focus())
 					focus->draw(ci,Rect2i(Point2i(),Size2i(style->get_minimum_size().width+style->get_center_size().width,size.height)));
 				*/
 				if (ticks > 1) {
-					int tickarea = size.height - tick->get_height();
+					int grabber_offset = (grabber->get_size().height / 2 - tick->get_height() / 2);
 					for (int i = 0; i < ticks; i++) {
 						if (!ticks_on_borders && (i == 0 || i + 1 == ticks)) continue;
-						int ofs = i * tickarea / (ticks - 1);
-						tick->draw(ci, Point2(0, ofs));
+						int ofs = (i * areasize / (ticks - 1)) + grabber_offset;
+						tick->draw(ci, Point2i((size.width - widget_width) / 2, ofs));
 					}
 				}
-				grabber->draw(ci, Point2i(size.width / 2 - grabber->get_size().width / 2, size.height - get_as_ratio() * areasize - grabber->get_size().height));
+				grabber->draw(ci, Point2i(size.width / 2 - grabber->get_size().width / 2, size.height - ratio * areasize - grabber->get_size().height));
 			} else {
 
 				int widget_height = style->get_minimum_size().height + style->get_center_size().height;
 				float areasize = size.width - grabber->get_size().width;
 
 				style->draw(ci, Rect2i(Point2i(0, (size.height - widget_height) / 2), Size2i(size.width, widget_height)));
-				grabber_area->draw(ci, Rect2i(Point2i(0, (size.height - widget_height) / 2), Size2i(areasize * get_as_ratio() + grabber->get_size().width / 2, widget_height)));
+				grabber_area->draw(ci, Rect2i(Point2i(0, (size.height - widget_height) / 2), Size2i(areasize * ratio + grabber->get_size().width / 2, widget_height)));
 				/*
 				if (mouse_inside||has_focus())
 					focus->draw(ci,Rect2i(Point2i(),Size2i(size.width,style->get_minimum_size().height+style->get_center_size().height)));
 				*/
 
 				if (ticks > 1) {
-					int tickarea = size.width - tick->get_width();
+					int grabber_offset = (grabber->get_size().width / 2 - tick->get_width() / 2);
 					for (int i = 0; i < ticks; i++) {
 						if ((!ticks_on_borders) && ((i == 0) || ((i + 1) == ticks))) continue;
-						int ofs = i * tickarea / (ticks - 1);
-						tick->draw(ci, Point2(ofs, 0));
+						int ofs = (i * areasize / (ticks - 1)) + grabber_offset;
+						tick->draw(ci, Point2i(ofs, (size.height - widget_height) / 2));
 					}
 				}
-				grabber->draw(ci, Point2i(get_as_ratio() * areasize, size.height / 2 - grabber->get_size().height / 2));
+				grabber->draw(ci, Point2i(ratio * areasize, size.height / 2 - grabber->get_size().height / 2));
 			}
 
 		} break;

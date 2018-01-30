@@ -51,8 +51,13 @@ gmon.out
 .cproject
 .settings/
 
+# Geany/geany-plugins files
+*.geany
+.geanyprj
+
 # Misc
 .DS_Store
+logs/
 
 # for projects that use SCons for building: http://http://www.scons.org/
 .sconf_temp
@@ -86,6 +91,12 @@ bld/
 # MSTest test Results
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
+
+# Hints for improving IntelliSense, created together with VS project
+cpp.hint
+
+# Visualizers for the VS debugger
+*.natvis
 
 #NUNIT
 *.VisualState.xml

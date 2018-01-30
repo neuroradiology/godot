@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="VSlider" inherits="Slider" category="Core" version="3.0.alpha.custom_build">
+<class name="VSlider" inherits="Slider" category="Core" version="3.0-stable">
 	<brief_description>
 		Vertical slider.
 	</brief_description>
@@ -18,6 +18,8 @@
 		<theme_item name="focus" type="StyleBox">
 		</theme_item>
 		<theme_item name="grabber" type="Texture">
+		</theme_item>
+		<theme_item name="grabber_area" type="StyleBox">
 		</theme_item>
 		<theme_item name="grabber_disabled" type="Texture">
 		</theme_item>

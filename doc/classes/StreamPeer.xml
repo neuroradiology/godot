@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="StreamPeer" inherits="Reference" category="Core" version="3.0.alpha.custom_build">
+<class name="StreamPeer" inherits="Reference" category="Core" version="3.0-stable">
 	<brief_description>
 		Abstraction and base class for stream-based protocols.
 	</brief_description>
@@ -43,7 +43,7 @@
 			<return type="int">
 			</return>
 			<description>
-				Return the amount of bytes this [StreamPeer] has available.
+				Return the amount of bytes this [code]StreamPeer[/code] has available.
 			</description>
 		</method>
 		<method name="get_data">
@@ -105,7 +105,7 @@
 			<return type="int">
 			</return>
 			<description>
-				Get an unsigned 16 bit value from the stream.
+				Get an unsigned 64 bit value from the stream.
 			</description>
 		</method>
 		<method name="get_u8">
@@ -131,17 +131,10 @@
 				Get a Variant from the stream.
 			</description>
 		</method>
-		<method name="is_big_endian_enabled" qualifiers="const">
-			<return type="bool">
-			</return>
-			<description>
-				Return whether this [StreamPeer] is using big-endian format.
-			</description>
-		</method>
 		<method name="put_16">
 			<return type="void">
 			</return>
-			<argument index="0" name="val" type="int">
+			<argument index="0" name="value" type="int">
 			</argument>
 			<description>
 				Put a signed 16 bit value into the stream.
@@ -150,7 +143,7 @@
 		<method name="put_32">
 			<return type="void">
 			</return>
-			<argument index="0" name="val" type="int">
+			<argument index="0" name="value" type="int">
 			</argument>
 			<description>
 				Put a signed 32 bit value into the stream.
@@ -159,7 +152,7 @@
 		<method name="put_64">
 			<return type="void">
 			</return>
-			<argument index="0" name="val" type="int">
+			<argument index="0" name="value" type="int">
 			</argument>
 			<description>
 				Put a signed 64 bit value into the stream.
@@ -168,7 +161,7 @@
 		<method name="put_8">
 			<return type="void">
 			</return>
-			<argument index="0" name="val" type="int">
+			<argument index="0" name="value" type="int">
 			</argument>
 			<description>
 				Put a signed byte into the stream.
@@ -186,7 +179,7 @@
 		<method name="put_double">
 			<return type="void">
 			</return>
-			<argument index="0" name="val" type="float">
+			<argument index="0" name="value" type="float">
 			</argument>
 			<description>
 				Put a double-precision float into the stream.
@@ -195,7 +188,7 @@
 		<method name="put_float">
 			<return type="void">
 			</return>
-			<argument index="0" name="val" type="float">
+			<argument index="0" name="value" type="float">
 			</argument>
 			<description>
 				Put a single-precision float into the stream.
@@ -213,7 +206,7 @@
 		<method name="put_u16">
 			<return type="void">
 			</return>
-			<argument index="0" name="val" type="int">
+			<argument index="0" name="value" type="int">
 			</argument>
 			<description>
 				Put an unsigned 16 bit value into the stream.
@@ -222,7 +215,7 @@
 		<method name="put_u32">
 			<return type="void">
 			</return>
-			<argument index="0" name="val" type="int">
+			<argument index="0" name="value" type="int">
 			</argument>
 			<description>
 				Put an unsigned 32 bit value into the stream.
@@ -231,7 +224,7 @@
 		<method name="put_u64">
 			<return type="void">
 			</return>
-			<argument index="0" name="val" type="int">
+			<argument index="0" name="value" type="int">
 			</argument>
 			<description>
 				Put an unsigned 64 bit value into the stream.
@@ -240,7 +233,7 @@
 		<method name="put_u8">
 			<return type="void">
 			</return>
-			<argument index="0" name="val" type="int">
+			<argument index="0" name="value" type="int">
 			</argument>
 			<description>
 				Put an unsigned byte into the stream.
@@ -249,7 +242,7 @@
 		<method name="put_utf8_string">
 			<return type="void">
 			</return>
-			<argument index="0" name="val" type="String">
+			<argument index="0" name="value" type="String">
 			</argument>
 			<description>
 				Put a zero-terminated utf8 string into the stream.
@@ -258,22 +251,18 @@
 		<method name="put_var">
 			<return type="void">
 			</return>
-			<argument index="0" name="val" type="Variant">
+			<argument index="0" name="value" type="Variant">
 			</argument>
 			<description>
 				Put a Variant into the stream.
 			</description>
 		</method>
-		<method name="set_big_endian">
-			<return type="void">
-			</return>
-			<argument index="0" name="enable" type="bool">
-			</argument>
-			<description>
-				Set this [StreamPeer] to use big-endian format. Default is false.
-			</description>
-		</method>
 	</methods>
+	<members>
+		<member name="big_endian" type="bool" setter="set_big_endian" getter="is_big_endian_enabled">
+			If [code]true[/code], this [code]StreamPeer[/code] will using big-endian format for encoding and decoding.
+		</member>
+	</members>
 	<constants>
 	</constants>
 </class>

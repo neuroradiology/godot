@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef ARVR_POSITIONAL_TRACKER_H
 #define ARVR_POSITIONAL_TRACKER_H
 
@@ -65,6 +66,7 @@ private:
 	bool tracks_position; // do we track position?
 	Vector3 rw_position; // our position "in the real world, so without world_scale applied"
 	TrackerHand hand; // if known, the hand this tracker is held in
+	real_t rumble; // rumble strength, 0.0 is off, 1.0 is maximum, note that we only record here, arvr_interface is responsible for execution
 
 protected:
 	static void _bind_methods();
@@ -87,6 +89,8 @@ public:
 	Vector3 get_rw_position() const;
 	ARVRPositionalTracker::TrackerHand get_hand() const;
 	void set_hand(const ARVRPositionalTracker::TrackerHand p_hand);
+	real_t get_rumble() const;
+	void set_rumble(real_t p_rumble);
 
 	Transform get_transform(bool p_adjust_by_reference_frame) const;
 

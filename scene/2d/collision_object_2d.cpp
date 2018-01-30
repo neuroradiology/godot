@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "collision_object_2d.h"
 #include "scene/scene_string_names.h"
 #include "servers/physics_2d_server.h"
@@ -325,6 +326,20 @@ void CollisionObject2D::_update_pickable() {
 		Physics2DServer::get_singleton()->area_set_pickable(rid, pickable);
 	else
 		Physics2DServer::get_singleton()->body_set_pickable(rid, pickable);
+}
+
+String CollisionObject2D::get_configuration_warning() const {
+
+	String warning = Node2D::get_configuration_warning();
+
+	if (shapes.empty()) {
+		if (warning == String()) {
+			warning += "\n";
+		}
+		warning += TTR("This node has no children shapes, so it can't interact with the space.\nConsider adding CollisionShape2D or CollisionPolygon2D children nodes to define its shape.");
+	}
+
+	return warning;
 }
 
 void CollisionObject2D::_bind_methods() {

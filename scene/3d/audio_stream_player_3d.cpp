@@ -1,3 +1,33 @@
+/*************************************************************************/
+/*  audio_stream_player_3d.cpp                                           */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                      https://godotengine.org                          */
+/*************************************************************************/
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
+
 #include "audio_stream_player_3d.h"
 #include "engine.h"
 #include "scene/3d/area.h"
@@ -21,7 +51,7 @@ void AudioStreamPlayer3D::_mix_audio() {
 	}
 
 	//get data
-	AudioFrame *buffer = mix_buffer.ptr();
+	AudioFrame *buffer = mix_buffer.ptrw();
 	int buffer_size = mix_buffer.size();
 
 	//mix
@@ -214,7 +244,7 @@ void AudioStreamPlayer3D::_notification(int p_what) {
 		}
 	}
 
-	if (p_what == NOTIFICATION_INTERNAL_FIXED_PROCESS) {
+	if (p_what == NOTIFICATION_INTERNAL_PHYSICS_PROCESS) {
 
 		//update anything related to position first, if possible of course
 
@@ -242,7 +272,7 @@ void AudioStreamPlayer3D::_notification(int p_what) {
 
 			PhysicsDirectSpaceState::ShapeResult sr[MAX_INTERSECT_AREAS];
 
-			int areas = space_state->intersect_point(global_pos, sr, MAX_INTERSECT_AREAS, Set<RID>(), area_mask, PhysicsDirectSpaceState::TYPE_MASK_AREA);
+			int areas = space_state->intersect_point(global_pos, sr, MAX_INTERSECT_AREAS, Set<RID>(), area_mask);
 			Area *area = NULL;
 
 			for (int i = 0; i < areas; i++) {
@@ -290,7 +320,7 @@ void AudioStreamPlayer3D::_notification(int p_what) {
 						total_max = MAX(total_max, cam_area_pos.length());
 					}
 					if (total_max > max_distance) {
-						continue; //cant hear this sound in this camera
+						continue; //can't hear this sound in this camera
 					}
 				}
 
@@ -512,7 +542,7 @@ void AudioStreamPlayer3D::_notification(int p_what) {
 
 		//stop playing if no longer active
 		if (!active) {
-			set_fixed_process_internal(false);
+			set_physics_process_internal(false);
 			//do not update, this makes it easier to animate (will shut off otherise)
 			//_change_notify("playing"); //update property in editor
 			emit_signal("finished");
@@ -582,7 +612,7 @@ void AudioStreamPlayer3D::play(float p_from_pos) {
 	if (stream_playback.is_valid()) {
 		setplay = p_from_pos;
 		output_ready = false;
-		set_fixed_process_internal(true);
+		set_physics_process_internal(true);
 	}
 }
 
@@ -597,7 +627,7 @@ void AudioStreamPlayer3D::stop() {
 
 	if (stream_playback.is_valid()) {
 		active = false;
-		set_fixed_process_internal(false);
+		set_physics_process_internal(false);
 		setplay = -1;
 	}
 }
@@ -776,7 +806,7 @@ void AudioStreamPlayer3D::set_doppler_tracking(DopplerTracking p_tracking) {
 
 	if (doppler_tracking != DOPPLER_TRACKING_DISABLED) {
 		set_notify_transform(true);
-		velocity_tracker->set_track_fixed_step(doppler_tracking == DOPPLER_TRACKING_FIXED_STEP);
+		velocity_tracker->set_track_physics_step(doppler_tracking == DOPPLER_TRACKING_PHYSICS_STEP);
 		velocity_tracker->reset(get_global_transform().origin);
 	} else {
 		set_notify_transform(false);
@@ -869,7 +899,7 @@ void AudioStreamPlayer3D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "attenuation_filter_cutoff_hz", PROPERTY_HINT_RANGE, "50,50000,1"), "set_attenuation_filter_cutoff_hz", "get_attenuation_filter_cutoff_hz");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "attenuation_filter_db", PROPERTY_HINT_RANGE, "-80,0,0.1"), "set_attenuation_filter_db", "get_attenuation_filter_db");
 	ADD_GROUP("Doppler", "doppler_");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "doppler_tracking", PROPERTY_HINT_ENUM, "Disabled,Idle,Fixed"), "set_doppler_tracking", "get_doppler_tracking");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "doppler_tracking", PROPERTY_HINT_ENUM, "Disabled,Idle,Physics"), "set_doppler_tracking", "get_doppler_tracking");
 
 	BIND_ENUM_CONSTANT(ATTENUATION_INVERSE_DISTANCE);
 	BIND_ENUM_CONSTANT(ATTENUATION_INVERSE_SQUARE_DISTANCE);
@@ -880,7 +910,7 @@ void AudioStreamPlayer3D::_bind_methods() {
 
 	BIND_ENUM_CONSTANT(DOPPLER_TRACKING_DISABLED);
 	BIND_ENUM_CONSTANT(DOPPLER_TRACKING_IDLE_STEP);
-	BIND_ENUM_CONSTANT(DOPPLER_TRACKING_FIXED_STEP);
+	BIND_ENUM_CONSTANT(DOPPLER_TRACKING_PHYSICS_STEP);
 
 	ADD_SIGNAL(MethodInfo("finished"));
 }

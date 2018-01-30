@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef OBJECT_H
 #define OBJECT_H
 
@@ -85,6 +86,7 @@ enum PropertyHint {
 	PROPERTY_HINT_PROPERTY_OF_SCRIPT, ///< a property of a script & base
 	PROPERTY_HINT_OBJECT_TOO_BIG, ///< object is too big to send
 	PROPERTY_HINT_MAX,
+	// When updating PropertyHint, also sync the hardcoded list in VisualScriptEditorVariableEdit
 };
 
 enum PropertyUsageFlags {
@@ -109,6 +111,8 @@ enum PropertyUsageFlags {
 	PROPERTY_USAGE_SCRIPT_DEFAULT_VALUE = 1 << 17,
 	PROPERTY_USAGE_CLASS_IS_ENUM = 1 << 18,
 	PROPERTY_USAGE_NIL_IS_VARIANT = 1 << 19,
+	PROPERTY_USAGE_INTERNAL = 1 << 20,
+	PROPERTY_USAGE_DO_NOT_SHARE_ON_DUPLICATE = 1 << 21, // If the object is duplicated also this property will be duplicated
 
 	PROPERTY_USAGE_DEFAULT = PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NETWORK,
 	PROPERTY_USAGE_DEFAULT_INTL = PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_NETWORK | PROPERTY_USAGE_INTERNATIONALIZED,
@@ -143,18 +147,18 @@ struct PropertyInfo {
 
 	static PropertyInfo from_dict(const Dictionary &p_dict);
 
-	PropertyInfo()
-		: type(Variant::NIL),
-		  hint(PROPERTY_HINT_NONE),
-		  usage(PROPERTY_USAGE_DEFAULT) {
+	PropertyInfo() :
+			type(Variant::NIL),
+			hint(PROPERTY_HINT_NONE),
+			usage(PROPERTY_USAGE_DEFAULT) {
 	}
 
-	PropertyInfo(Variant::Type p_type, const String p_name, PropertyHint p_hint = PROPERTY_HINT_NONE, const String &p_hint_string = "", uint32_t p_usage = PROPERTY_USAGE_DEFAULT, const StringName &p_class_name = StringName())
-		: type(p_type),
-		  name(p_name),
-		  hint(p_hint),
-		  hint_string(p_hint_string),
-		  usage(p_usage) {
+	PropertyInfo(Variant::Type p_type, const String p_name, PropertyHint p_hint = PROPERTY_HINT_NONE, const String &p_hint_string = "", uint32_t p_usage = PROPERTY_USAGE_DEFAULT, const StringName &p_class_name = StringName()) :
+			type(p_type),
+			name(p_name),
+			hint(p_hint),
+			hint_string(p_hint_string),
+			usage(p_usage) {
 
 		if (hint == PROPERTY_HINT_RESOURCE_TYPE) {
 			class_name = hint_string;
@@ -163,11 +167,11 @@ struct PropertyInfo {
 		}
 	}
 
-	PropertyInfo(const StringName &p_class_name)
-		: type(Variant::OBJECT),
-		  class_name(p_class_name),
-		  hint(PROPERTY_HINT_NONE),
-		  usage(PROPERTY_USAGE_DEFAULT) {
+	PropertyInfo(const StringName &p_class_name) :
+			type(Variant::OBJECT),
+			class_name(p_class_name),
+			hint(PROPERTY_HINT_NONE),
+			usage(PROPERTY_USAGE_DEFAULT) {
 	}
 
 	bool operator<(const PropertyInfo &p_info) const {
@@ -427,9 +431,9 @@ private:
 
 			_FORCE_INLINE_ bool operator<(const Target &p_target) const { return (_id == p_target._id) ? (method < p_target.method) : (_id < p_target._id); }
 
-			Target(const ObjectID &p_id, const StringName &p_method)
-				: _id(p_id),
-				  method(p_method) {
+			Target(const ObjectID &p_id, const StringName &p_method) :
+					_id(p_id),
+					method(p_method) {
 			}
 			Target() { _id = 0; }
 		};
@@ -477,6 +481,8 @@ private:
 	Array _get_incoming_connections() const;
 	void _set_bind(const String &p_set, const Variant &p_value);
 	Variant _get_bind(const String &p_name) const;
+	void _set_indexed_bind(const NodePath &p_name, const Variant &p_value);
+	Variant _get_indexed_bind(const NodePath &p_name) const;
 
 	void *_script_instance_bindings[MAX_SCRIPT_INSTANCE_BINDINGS];
 
@@ -627,6 +633,8 @@ public:
 
 	void set(const StringName &p_name, const Variant &p_value, bool *r_valid = NULL);
 	Variant get(const StringName &p_name, bool *r_valid = NULL) const;
+	void set_indexed(const Vector<StringName> &p_names, const Variant &p_value, bool *r_valid = NULL);
+	Variant get_indexed(const Vector<StringName> &p_names, bool *r_valid = NULL) const;
 
 	void get_property_list(List<PropertyInfo> *p_list, bool p_reversed = false) const;
 
@@ -687,6 +695,7 @@ public:
 	bool is_blocking_signals() const;
 
 	Variant::Type get_static_property_type(const StringName &p_property, bool *r_valid = NULL) const;
+	Variant::Type get_static_property_type_indexed(const Vector<StringName> &p_path, bool *r_valid = NULL) const;
 
 	virtual void get_translatable_strings(List<String> *p_strings) const;
 

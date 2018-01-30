@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef EDITOR_SUB_SCENE_H
 #define EDITOR_SUB_SCENE_H
 
@@ -38,13 +39,18 @@ class EditorSubScene : public ConfirmationDialog {
 
 	GDCLASS(EditorSubScene, ConfirmationDialog);
 
+	List<Node *> selection;
 	LineEdit *path;
 	Tree *tree;
 	Node *scene;
+	bool is_root;
 
 	EditorFileDialog *file_dialog;
 
 	void _fill_tree(Node *p_node, TreeItem *p_parent);
+	void _selected_changed();
+	void _item_multi_selected(Object *p_object, int p_cell, bool p_selected);
+	void _remove_selection_child(Node *c);
 	void _reown(Node *p_node, List<Node *> *p_to_reown);
 
 	void ok_pressed();

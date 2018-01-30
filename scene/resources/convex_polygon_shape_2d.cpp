@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,11 +27,17 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "convex_polygon_shape_2d.h"
 
 #include "geometry.h"
 #include "servers/physics_2d_server.h"
 #include "servers/visual_server.h"
+
+bool ConvexPolygonShape2D::_edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const {
+
+	return Geometry::is_point_in_polygon(p_point, points);
+}
 
 void ConvexPolygonShape2D::_update_shape() {
 
@@ -86,8 +92,8 @@ Rect2 ConvexPolygonShape2D::get_rect() const {
 	return rect;
 }
 
-ConvexPolygonShape2D::ConvexPolygonShape2D()
-	: Shape2D(Physics2DServer::get_singleton()->shape_create(Physics2DServer::SHAPE_CONVEX_POLYGON)) {
+ConvexPolygonShape2D::ConvexPolygonShape2D() :
+		Shape2D(Physics2DServer::get_singleton()->convex_polygon_shape_create()) {
 
 	int pcount = 3;
 	for (int i = 0; i < pcount; i++)

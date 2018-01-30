@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef IMAGE_H
 #define IMAGE_H
 
@@ -207,6 +208,7 @@ public:
 	/**
 	 * Crop the image to a specific size, if larger, then the image is filled by black
 	 */
+	void crop_from_point(int p_x, int p_y, int p_width, int p_height);
 	void crop(int p_width, int p_height);
 
 	void flip_x();
@@ -294,6 +296,9 @@ public:
 
 	static void set_compress_bc_func(void (*p_compress_func)(Image *, CompressSource));
 	static String get_format_name(Format p_format);
+
+	Error load_png_from_buffer(const PoolVector<uint8_t> &p_array);
+	Error load_jpg_from_buffer(const PoolVector<uint8_t> &p_array);
 
 	Image(const uint8_t *p_mem_png_jpg, int p_len = -1);
 	Image(const char **p_xpm);

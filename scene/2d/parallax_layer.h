@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef PARALLAX_LAYER_H
 #define PARALLAX_LAYER_H
 
@@ -43,6 +44,8 @@ class ParallaxLayer : public Node2D {
 	Vector2 mirroring;
 	void _update_mirroring();
 
+	Point2 screen_offset;
+
 protected:
 	void _notification(int p_what);
 	static void _bind_methods();
@@ -57,7 +60,7 @@ public:
 	void set_mirroring(const Size2 &p_mirroring);
 	Size2 get_mirroring() const;
 
-	void set_base_offset_and_scale(const Point2 &p_offset, float p_scale);
+	void set_base_offset_and_scale(const Point2 &p_offset, float p_scale, const Point2 &p_screen_offset);
 
 	virtual String get_configuration_warning() const;
 	ParallaxLayer();

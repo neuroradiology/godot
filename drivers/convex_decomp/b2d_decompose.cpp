@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "b2d_decompose.h"
 
 #include "thirdparty/b2d_convexdecomp/b2Polygon.h"
@@ -153,7 +154,7 @@ static Vector<Vector<Vector2> > _b2d_decompose(const Vector<Vector2> &p_polygon)
 	delete p;
 	return res; // pdarray; //needs to be deleted after body is created
 }
-}
+} // namespace b2ConvexDecomp
 
 Vector<Vector<Vector2> > b2d_decompose(const Vector<Vector2> &p_polygon) {
 

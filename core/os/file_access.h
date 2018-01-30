@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef FILE_ACCESS_H
 #define FILE_ACCESS_H
 
@@ -119,6 +120,7 @@ public:
 
 	virtual Error get_error() const = 0; ///< get last error
 
+	virtual void flush() = 0;
 	virtual void store_8(uint8_t p_dest) = 0; ///< store a byte
 	virtual void store_16(uint16_t p_dest); ///< store 16 bits uint
 	virtual void store_32(uint32_t p_dest); ///< store 32 bits uint
@@ -140,7 +142,7 @@ public:
 
 	virtual Error reopen(const String &p_path, int p_mode_flags); ///< does not change the AccessType
 
-	virtual Error _chmod(const String &p_path, int p_mod) { return FAILED; }
+	virtual Error _chmod(const String &p_path, int p_mod) { return ERR_UNAVAILABLE; }
 
 	static FileAccess *create(AccessType p_access); /// Create a file access (for the current platform) this is the only portable way of accessing files.
 	static FileAccess *create_for_path(const String &p_path);
@@ -154,6 +156,7 @@ public:
 
 	static String get_md5(const String &p_file);
 	static String get_sha256(const String &p_file);
+	static String get_multiple_md5(const Vector<String> &p_file);
 
 	static Vector<uint8_t> get_file_as_array(const String &p_path);
 

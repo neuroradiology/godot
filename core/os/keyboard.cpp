@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "keyboard.h"
 #include "os/os.h"
 
@@ -60,7 +61,11 @@ static const _KeyCodeText _keycodes[] = {
 		{KEY_PAGEDOWN                      ,"PageDown"},
 		{KEY_SHIFT                         ,"Shift"},
 		{KEY_CONTROL                       ,"Control"},
+#ifdef OSX_ENABLED
+		{KEY_META                          ,"Command"},
+#else
 		{KEY_META                          ,"Meta"},
+#endif
 		{KEY_ALT                           ,"Alt"},
 		{KEY_CAPSLOCK                      ,"CapsLock"},
 		{KEY_NUMLOCK                       ,"NumLock"},
@@ -390,14 +395,22 @@ bool keycode_has_unicode(uint32_t p_keycode) {
 String keycode_get_string(uint32_t p_code) {
 
 	String codestr;
-	if (p_code & KEY_MASK_SHIFT)
-		codestr += "Shift+";
-	if (p_code & KEY_MASK_ALT)
-		codestr += "Alt+";
-	if (p_code & KEY_MASK_CTRL)
-		codestr += "Ctrl+";
-	if (p_code & KEY_MASK_META)
-		codestr += "Meta+";
+	if (p_code & KEY_MASK_SHIFT) {
+		codestr += find_keycode_name(KEY_SHIFT);
+		codestr += "+";
+	}
+	if (p_code & KEY_MASK_ALT) {
+		codestr += find_keycode_name(KEY_ALT);
+		codestr += "+";
+	}
+	if (p_code & KEY_MASK_CTRL) {
+		codestr += find_keycode_name(KEY_CONTROL);
+		codestr += "+";
+	}
+	if (p_code & KEY_MASK_META) {
+		codestr += find_keycode_name(KEY_META);
+		codestr += "+";
+	}
 
 	p_code &= KEY_CODE_MASK;
 
@@ -431,6 +444,21 @@ int find_keycode(const String &p_code) {
 	}
 
 	return 0;
+}
+
+const char *find_keycode_name(int p_keycode) {
+
+	const _KeyCodeText *kct = &_keycodes[0];
+
+	while (kct->text) {
+
+		if (kct->code == p_keycode) {
+			return kct->text;
+		}
+		kct++;
+	}
+
+	return "";
 }
 
 struct _KeyCodeReplace {
@@ -505,6 +533,27 @@ static const _KeyCodeReplace _keycode_replace_neo[] = {
 	{ 0, 0 }
 };
 
+static const _KeyCodeReplace _keycode_replace_colemak[] = {
+	{ KEY_E, KEY_F },
+	{ KEY_R, KEY_P },
+	{ KEY_T, KEY_G },
+	{ KEY_Y, KEY_J },
+	{ KEY_U, KEY_L },
+	{ KEY_I, KEY_U },
+	{ KEY_O, KEY_Y },
+	{ KEY_P, KEY_SEMICOLON },
+	{ KEY_S, KEY_R },
+	{ KEY_D, KEY_S },
+	{ KEY_F, KEY_T },
+	{ KEY_G, KEY_D },
+	{ KEY_J, KEY_N },
+	{ KEY_K, KEY_E },
+	{ KEY_L, KEY_I },
+	{ KEY_SEMICOLON, KEY_O },
+	{ KEY_N, KEY_K },
+	{ 0, 0 }
+};
+
 int keycode_get_count() {
 
 	const _KeyCodeText *kct = &_keycodes[0];
@@ -537,6 +586,7 @@ int latin_keyboard_keycode_convert(int p_keycode) {
 		case OS::LATIN_KEYBOARD_QZERTY: kcr = _keycode_replace_qzerty; break;
 		case OS::LATIN_KEYBOARD_DVORAK: kcr = _keycode_replace_dvorak; break;
 		case OS::LATIN_KEYBOARD_NEO: kcr = _keycode_replace_neo; break;
+		case OS::LATIN_KEYBOARD_COLEMAK: kcr = _keycode_replace_colemak; break;
 		default: return p_keycode;
 	}
 

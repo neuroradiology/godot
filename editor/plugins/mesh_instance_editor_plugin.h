@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef MESH_INSTANCE_EDITOR_PLUGIN_H
 #define MESH_INSTANCE_EDITOR_PLUGIN_H
 
@@ -35,9 +36,9 @@
 #include "scene/3d/mesh_instance.h"
 #include "scene/gui/spin_box.h"
 
-class MeshInstanceEditor : public Node {
+class MeshInstanceEditor : public Control {
 
-	GDCLASS(MeshInstanceEditor, Node);
+	GDCLASS(MeshInstanceEditor, Control);
 
 	enum Menu {
 
@@ -47,6 +48,9 @@ class MeshInstanceEditor : public Node {
 		MENU_OPTION_CREATE_CONVEX_COLLISION_SHAPE,
 		MENU_OPTION_CREATE_NAVMESH,
 		MENU_OPTION_CREATE_OUTLINE_MESH,
+		MENU_OPTION_CREATE_UV2,
+		MENU_OPTION_DEBUG_UV1,
+		MENU_OPTION_DEBUG_UV2,
 	};
 
 	MeshInstance *node;
@@ -58,10 +62,17 @@ class MeshInstanceEditor : public Node {
 
 	AcceptDialog *err_dialog;
 
+	AcceptDialog *debug_uv_dialog;
+	Control *debug_uv;
+	Vector<Vector2> uv_lines;
+
 	void _menu_option(int p_option);
 	void _create_outline_mesh();
 
+	void _create_uv_lines(int p_layer);
 	friend class MeshInstanceEditorPlugin;
+
+	void _debug_uv_draw();
 
 protected:
 	void _node_removed(Node *p_node);

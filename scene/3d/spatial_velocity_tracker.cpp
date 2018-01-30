@@ -1,21 +1,51 @@
+/*************************************************************************/
+/*  spatial_velocity_tracker.cpp                                         */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                      https://godotengine.org                          */
+/*************************************************************************/
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
+
 #include "spatial_velocity_tracker.h"
 #include "engine.h"
 
-void SpatialVelocityTracker::set_track_fixed_step(bool p_track_fixed_step) {
+void SpatialVelocityTracker::set_track_physics_step(bool p_track_physics_step) {
 
-	fixed_step = p_track_fixed_step;
+	physics_step = p_track_physics_step;
 }
 
-bool SpatialVelocityTracker::is_tracking_fixed_step() const {
+bool SpatialVelocityTracker::is_tracking_physics_step() const {
 
-	return fixed_step;
+	return physics_step;
 }
 void SpatialVelocityTracker::update_position(const Vector3 &p_position) {
 
 	PositionHistory ph;
 	ph.position = p_position;
-	if (fixed_step) {
-		ph.frame = Engine::get_singleton()->get_fixed_frames();
+	if (physics_step) {
+		ph.frame = Engine::get_singleton()->get_physics_frames();
 	} else {
 		ph.frame = Engine::get_singleton()->get_idle_frame_ticks();
 	}
@@ -40,8 +70,8 @@ Vector3 SpatialVelocityTracker::get_tracked_linear_velocity() const {
 	float base_time = 0.0;
 
 	if (position_history_len) {
-		if (fixed_step) {
-			uint64_t base = Engine::get_singleton()->get_fixed_frames();
+		if (physics_step) {
+			uint64_t base = Engine::get_singleton()->get_physics_frames();
 			base_time = float(base - position_history[0].frame) / Engine::get_singleton()->get_iterations_per_second();
 		} else {
 			uint64_t base = Engine::get_singleton()->get_idle_frame_ticks();
@@ -54,7 +84,7 @@ Vector3 SpatialVelocityTracker::get_tracked_linear_velocity() const {
 		uint64_t diff = position_history[i].frame - position_history[i + 1].frame;
 		Vector3 distance = position_history[i].position - position_history[i + 1].position;
 
-		if (fixed_step) {
+		if (physics_step) {
 			delta = float(diff) / Engine::get_singleton()->get_iterations_per_second();
 		} else {
 			delta = double(diff) / 1000000.0;
@@ -78,8 +108,8 @@ void SpatialVelocityTracker::reset(const Vector3 &p_new_pos) {
 
 	PositionHistory ph;
 	ph.position = p_new_pos;
-	if (fixed_step) {
-		ph.frame = Engine::get_singleton()->get_fixed_frames();
+	if (physics_step) {
+		ph.frame = Engine::get_singleton()->get_physics_frames();
 	} else {
 		ph.frame = Engine::get_singleton()->get_idle_frame_ticks();
 	}
@@ -90,15 +120,17 @@ void SpatialVelocityTracker::reset(const Vector3 &p_new_pos) {
 
 void SpatialVelocityTracker::_bind_methods() {
 
-	ClassDB::bind_method(D_METHOD("set_track_fixed_step", "enable"), &SpatialVelocityTracker::set_track_fixed_step);
-	ClassDB::bind_method(D_METHOD("is_tracking_fixed_step"), &SpatialVelocityTracker::is_tracking_fixed_step);
+	ClassDB::bind_method(D_METHOD("set_track_physics_step", "enable"), &SpatialVelocityTracker::set_track_physics_step);
+	ClassDB::bind_method(D_METHOD("is_tracking_physics_step"), &SpatialVelocityTracker::is_tracking_physics_step);
 	ClassDB::bind_method(D_METHOD("update_position", "position"), &SpatialVelocityTracker::update_position);
 	ClassDB::bind_method(D_METHOD("get_tracked_linear_velocity"), &SpatialVelocityTracker::get_tracked_linear_velocity);
 	ClassDB::bind_method(D_METHOD("reset", "position"), &SpatialVelocityTracker::reset);
+
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "track_physics_step"), "set_track_physics_step", "is_tracking_physics_step");
 }
 
 SpatialVelocityTracker::SpatialVelocityTracker() {
 	position_history.resize(4); // should be configurable
 	position_history_len = 0;
-	fixed_step = false;
+	physics_step = false;
 }

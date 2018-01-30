@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef INPUT_EVENT_H
 #define INPUT_EVENT_H
 
@@ -44,7 +45,7 @@
  * The events are pretty obvious.
  */
 
-enum {
+enum ButtonList {
 	BUTTON_LEFT = 1,
 	BUTTON_RIGHT = 2,
 	BUTTON_MIDDLE = 3,
@@ -58,7 +59,7 @@ enum {
 
 };
 
-enum {
+enum JoystickList {
 
 	JOY_BUTTON_0 = 0,
 	JOY_BUTTON_1 = 1,
@@ -109,8 +110,8 @@ enum {
 	JOY_WII_C = JOY_BUTTON_5,
 	JOY_WII_Z = JOY_BUTTON_6,
 
-	JOY_WII_MINUS = JOY_BUTTON_9,
-	JOY_WII_PLUS = JOY_BUTTON_10,
+	JOY_WII_MINUS = JOY_BUTTON_10,
+	JOY_WII_PLUS = JOY_BUTTON_11,
 
 	// end of history
 
@@ -122,7 +123,9 @@ enum {
 	JOY_AXIS_5 = 5,
 	JOY_AXIS_6 = 6,
 	JOY_AXIS_7 = 7,
-	JOY_AXIS_MAX = 8,
+	JOY_AXIS_8 = 8,
+	JOY_AXIS_9 = 9,
+	JOY_AXIS_MAX = 10,
 
 	JOY_ANALOG_LX = JOY_AXIS_0,
 	JOY_ANALOG_LY = JOY_AXIS_1,
@@ -142,16 +145,12 @@ enum {
 class InputEvent : public Resource {
 	GDCLASS(InputEvent, Resource)
 
-	uint32_t id;
 	int device;
 
 protected:
 	static void _bind_methods();
 
 public:
-	void set_id(uint32_t p_id);
-	uint32_t get_id() const;
-
 	void set_device(int p_device);
 	int get_device() const;
 
@@ -210,6 +209,8 @@ public:
 
 	void set_command(bool p_enabled);
 	bool get_command() const;
+
+	void set_modifiers_from_event(const InputEventWithModifiers *event);
 
 	InputEventWithModifiers();
 };
@@ -466,4 +467,51 @@ public:
 	InputEventAction();
 };
 
+class InputEventGesture : public InputEventWithModifiers {
+
+	GDCLASS(InputEventGesture, InputEventWithModifiers)
+
+	Vector2 pos;
+
+protected:
+	static void _bind_methods();
+
+public:
+	void set_position(const Vector2 &p_pos);
+	Vector2 get_position() const;
+};
+
+class InputEventMagnifyGesture : public InputEventGesture {
+
+	GDCLASS(InputEventMagnifyGesture, InputEventGesture)
+	real_t factor;
+
+protected:
+	static void _bind_methods();
+
+public:
+	void set_factor(real_t p_factor);
+	real_t get_factor() const;
+
+	virtual Ref<InputEvent> xformed_by(const Transform2D &p_xform, const Vector2 &p_local_ofs = Vector2()) const;
+
+	InputEventMagnifyGesture();
+};
+
+class InputEventPanGesture : public InputEventGesture {
+
+	GDCLASS(InputEventPanGesture, InputEventGesture)
+	Vector2 delta;
+
+protected:
+	static void _bind_methods();
+
+public:
+	void set_delta(const Vector2 &p_delta);
+	Vector2 get_delta() const;
+
+	virtual Ref<InputEvent> xformed_by(const Transform2D &p_xform, const Vector2 &p_local_ofs = Vector2()) const;
+
+	InputEventPanGesture();
+};
 #endif

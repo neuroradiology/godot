@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "color.h"
 
 #include "color_names.inc"
@@ -412,96 +413,95 @@ Color::operator String() const {
 Color Color::operator+(const Color &p_color) const {
 
 	return Color(
-			CLAMP(r + p_color.r, 0.0, 1.0),
-			CLAMP(g + p_color.g, 0.0, 1.0),
-			CLAMP(b + p_color.b, 0.0, 1.0),
-			CLAMP(a + p_color.a, 0.0, 1.0));
+			r + p_color.r,
+			g + p_color.g,
+			b + p_color.b,
+			a + p_color.a);
 }
 
 void Color::operator+=(const Color &p_color) {
 
-	r = CLAMP(r + p_color.r, 0.0, 1.0);
-	g = CLAMP(g + p_color.g, 0.0, 1.0);
-	b = CLAMP(b + p_color.b, 0.0, 1.0);
-	a = CLAMP(a + p_color.a, 0.0, 1.0);
+	r = r + p_color.r;
+	g = g + p_color.g;
+	b = b + p_color.b;
+	a = a + p_color.a;
 }
 
 Color Color::operator-(const Color &p_color) const {
 
 	return Color(
-			CLAMP(r - p_color.r, 0.0, 1.0),
-			CLAMP(g - p_color.g, 0.0, 1.0),
-			CLAMP(b - p_color.b, 0.0, 1.0),
-			CLAMP(a - p_color.a, 0.0, 1.0));
+			r - p_color.r,
+			g - p_color.g,
+			b - p_color.b,
+			a - p_color.a);
 }
 
 void Color::operator-=(const Color &p_color) {
 
-	r = CLAMP(r - p_color.r, 0.0, 1.0);
-	g = CLAMP(g - p_color.g, 0.0, 1.0);
-	b = CLAMP(b - p_color.b, 0.0, 1.0);
-	a = CLAMP(a - p_color.a, 0.0, 1.0);
+	r = r - p_color.r;
+	g = g - p_color.g;
+	b = b - p_color.b;
+	a = a - p_color.a;
 }
 
 Color Color::operator*(const Color &p_color) const {
 
 	return Color(
-			CLAMP(r * p_color.r, 0.0, 1.0),
-			CLAMP(g * p_color.g, 0.0, 1.0),
-			CLAMP(b * p_color.b, 0.0, 1.0),
-			CLAMP(a * p_color.a, 0.0, 1.0));
+			r * p_color.r,
+			g * p_color.g,
+			b * p_color.b,
+			a * p_color.a);
 }
 
 Color Color::operator*(const real_t &rvalue) const {
 
 	return Color(
-			CLAMP(r * rvalue, 0.0, 1.0),
-			CLAMP(g * rvalue, 0.0, 1.0),
-			CLAMP(b * rvalue, 0.0, 1.0),
-			CLAMP(a * rvalue, 0.0, 1.0));
+			r * rvalue,
+			g * rvalue,
+			b * rvalue,
+			a * rvalue);
 }
 
 void Color::operator*=(const Color &p_color) {
 
-	r = CLAMP(r * p_color.r, 0.0, 1.0);
-	g = CLAMP(g * p_color.g, 0.0, 1.0);
-	b = CLAMP(b * p_color.b, 0.0, 1.0);
-	a = CLAMP(a * p_color.a, 0.0, 1.0);
+	r = r * p_color.r;
+	g = g * p_color.g;
+	b = b * p_color.b;
+	a = a * p_color.a;
 }
 
 void Color::operator*=(const real_t &rvalue) {
 
-	r = CLAMP(r * rvalue, 0.0, 1.0);
-	g = CLAMP(g * rvalue, 0.0, 1.0);
-	b = CLAMP(b * rvalue, 0.0, 1.0);
-	a = CLAMP(a * rvalue, 0.0, 1.0);
-};
+	r = r * rvalue;
+	g = g * rvalue;
+	b = b * rvalue;
+	a = a * rvalue;
+}
 
 Color Color::operator/(const Color &p_color) const {
 
 	return Color(
-			p_color.r == 0 ? 1 : CLAMP(r / p_color.r, 0.0, 1.0),
-			p_color.g == 0 ? 1 : CLAMP(g / p_color.g, 0.0, 1.0),
-			p_color.b == 0 ? 1 : CLAMP(b / p_color.b, 0.0, 1.0),
-			p_color.a == 0 ? 1 : CLAMP(a / p_color.a, 0.0, 1.0));
+			r / p_color.r,
+			g / p_color.g,
+			b / p_color.b,
+			a / p_color.a);
 }
 
 Color Color::operator/(const real_t &rvalue) const {
 
-	if (rvalue == 0) return Color(1.0, 1.0, 1.0, 1.0);
 	return Color(
-			CLAMP(r / rvalue, 0.0, 1.0),
-			CLAMP(g / rvalue, 0.0, 1.0),
-			CLAMP(b / rvalue, 0.0, 1.0),
-			CLAMP(a / rvalue, 0.0, 1.0));
+			r / rvalue,
+			g / rvalue,
+			b / rvalue,
+			a / rvalue);
 }
 
 void Color::operator/=(const Color &p_color) {
 
-	r = p_color.r == 0 ? 1 : CLAMP(r / p_color.r, 0.0, 1.0);
-	g = p_color.g == 0 ? 1 : CLAMP(g / p_color.g, 0.0, 1.0);
-	b = p_color.b == 0 ? 1 : CLAMP(b / p_color.b, 0.0, 1.0);
-	a = p_color.a == 0 ? 1 : CLAMP(a / p_color.a, 0.0, 1.0);
+	r = r / p_color.r;
+	g = g / p_color.g;
+	b = b / p_color.b;
+	a = a / p_color.a;
 }
 
 void Color::operator/=(const real_t &rvalue) {
@@ -512,18 +512,18 @@ void Color::operator/=(const real_t &rvalue) {
 		b = 1.0;
 		a = 1.0;
 	} else {
-		r = CLAMP(r / rvalue, 0.0, 1.0);
-		g = CLAMP(g / rvalue, 0.0, 1.0);
-		b = CLAMP(b / rvalue, 0.0, 1.0);
-		a = CLAMP(a / rvalue, 0.0, 1.0);
+		r = r / rvalue;
+		g = g / rvalue;
+		b = b / rvalue;
+		a = a / rvalue;
 	}
 };
 
 Color Color::operator-() const {
 
 	return Color(
-			CLAMP(1.0 - r, 0.0, 1.0),
-			CLAMP(1.0 - g, 0.0, 1.0),
-			CLAMP(1.0 - b, 0.0, 1.0),
-			CLAMP(1.0 - a, 0.0, 1.0));
+			1.0 - r,
+			1.0 - g,
+			1.0 - b,
+			1.0 - a);
 }

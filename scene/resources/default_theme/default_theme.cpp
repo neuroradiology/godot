@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -257,6 +257,8 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 
 	// LinkButton
 
+	theme->set_stylebox("focus", "LinkButton", focus);
+
 	theme->set_font("font", "LinkButton", default_font);
 
 	theme->set_color("font_color", "LinkButton", control_font_color);
@@ -310,7 +312,7 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 	theme->set_stylebox("pressed", "OptionButton", sb_optbutton_pressed);
 	theme->set_stylebox("hover", "OptionButton", sb_optbutton_hover);
 	theme->set_stylebox("disabled", "OptionButton", sb_optbutton_disabled);
-	theme->set_stylebox("focus", "OptionButton", sb_button_focus);
+	theme->set_stylebox("focus", "OptionButton", sb_optbutton_focus);
 
 	theme->set_icon("arrow", "OptionButton", make_icon(option_arrow_png));
 
@@ -328,8 +330,8 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 
 	theme->set_stylebox("normal", "MenuButton", sb_button_normal);
 	theme->set_stylebox("pressed", "MenuButton", sb_button_pressed);
-	theme->set_stylebox("hover", "MenuButton", sb_button_pressed);
-	theme->set_stylebox("disabled", "MenuButton", make_empty_stylebox(0, 0, 0, 0));
+	theme->set_stylebox("hover", "MenuButton", sb_button_hover);
+	theme->set_stylebox("disabled", "MenuButton", sb_button_disabled);
 	theme->set_stylebox("focus", "MenuButton", sb_button_focus);
 
 	theme->set_font("font", "MenuButton", default_font);
@@ -348,15 +350,15 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 	// CheckBox
 
 	Ref<StyleBox> cbx_empty = memnew(StyleBoxEmpty);
-	cbx_empty->set_default_margin(MARGIN_LEFT, 22 * scale);
+	cbx_empty->set_default_margin(MARGIN_LEFT, 4 * scale);
 	cbx_empty->set_default_margin(MARGIN_RIGHT, 4 * scale);
 	cbx_empty->set_default_margin(MARGIN_TOP, 4 * scale);
-	cbx_empty->set_default_margin(MARGIN_BOTTOM, 5 * scale);
+	cbx_empty->set_default_margin(MARGIN_BOTTOM, 4 * scale);
 	Ref<StyleBox> cbx_focus = focus;
 	cbx_focus->set_default_margin(MARGIN_LEFT, 4 * scale);
-	cbx_focus->set_default_margin(MARGIN_RIGHT, 22 * scale);
+	cbx_focus->set_default_margin(MARGIN_RIGHT, 4 * scale);
 	cbx_focus->set_default_margin(MARGIN_TOP, 4 * scale);
-	cbx_focus->set_default_margin(MARGIN_BOTTOM, 5 * scale);
+	cbx_focus->set_default_margin(MARGIN_BOTTOM, 4 * scale);
 
 	theme->set_stylebox("normal", "CheckBox", cbx_empty);
 	theme->set_stylebox("pressed", "CheckBox", cbx_empty);
@@ -383,7 +385,7 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 
 	Ref<StyleBox> cb_empty = memnew(StyleBoxEmpty);
 	cb_empty->set_default_margin(MARGIN_LEFT, 6 * scale);
-	cb_empty->set_default_margin(MARGIN_RIGHT, 70 * scale);
+	cb_empty->set_default_margin(MARGIN_RIGHT, 6 * scale);
 	cb_empty->set_default_margin(MARGIN_TOP, 4 * scale);
 	cb_empty->set_default_margin(MARGIN_BOTTOM, 4 * scale);
 
@@ -448,6 +450,7 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 
 	theme->set_stylebox("normal", "TextEdit", make_stylebox(tree_bg_png, 3, 3, 3, 3));
 	theme->set_stylebox("focus", "TextEdit", focus);
+	theme->set_stylebox("read_only", "TextEdit", make_stylebox(tree_bg_disabled_png, 4, 4, 4, 4));
 	theme->set_stylebox("completion", "TextEdit", make_stylebox(tree_bg_png, 3, 3, 3, 3));
 
 	theme->set_icon("tab", "TextEdit", make_icon(tab_png));
@@ -465,6 +468,7 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 	theme->set_color("selection_color", "TextEdit", font_color_selection);
 	theme->set_color("mark_color", "TextEdit", Color(1.0, 0.4, 0.4, 0.4));
 	theme->set_color("breakpoint_color", "TextEdit", Color(0.8, 0.8, 0.4, 0.2));
+	theme->set_color("code_folding_color", "TextEdit", Color(0.8, 0.8, 0.8, 0.8));
 	theme->set_color("current_line_color", "TextEdit", Color(0.25, 0.25, 0.26, 0.8));
 	theme->set_color("caret_color", "TextEdit", control_font_color);
 	theme->set_color("caret_background_color", "TextEdit", Color::html("000000"));
@@ -512,6 +516,7 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 	// HSlider
 
 	theme->set_stylebox("slider", "HSlider", make_stylebox(hslider_bg_png, 4, 4, 4, 4));
+	theme->set_stylebox("grabber_area", "HSlider", make_stylebox(hslider_bg_png, 4, 4, 4, 4));
 	theme->set_stylebox("grabber_highlight", "HSlider", make_stylebox(hslider_grabber_hl_png, 6, 6, 6, 6));
 	theme->set_stylebox("grabber_disabled", "HSlider", make_stylebox(hslider_grabber_disabled_png, 6, 6, 6, 6));
 	theme->set_stylebox("focus", "HSlider", focus);
@@ -524,6 +529,7 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 	// VSlider
 
 	theme->set_stylebox("slider", "VSlider", make_stylebox(vslider_bg_png, 4, 4, 4, 4));
+	theme->set_stylebox("grabber_area", "VSlider", make_stylebox(vslider_bg_png, 4, 4, 4, 4));
 	theme->set_stylebox("grabber_highlight", "VSlider", make_stylebox(vslider_grabber_hl_png, 6, 6, 6, 6));
 	theme->set_stylebox("grabber_disabled", "VSlider", make_stylebox(vslider_grabber_disabled_png, 6, 6, 6, 6));
 	theme->set_stylebox("focus", "VSlider", focus);
@@ -554,6 +560,7 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 	// File Dialog
 
 	theme->set_icon("reload", "FileDialog", make_icon(icon_reload_png));
+	theme->set_icon("parent_folder", "FileDialog", make_icon(icon_parent_folder_png));
 
 	// Popup
 
@@ -774,6 +781,9 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 	theme->set_icon("add_preset", "ColorPicker", make_icon(icon_add_png));
 	theme->set_icon("color_hue", "ColorPicker", make_icon(color_picker_hue_png));
 	theme->set_icon("color_sample", "ColorPicker", make_icon(color_picker_sample_png));
+	theme->set_icon("preset_bg", "ColorPicker", make_icon(mini_checkerboard_png));
+
+	theme->set_icon("bg", "ColorPickerButton", make_icon(mini_checkerboard_png));
 
 	// TooltipPanel
 
@@ -831,39 +841,6 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 	theme->set_constant("autohide", "HSplitContainer", 1 * scale);
 	theme->set_constant("autohide", "VSplitContainer", 1 * scale);
 
-	// HButtonArray
-	theme->set_stylebox("normal", "HButtonArray", sb_button_normal);
-	theme->set_stylebox("selected", "HButtonArray", sb_button_pressed);
-	theme->set_stylebox("hover", "HButtonArray", sb_button_hover);
-
-	theme->set_font("font", "HButtonArray", default_font);
-	theme->set_font("font_selected", "HButtonArray", default_font);
-
-	theme->set_color("font_color", "HButtonArray", control_font_color_low);
-	theme->set_color("font_color_selected", "HButtonArray", control_font_color_hover);
-
-	theme->set_constant("icon_separator", "HButtonArray", 2 * scale);
-	theme->set_constant("button_separator", "HButtonArray", 4 * scale);
-
-	theme->set_stylebox("focus", "HButtonArray", focus);
-
-	// VButtonArray
-
-	theme->set_stylebox("normal", "VButtonArray", sb_button_normal);
-	theme->set_stylebox("selected", "VButtonArray", sb_button_pressed);
-	theme->set_stylebox("hover", "VButtonArray", sb_button_hover);
-
-	theme->set_font("font", "VButtonArray", default_font);
-	theme->set_font("font_selected", "VButtonArray", default_font);
-
-	theme->set_color("font_color", "VButtonArray", control_font_color_low);
-	theme->set_color("font_color_selected", "VButtonArray", control_font_color_hover);
-
-	theme->set_constant("icon_separator", "VButtonArray", 2 * scale);
-	theme->set_constant("button_separator", "VButtonArray", 4 * scale);
-
-	theme->set_stylebox("focus", "VButtonArray", focus);
-
 	// ReferenceRect
 
 	Ref<StyleBoxTexture> ttnc = make_stylebox(full_panel_bg_png, 8, 8, 8, 8);
@@ -879,7 +856,7 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 	theme->set_icon("minus", "GraphEdit", make_icon(icon_zoom_less_png));
 	theme->set_icon("reset", "GraphEdit", make_icon(icon_zoom_reset_png));
 	theme->set_icon("more", "GraphEdit", make_icon(icon_zoom_more_png));
-	theme->set_icon("SnapGrid", "GraphEdit", make_icon(icon_snap_grid_png));
+	theme->set_icon("snap", "GraphEdit", make_icon(icon_snap_grid_png));
 	theme->set_stylebox("bg", "GraphEdit", make_stylebox(tree_bg_png, 4, 4, 4, 5));
 	theme->set_color("grid_minor", "GraphEdit", Color(1, 1, 1, 0.05));
 	theme->set_color("grid_major", "GraphEdit", Color(1, 1, 1, 0.2));
@@ -903,7 +880,7 @@ void make_default_theme(bool p_hidpi, Ref<Font> p_font) {
 
 	Ref<StyleBox> default_style;
 	Ref<Texture> default_icon;
-	Ref<BitmapFont> default_font;
+	Ref<Font> default_font;
 	if (p_font.is_valid()) {
 		default_font = p_font;
 	} else if (p_hidpi) {
@@ -911,7 +888,7 @@ void make_default_theme(bool p_hidpi, Ref<Font> p_font) {
 	} else {
 		default_font = make_font2(_lodpi_font_height, _lodpi_font_ascent, _lodpi_font_charcount, &_lodpi_font_charrects[0][0], _lodpi_font_kerning_pair_count, &_lodpi_font_kerning_pairs[0][0], _lodpi_font_img_width, _lodpi_font_img_height, _lodpi_font_img_data);
 	}
-	Ref<BitmapFont> large_font = default_font;
+	Ref<Font> large_font = default_font;
 	fill_default_theme(t, default_font, large_font, default_icon, default_style, p_hidpi ? 2.0 : 1.0);
 
 	Theme::set_default(t);

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -67,6 +67,105 @@ String ARVRCamera::get_configuration_warning() const {
 	return String();
 };
 
+Vector3 ARVRCamera::project_local_ray_normal(const Point2 &p_pos) const {
+	// get our ARVRServer
+	ARVRServer *arvr_server = ARVRServer::get_singleton();
+	ERR_FAIL_NULL_V(arvr_server, Vector3());
+
+	Ref<ARVRInterface> arvr_interface = arvr_server->get_primary_interface();
+	ERR_FAIL_COND_V(arvr_interface.is_null(), Vector3());
+
+	if (!is_inside_tree()) {
+		ERR_EXPLAIN("Camera is not inside scene.");
+		ERR_FAIL_COND_V(!is_inside_tree(), Vector3());
+	};
+
+	Size2 viewport_size = get_viewport()->get_camera_rect_size();
+	Vector2 cpos = get_viewport()->get_camera_coords(p_pos);
+	Vector3 ray;
+
+	CameraMatrix cm = arvr_interface->get_projection_for_eye(ARVRInterface::EYE_MONO, viewport_size.aspect(), get_znear(), get_zfar());
+	float screen_w, screen_h;
+	cm.get_viewport_size(screen_w, screen_h);
+	ray = Vector3(((cpos.x / viewport_size.width) * 2.0 - 1.0) * screen_w, ((1.0 - (cpos.y / viewport_size.height)) * 2.0 - 1.0) * screen_h, -get_znear()).normalized();
+
+	return ray;
+};
+
+Point2 ARVRCamera::unproject_position(const Vector3 &p_pos) const {
+	// get our ARVRServer
+	ARVRServer *arvr_server = ARVRServer::get_singleton();
+	ERR_FAIL_NULL_V(arvr_server, Vector2());
+
+	Ref<ARVRInterface> arvr_interface = arvr_server->get_primary_interface();
+	ERR_FAIL_COND_V(arvr_interface.is_null(), Vector2());
+
+	if (!is_inside_tree()) {
+		ERR_EXPLAIN("Camera is not inside scene.");
+		ERR_FAIL_COND_V(!is_inside_tree(), Vector2());
+	};
+
+	Size2 viewport_size = get_viewport()->get_visible_rect().size;
+
+	CameraMatrix cm = arvr_interface->get_projection_for_eye(ARVRInterface::EYE_MONO, viewport_size.aspect(), get_znear(), get_zfar());
+
+	Plane p(get_camera_transform().xform_inv(p_pos), 1.0);
+
+	p = cm.xform4(p);
+	p.normal /= p.d;
+
+	Point2 res;
+	res.x = (p.normal.x * 0.5 + 0.5) * viewport_size.x;
+	res.y = (-p.normal.y * 0.5 + 0.5) * viewport_size.y;
+
+	return res;
+};
+
+Vector3 ARVRCamera::project_position(const Point2 &p_point) const {
+	// get our ARVRServer
+	ARVRServer *arvr_server = ARVRServer::get_singleton();
+	ERR_FAIL_NULL_V(arvr_server, Vector3());
+
+	Ref<ARVRInterface> arvr_interface = arvr_server->get_primary_interface();
+	ERR_FAIL_COND_V(arvr_interface.is_null(), Vector3());
+
+	if (!is_inside_tree()) {
+		ERR_EXPLAIN("Camera is not inside scene.");
+		ERR_FAIL_COND_V(!is_inside_tree(), Vector3());
+	};
+
+	Size2 viewport_size = get_viewport()->get_visible_rect().size;
+
+	CameraMatrix cm = arvr_interface->get_projection_for_eye(ARVRInterface::EYE_MONO, viewport_size.aspect(), get_znear(), get_zfar());
+
+	Size2 vp_size;
+	cm.get_viewport_size(vp_size.x, vp_size.y);
+
+	Vector2 point;
+	point.x = (p_point.x / viewport_size.x) * 2.0 - 1.0;
+	point.y = (1.0 - (p_point.y / viewport_size.y)) * 2.0 - 1.0;
+	point *= vp_size;
+
+	Vector3 p(point.x, point.y, -get_znear());
+
+	return get_camera_transform().xform(p);
+};
+
+Vector<Plane> ARVRCamera::get_frustum() const {
+	// get our ARVRServer
+	ARVRServer *arvr_server = ARVRServer::get_singleton();
+	ERR_FAIL_NULL_V(arvr_server, Vector<Plane>());
+
+	Ref<ARVRInterface> arvr_interface = arvr_server->get_primary_interface();
+	ERR_FAIL_COND_V(arvr_interface.is_null(), Vector<Plane>());
+
+	ERR_FAIL_COND_V(!is_inside_world(), Vector<Plane>());
+
+	Size2 viewport_size = get_viewport()->get_visible_rect().size;
+	CameraMatrix cm = arvr_interface->get_projection_for_eye(ARVRInterface::EYE_MONO, viewport_size.aspect(), get_znear(), get_zfar());
+	return cm.get_projection_planes(get_camera_transform());
+};
+
 ARVRCamera::ARVRCamera(){
 	// nothing to do here yet for now..
 };
@@ -105,7 +204,7 @@ void ARVRController::_notification(int p_what) {
 					int mask = 1;
 					// check button states
 					for (int i = 0; i < 16; i++) {
-						bool was_pressed = (button_states && mask) == mask;
+						bool was_pressed = (button_states & mask) == mask;
 						bool is_pressed = Input::get_singleton()->is_joy_button_pressed(joy_id, i);
 
 						if (!was_pressed && is_pressed) {
@@ -132,7 +231,7 @@ void ARVRController::_notification(int p_what) {
 void ARVRController::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_controller_id", "controller_id"), &ARVRController::set_controller_id);
 	ClassDB::bind_method(D_METHOD("get_controller_id"), &ARVRController::get_controller_id);
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "controller_id"), "set_controller_id", "get_controller_id");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "controller_id", PROPERTY_HINT_RANGE, "0,32,1"), "set_controller_id", "get_controller_id");
 	ClassDB::bind_method(D_METHOD("get_controller_name"), &ARVRController::get_controller_name);
 
 	// passthroughs to information about our related joystick
@@ -143,12 +242,17 @@ void ARVRController::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_is_active"), &ARVRController::get_is_active);
 	ClassDB::bind_method(D_METHOD("get_hand"), &ARVRController::get_hand);
 
+	ClassDB::bind_method(D_METHOD("get_rumble"), &ARVRController::get_rumble);
+	ClassDB::bind_method(D_METHOD("set_rumble", "rumble"), &ARVRController::set_rumble);
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "rumble", PROPERTY_HINT_RANGE, "0.0,1.0,0.01"), "set_rumble", "get_rumble");
+
 	ADD_SIGNAL(MethodInfo("button_pressed", PropertyInfo(Variant::INT, "button")));
 	ADD_SIGNAL(MethodInfo("button_release", PropertyInfo(Variant::INT, "button")));
 };
 
 void ARVRController::set_controller_id(int p_controller_id) {
-	// we don't check any bounds here, this controller may not yet be active and just be a place holder until it is.
+	// We don't check any bounds here, this controller may not yet be active and just be a place holder until it is.
+	// Note that setting this to 0 means this node is not bound to a controller yet.
 	controller_id = p_controller_id;
 };
 
@@ -200,6 +304,30 @@ float ARVRController::get_joystick_axis(int p_axis) const {
 	return Input::get_singleton()->get_joy_axis(joy_id, p_axis);
 };
 
+real_t ARVRController::get_rumble() const {
+	// get our ARVRServer
+	ARVRServer *arvr_server = ARVRServer::get_singleton();
+	ERR_FAIL_NULL_V(arvr_server, 0.0);
+
+	ARVRPositionalTracker *tracker = arvr_server->find_by_type_and_id(ARVRServer::TRACKER_CONTROLLER, controller_id);
+	if (tracker == NULL) {
+		return 0.0;
+	};
+
+	return tracker->get_rumble();
+};
+
+void ARVRController::set_rumble(real_t p_rumble) {
+	// get our ARVRServer
+	ARVRServer *arvr_server = ARVRServer::get_singleton();
+	ERR_FAIL_NULL(arvr_server);
+
+	ARVRPositionalTracker *tracker = arvr_server->find_by_type_and_id(ARVRServer::TRACKER_CONTROLLER, controller_id);
+	if (tracker != NULL) {
+		tracker->set_rumble(p_rumble);
+	};
+};
+
 bool ARVRController::get_is_active() const {
 	return is_active;
 };
@@ -237,6 +365,7 @@ String ARVRController::get_configuration_warning() const {
 ARVRController::ARVRController() {
 	controller_id = 0;
 	is_active = true;
+	button_states = 0;
 };
 
 ARVRController::~ARVRController(){
@@ -292,15 +421,18 @@ void ARVRAnchor::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_anchor_id", "anchor_id"), &ARVRAnchor::set_anchor_id);
 	ClassDB::bind_method(D_METHOD("get_anchor_id"), &ARVRAnchor::get_anchor_id);
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "anchor_id"), "set_anchor_id", "get_anchor_id");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "anchor_id", PROPERTY_HINT_RANGE, "0,32,1"), "set_anchor_id", "get_anchor_id");
 	ClassDB::bind_method(D_METHOD("get_anchor_name"), &ARVRAnchor::get_anchor_name);
 
 	ClassDB::bind_method(D_METHOD("get_is_active"), &ARVRAnchor::get_is_active);
 	ClassDB::bind_method(D_METHOD("get_size"), &ARVRAnchor::get_size);
+
+	ClassDB::bind_method(D_METHOD("get_plane"), &ARVRAnchor::get_plane);
 };
 
 void ARVRAnchor::set_anchor_id(int p_anchor_id) {
-	// we don't check any bounds here, this anchor may not yet be active and just be a place holder until it is.
+	// We don't check any bounds here, this anchor may not yet be active and just be a place holder until it is.
+	// Note that setting this to 0 means this node is not bound to an anchor yet.
 	anchor_id = p_anchor_id;
 };
 
@@ -344,6 +476,15 @@ String ARVRAnchor::get_configuration_warning() const {
 	};
 
 	return String();
+};
+
+Plane ARVRAnchor::get_plane() const {
+	Vector3 location = get_translation();
+	Basis orientation = get_transform().basis;
+
+	Plane plane(location, orientation.get_axis(1).normalized());
+
+	return plane;
 };
 
 ARVRAnchor::ARVRAnchor() {

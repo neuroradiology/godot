@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "spatial.h"
 
 #include "engine.h"
@@ -233,7 +234,7 @@ void Spatial::set_transform(const Transform &p_transform) {
 	data.dirty |= DIRTY_VECTORS;
 	_change_notify("translation");
 	_change_notify("rotation");
-	_change_notify("rotation_deg");
+	_change_notify("rotation_degrees");
 	_change_notify("scale");
 	_propagate_transform_changed(this);
 	if (data.notify_local_transform) {
@@ -327,15 +328,9 @@ void Spatial::set_rotation(const Vector3 &p_euler_rad) {
 	}
 }
 
-void Spatial::set_rotation_in_degrees(const Vector3 &p_euler_deg) {
+void Spatial::set_rotation_degrees(const Vector3 &p_euler_deg) {
 
 	set_rotation(p_euler_deg * Math_PI / 180.0);
-}
-
-void Spatial::_set_rotation_deg(const Vector3 &p_euler_deg) {
-
-	WARN_PRINT("Deprecated method Spatial._set_rotation_deg(): This method was renamed to set_rotation_deg. Please adapt your code accordingly, as the old method will be obsoleted.");
-	set_rotation_in_degrees(p_euler_deg);
 }
 
 void Spatial::set_scale(const Vector3 &p_scale) {
@@ -370,17 +365,9 @@ Vector3 Spatial::get_rotation() const {
 	return data.rotation;
 }
 
-Vector3 Spatial::get_rotation_in_degrees() const {
+Vector3 Spatial::get_rotation_degrees() const {
 
 	return get_rotation() * 180.0 / Math_PI;
-}
-
-// Kept for compatibility after rename to set_rotd.
-// Could be removed after a couple releases.
-Vector3 Spatial::_get_rotation_deg() const {
-
-	WARN_PRINT("Deprecated method Spatial._get_rotation_deg(): This method was renamed to get_rotation_deg. Please adapt your code accordingly, as the old method will be obsoleted.");
-	return get_rotation_in_degrees();
 }
 
 Vector3 Spatial::get_scale() const {
@@ -569,30 +556,36 @@ bool Spatial::is_visible() const {
 	return data.visible;
 }
 
-void Spatial::rotate(const Vector3 &p_normal, float p_radians) {
-
+void Spatial::rotate_object_local(const Vector3 &p_axis, float p_angle) {
 	Transform t = get_transform();
-	t.basis.rotate(p_normal, p_radians);
+	t.basis.rotate_local(p_axis, p_angle);
 	set_transform(t);
 }
 
-void Spatial::rotate_x(float p_radians) {
+void Spatial::rotate(const Vector3 &p_axis, float p_angle) {
 
 	Transform t = get_transform();
-	t.basis.rotate(Vector3(1, 0, 0), p_radians);
+	t.basis.rotate(p_axis, p_angle);
 	set_transform(t);
 }
 
-void Spatial::rotate_y(float p_radians) {
+void Spatial::rotate_x(float p_angle) {
 
 	Transform t = get_transform();
-	t.basis.rotate(Vector3(0, 1, 0), p_radians);
+	t.basis.rotate(Vector3(1, 0, 0), p_angle);
 	set_transform(t);
 }
-void Spatial::rotate_z(float p_radians) {
+
+void Spatial::rotate_y(float p_angle) {
 
 	Transform t = get_transform();
-	t.basis.rotate(Vector3(0, 0, 1), p_radians);
+	t.basis.rotate(Vector3(0, 1, 0), p_angle);
+	set_transform(t);
+}
+void Spatial::rotate_z(float p_angle) {
+
+	Transform t = get_transform();
+	t.basis.rotate(Vector3(0, 0, 1), p_angle);
 	set_transform(t);
 }
 
@@ -603,19 +596,45 @@ void Spatial::translate(const Vector3 &p_offset) {
 	set_transform(t);
 }
 
+void Spatial::translate_object_local(const Vector3 &p_offset) {
+	Transform t = get_transform();
+
+	Transform s;
+	s.translate(p_offset);
+	set_transform(t * s);
+}
+
 void Spatial::scale(const Vector3 &p_ratio) {
 
 	Transform t = get_transform();
 	t.basis.scale(p_ratio);
 	set_transform(t);
 }
-void Spatial::global_rotate(const Vector3 &p_normal, float p_radians) {
 
-	Basis rotation(p_normal, p_radians);
+void Spatial::scale_object_local(const Vector3 &p_scale) {
+	Transform t = get_transform();
+	t.basis.scale_local(p_scale);
+	set_transform(t);
+}
+
+void Spatial::global_rotate(const Vector3 &p_axis, float p_angle) {
+
+	Basis rotation(p_axis, p_angle);
 	Transform t = get_global_transform();
 	t.basis = rotation * t.basis;
 	set_global_transform(t);
 }
+
+void Spatial::global_scale(const Vector3 &p_scale) {
+
+	Basis s;
+	s.set_scale(p_scale);
+
+	Transform t = get_global_transform();
+	t.basis = s * t.basis;
+	set_global_transform(t);
+}
+
 void Spatial::global_translate(const Vector3 &p_offset) {
 	Transform t = get_global_transform();
 	t.origin += p_offset;
@@ -634,7 +653,7 @@ void Spatial::set_identity() {
 	set_transform(Transform());
 }
 
-void Spatial::look_at(const Vector3 &p_target, const Vector3 &p_up_normal) {
+void Spatial::look_at(const Vector3 &p_target, const Vector3 &p_up) {
 
 	Transform lookat;
 	lookat.origin = get_global_transform().origin;
@@ -643,19 +662,19 @@ void Spatial::look_at(const Vector3 &p_target, const Vector3 &p_up_normal) {
 		ERR_FAIL();
 	}
 
-	if (p_up_normal.cross(p_target - lookat.origin) == Vector3()) {
+	if (p_up.cross(p_target - lookat.origin) == Vector3()) {
 		ERR_EXPLAIN("Up vector and direction between node origin and target are aligned, look_at() failed");
 		ERR_FAIL();
 	}
-	lookat = lookat.looking_at(p_target, p_up_normal);
+	lookat = lookat.looking_at(p_target, p_up);
 	set_global_transform(lookat);
 }
 
-void Spatial::look_at_from_position(const Vector3 &p_pos, const Vector3 &p_target, const Vector3 &p_up_normal) {
+void Spatial::look_at_from_position(const Vector3 &p_pos, const Vector3 &p_target, const Vector3 &p_up) {
 
 	Transform lookat;
 	lookat.origin = p_pos;
-	lookat = lookat.looking_at(p_target, p_up_normal);
+	lookat = lookat.looking_at(p_target, p_up);
 	set_global_transform(lookat);
 }
 
@@ -691,10 +710,10 @@ void Spatial::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_transform"), &Spatial::get_transform);
 	ClassDB::bind_method(D_METHOD("set_translation", "translation"), &Spatial::set_translation);
 	ClassDB::bind_method(D_METHOD("get_translation"), &Spatial::get_translation);
-	ClassDB::bind_method(D_METHOD("set_rotation", "rotation_rad"), &Spatial::set_rotation);
+	ClassDB::bind_method(D_METHOD("set_rotation", "euler"), &Spatial::set_rotation);
 	ClassDB::bind_method(D_METHOD("get_rotation"), &Spatial::get_rotation);
-	ClassDB::bind_method(D_METHOD("set_rotation_deg", "rotation_deg"), &Spatial::set_rotation_in_degrees);
-	ClassDB::bind_method(D_METHOD("get_rotation_deg"), &Spatial::get_rotation_in_degrees);
+	ClassDB::bind_method(D_METHOD("set_rotation_degrees", "euler_degrees"), &Spatial::set_rotation_degrees);
+	ClassDB::bind_method(D_METHOD("get_rotation_degrees"), &Spatial::get_rotation_degrees);
 	ClassDB::bind_method(D_METHOD("set_scale", "scale"), &Spatial::set_scale);
 	ClassDB::bind_method(D_METHOD("get_scale"), &Spatial::get_scale);
 	ClassDB::bind_method(D_METHOD("set_global_transform", "global"), &Spatial::set_global_transform);
@@ -704,10 +723,6 @@ void Spatial::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_as_toplevel", "enable"), &Spatial::set_as_toplevel);
 	ClassDB::bind_method(D_METHOD("is_set_as_toplevel"), &Spatial::is_set_as_toplevel);
 	ClassDB::bind_method(D_METHOD("get_world"), &Spatial::get_world);
-
-	// TODO: Obsolete those two methods (old name) properly (GH-4397)
-	ClassDB::bind_method(D_METHOD("_set_rotation_deg", "rotation_deg"), &Spatial::_set_rotation_deg);
-	ClassDB::bind_method(D_METHOD("_get_rotation_deg"), &Spatial::_get_rotation_deg);
 
 #ifdef TOOLS_ENABLED
 	ClassDB::bind_method(D_METHOD("_update_gizmo"), &Spatial::_update_gizmo);
@@ -729,22 +744,26 @@ void Spatial::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_notify_transform", "enable"), &Spatial::set_notify_transform);
 	ClassDB::bind_method(D_METHOD("is_transform_notification_enabled"), &Spatial::is_transform_notification_enabled);
 
-	void rotate(const Vector3 &p_normal, float p_radians);
-	void rotate_x(float p_radians);
-	void rotate_y(float p_radians);
-	void rotate_z(float p_radians);
+	void rotate(const Vector3 &p_axis, float p_angle);
+	void rotate_x(float p_angle);
+	void rotate_y(float p_angle);
+	void rotate_z(float p_angle);
 	void translate(const Vector3 &p_offset);
 	void scale(const Vector3 &p_ratio);
-	void global_rotate(const Vector3 &p_normal, float p_radians);
+	void global_rotate(const Vector3 &p_axis, float p_angle);
 	void global_translate(const Vector3 &p_offset);
 
-	ClassDB::bind_method(D_METHOD("rotate", "normal", "radians"), &Spatial::rotate);
-	ClassDB::bind_method(D_METHOD("global_rotate", "normal", "radians"), &Spatial::global_rotate);
-	ClassDB::bind_method(D_METHOD("rotate_x", "radians"), &Spatial::rotate_x);
-	ClassDB::bind_method(D_METHOD("rotate_y", "radians"), &Spatial::rotate_y);
-	ClassDB::bind_method(D_METHOD("rotate_z", "radians"), &Spatial::rotate_z);
-	ClassDB::bind_method(D_METHOD("translate", "offset"), &Spatial::translate);
+	ClassDB::bind_method(D_METHOD("rotate", "axis", "angle"), &Spatial::rotate);
+	ClassDB::bind_method(D_METHOD("global_rotate", "axis", "angle"), &Spatial::global_rotate);
+	ClassDB::bind_method(D_METHOD("global_scale", "scale"), &Spatial::global_scale);
 	ClassDB::bind_method(D_METHOD("global_translate", "offset"), &Spatial::global_translate);
+	ClassDB::bind_method(D_METHOD("rotate_object_local", "axis", "angle"), &Spatial::rotate_object_local);
+	ClassDB::bind_method(D_METHOD("scale_object_local", "scale"), &Spatial::scale_object_local);
+	ClassDB::bind_method(D_METHOD("translate_object_local", "offset"), &Spatial::translate_object_local);
+	ClassDB::bind_method(D_METHOD("rotate_x", "angle"), &Spatial::rotate_x);
+	ClassDB::bind_method(D_METHOD("rotate_y", "angle"), &Spatial::rotate_y);
+	ClassDB::bind_method(D_METHOD("rotate_z", "angle"), &Spatial::rotate_z);
+	ClassDB::bind_method(D_METHOD("translate", "offset"), &Spatial::translate);
 	ClassDB::bind_method(D_METHOD("orthonormalize"), &Spatial::orthonormalize);
 	ClassDB::bind_method(D_METHOD("set_identity"), &Spatial::set_identity);
 
@@ -764,18 +783,20 @@ void Spatial::_bind_methods() {
 	ADD_PROPERTYNZ(PropertyInfo(Variant::TRANSFORM, "transform", PROPERTY_HINT_NONE, ""), "set_transform", "get_transform");
 	ADD_PROPERTYNZ(PropertyInfo(Variant::TRANSFORM, "global_transform", PROPERTY_HINT_NONE, "", 0), "set_global_transform", "get_global_transform");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "translation", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR), "set_translation", "get_translation");
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "rotation_deg", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR), "set_rotation_deg", "get_rotation_deg");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "rotation_degrees", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR), "set_rotation_degrees", "get_rotation_degrees");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "rotation", PROPERTY_HINT_NONE, "", 0), "set_rotation", "get_rotation");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "scale", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR), "set_scale", "get_scale");
 	ADD_GROUP("Visibility", "");
 	ADD_PROPERTYNO(PropertyInfo(Variant::BOOL, "visible"), "set_visible", "is_visible");
-	//ADD_PROPERTY( PropertyInfo(Variant::TRANSFORM,"transform/local"), "set_transform", "get_transform") ;
+#ifdef TOOLS_ENABLED
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "gizmo", PROPERTY_HINT_RESOURCE_TYPE, "SpatialGizmo", 0), "set_gizmo", "get_gizmo");
+#endif
 
 	ADD_SIGNAL(MethodInfo("visibility_changed"));
 }
 
-Spatial::Spatial()
-	: xform_change(this) {
+Spatial::Spatial() :
+		xform_change(this) {
 
 	data.dirty = DIRTY_NONE;
 	data.children_lock = 0;

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,25 +27,56 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "joints_2d.h"
 
 #include "engine.h"
 #include "physics_body_2d.h"
 #include "servers/physics_2d_server.h"
 
-void Joint2D::_update_joint() {
-
-	if (!is_inside_tree())
-		return;
+void Joint2D::_update_joint(bool p_only_free) {
 
 	if (joint.is_valid()) {
+		if (ba.is_valid() && bb.is_valid())
+			Physics2DServer::get_singleton()->body_remove_collision_exception(ba, bb);
+
 		Physics2DServer::get_singleton()->free(joint);
+		joint = RID();
+		ba = RID();
+		bb = RID();
 	}
 
-	joint = RID();
+	if (p_only_free || !is_inside_tree())
+		return;
 
-	joint = _configure_joint();
+	Node *node_a = has_node(get_node_a()) ? get_node(get_node_a()) : (Node *)NULL;
+	Node *node_b = has_node(get_node_b()) ? get_node(get_node_b()) : (Node *)NULL;
+
+	if (!node_a || !node_b)
+		return;
+
+	PhysicsBody2D *body_a = Object::cast_to<PhysicsBody2D>(node_a);
+	PhysicsBody2D *body_b = Object::cast_to<PhysicsBody2D>(node_b);
+
+	if (!body_a || !body_b)
+		return;
+
+	if (!body_a) {
+		SWAP(body_a, body_b);
+	}
+
+	joint = _configure_joint(body_a, body_b);
+
+	if (!joint.is_valid())
+		return;
+
 	Physics2DServer::get_singleton()->get_singleton()->joint_set_param(joint, Physics2DServer::JOINT_PARAM_BIAS, bias);
+
+	ba = body_a->get_rid();
+	bb = body_b->get_rid();
+
+	if (exclude_from_collision)
+		Physics2DServer::get_singleton()->body_add_collision_exception(body_a->get_rid(), body_b->get_rid());
 }
 
 void Joint2D::set_node_a(const NodePath &p_node_a) {
@@ -83,9 +114,7 @@ void Joint2D::_notification(int p_what) {
 		} break;
 		case NOTIFICATION_EXIT_TREE: {
 			if (joint.is_valid()) {
-
-				Physics2DServer::get_singleton()->free(joint);
-				joint = RID();
+				_update_joint(true);
 			}
 		} break;
 	}
@@ -164,29 +193,8 @@ void PinJoint2D::_notification(int p_what) {
 	}
 }
 
-RID PinJoint2D::_configure_joint() {
+RID PinJoint2D::_configure_joint(PhysicsBody2D *body_a, PhysicsBody2D *body_b) {
 
-	Node *node_a = has_node(get_node_a()) ? get_node(get_node_a()) : (Node *)NULL;
-	Node *node_b = has_node(get_node_b()) ? get_node(get_node_b()) : (Node *)NULL;
-
-	if (!node_a && !node_b)
-		return RID();
-
-	PhysicsBody2D *body_a = Object::cast_to<PhysicsBody2D>(node_a);
-	PhysicsBody2D *body_b = Object::cast_to<PhysicsBody2D>(node_b);
-
-	if (!body_a && !body_b)
-		return RID();
-
-	if (!body_a) {
-		SWAP(body_a, body_b);
-	} else if (body_b) {
-		//add a collision exception between both
-		if (get_exclude_nodes_from_collision())
-			Physics2DServer::get_singleton()->body_add_collision_exception(body_a->get_rid(), body_b->get_rid());
-		else
-			Physics2DServer::get_singleton()->body_remove_collision_exception(body_a->get_rid(), body_b->get_rid());
-	}
 	RID pj = Physics2DServer::get_singleton()->pin_joint_create(get_global_transform().get_origin(), body_a->get_rid(), body_b ? body_b->get_rid() : RID());
 	Physics2DServer::get_singleton()->pin_joint_set_param(pj, Physics2DServer::PIN_JOINT_SOFTNESS, softness);
 	return pj;
@@ -241,24 +249,7 @@ void GrooveJoint2D::_notification(int p_what) {
 	}
 }
 
-RID GrooveJoint2D::_configure_joint() {
-
-	Node *node_a = has_node(get_node_a()) ? get_node(get_node_a()) : (Node *)NULL;
-	Node *node_b = has_node(get_node_b()) ? get_node(get_node_b()) : (Node *)NULL;
-
-	if (!node_a || !node_b)
-		return RID();
-
-	PhysicsBody2D *body_a = Object::cast_to<PhysicsBody2D>(node_a);
-	PhysicsBody2D *body_b = Object::cast_to<PhysicsBody2D>(node_b);
-
-	if (!body_a || !body_b)
-		return RID();
-
-	if (get_exclude_nodes_from_collision())
-		Physics2DServer::get_singleton()->body_add_collision_exception(body_a->get_rid(), body_b->get_rid());
-	else
-		Physics2DServer::get_singleton()->body_remove_collision_exception(body_a->get_rid(), body_b->get_rid());
+RID GrooveJoint2D::_configure_joint(PhysicsBody2D *body_a, PhysicsBody2D *body_b) {
 
 	Transform2D gt = get_global_transform();
 	Vector2 groove_A1 = gt.get_origin();
@@ -330,24 +321,7 @@ void DampedSpringJoint2D::_notification(int p_what) {
 	}
 }
 
-RID DampedSpringJoint2D::_configure_joint() {
-
-	Node *node_a = has_node(get_node_a()) ? get_node(get_node_a()) : (Node *)NULL;
-	Node *node_b = has_node(get_node_b()) ? get_node(get_node_b()) : (Node *)NULL;
-
-	if (!node_a || !node_b)
-		return RID();
-
-	PhysicsBody2D *body_a = Object::cast_to<PhysicsBody2D>(node_a);
-	PhysicsBody2D *body_b = Object::cast_to<PhysicsBody2D>(node_b);
-
-	if (!body_a || !body_b)
-		return RID();
-
-	if (get_exclude_nodes_from_collision())
-		Physics2DServer::get_singleton()->body_add_collision_exception(body_a->get_rid(), body_b->get_rid());
-	else
-		Physics2DServer::get_singleton()->body_remove_collision_exception(body_a->get_rid(), body_b->get_rid());
+RID DampedSpringJoint2D::_configure_joint(PhysicsBody2D *body_a, PhysicsBody2D *body_b) {
 
 	Transform2D gt = get_global_transform();
 	Vector2 anchor_A = gt.get_origin();

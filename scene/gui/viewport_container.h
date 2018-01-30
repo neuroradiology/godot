@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef VIEWPORTCONTAINER_H
 #define VIEWPORTCONTAINER_H
 
@@ -37,6 +38,7 @@ class ViewportContainer : public Container {
 	GDCLASS(ViewportContainer, Container);
 
 	bool stretch;
+	int shrink;
 
 protected:
 	void _notification(int p_what);
@@ -45,6 +47,10 @@ protected:
 public:
 	void set_stretch(bool p_enable);
 	bool is_stretch_enabled() const;
+
+	void _input(const Ref<InputEvent> &p_event);
+	void set_stretch_shrink(int p_shrink);
+	int get_stretch_shrink() const;
 
 	virtual Size2 get_minimum_size() const;
 

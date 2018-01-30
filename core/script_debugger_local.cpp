@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "script_debugger_local.h"
 
 #include "os/os.h"
@@ -186,12 +187,12 @@ struct _ScriptDebuggerLocalProfileInfoSort {
 	}
 };
 
-void ScriptDebuggerLocal::profiling_set_frame_times(float p_frame_time, float p_idle_time, float p_fixed_time, float p_fixed_frame_time) {
+void ScriptDebuggerLocal::profiling_set_frame_times(float p_frame_time, float p_idle_time, float p_physics_time, float p_physics_frame_time) {
 
 	frame_time = p_frame_time;
 	idle_time = p_idle_time;
-	fixed_time = p_fixed_time;
-	fixed_frame_time = p_fixed_frame_time;
+	physics_time = p_physics_time;
+	physics_frame_time = p_physics_frame_time;
 }
 
 void ScriptDebuggerLocal::idle_poll() {
@@ -212,7 +213,7 @@ void ScriptDebuggerLocal::idle_poll() {
 	}
 
 	SortArray<ScriptLanguage::ProfilingInfo, _ScriptDebuggerLocalProfileInfoSort> sort;
-	sort.sort(pinfo.ptr(), ofs);
+	sort.sort(pinfo.ptrw(), ofs);
 
 	//falta el frame time
 
@@ -250,9 +251,9 @@ void ScriptDebuggerLocal::profiling_start() {
 	profiling = true;
 	pinfo.resize(32768);
 	frame_time = 0;
-	fixed_time = 0;
+	physics_time = 0;
 	idle_time = 0;
-	fixed_frame_time = 0;
+	physics_frame_time = 0;
 }
 
 void ScriptDebuggerLocal::profiling_end() {
@@ -264,7 +265,7 @@ void ScriptDebuggerLocal::profiling_end() {
 	}
 
 	SortArray<ScriptLanguage::ProfilingInfo, _ScriptDebuggerLocalProfileInfoSort> sort;
-	sort.sort(pinfo.ptr(), ofs);
+	sort.sort(pinfo.ptrw(), ofs);
 
 	uint64_t total_us = 0;
 	for (int i = 0; i < ofs; i++) {
@@ -291,6 +292,11 @@ void ScriptDebuggerLocal::profiling_end() {
 void ScriptDebuggerLocal::send_message(const String &p_message, const Array &p_args) {
 
 	print_line("MESSAGE: '" + p_message + "' - " + String(Variant(p_args)));
+}
+
+void ScriptDebuggerLocal::send_error(const String &p_func, const String &p_file, int p_line, const String &p_err, const String &p_descr, ErrorHandlerType p_type, const Vector<ScriptLanguage::StackInfo> &p_stack_info) {
+
+	print_line("ERROR: '" + (p_descr.empty() ? p_err : p_descr) + "'");
 }
 
 ScriptDebuggerLocal::ScriptDebuggerLocal() {

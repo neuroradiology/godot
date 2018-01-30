@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "array.h"
 
 #include "hashfuncs.h"
@@ -233,9 +234,10 @@ struct _ArrayVariantSort {
 	}
 };
 
-void Array::sort() {
+Array &Array::sort() {
 
 	_p->array.sort_custom<_ArrayVariantSort>();
+	return *this;
 }
 
 struct _ArrayVariantSortCustom {
@@ -253,19 +255,64 @@ struct _ArrayVariantSortCustom {
 		return res;
 	}
 };
-void Array::sort_custom(Object *p_obj, const StringName &p_function) {
+Array &Array::sort_custom(Object *p_obj, const StringName &p_function) {
 
-	ERR_FAIL_NULL(p_obj);
+	ERR_FAIL_NULL_V(p_obj, *this);
 
 	SortArray<Variant, _ArrayVariantSortCustom> avs;
 	avs.compare.obj = p_obj;
 	avs.compare.func = p_function;
-	avs.sort(_p->array.ptr(), _p->array.size());
+	avs.sort(_p->array.ptrw(), _p->array.size());
+	return *this;
 }
 
-void Array::invert() {
+template <typename Less>
+_FORCE_INLINE_ int bisect(const Vector<Variant> &p_array, const Variant &p_value, bool p_before, const Less &p_less) {
+
+	int lo = 0;
+	int hi = p_array.size();
+	if (p_before) {
+		while (lo < hi) {
+			const int mid = (lo + hi) / 2;
+			if (p_less(p_array.get(mid), p_value)) {
+				lo = mid + 1;
+			} else {
+				hi = mid;
+			}
+		}
+	} else {
+		while (lo < hi) {
+			const int mid = (lo + hi) / 2;
+			if (p_less(p_value, p_array.get(mid))) {
+				hi = mid;
+			} else {
+				lo = mid + 1;
+			}
+		}
+	}
+	return lo;
+}
+
+int Array::bsearch(const Variant &p_value, bool p_before) {
+
+	return bisect(_p->array, p_value, p_before, _ArrayVariantSort());
+}
+
+int Array::bsearch_custom(const Variant &p_value, Object *p_obj, const StringName &p_function, bool p_before) {
+
+	ERR_FAIL_NULL_V(p_obj, 0);
+
+	_ArrayVariantSortCustom less;
+	less.obj = p_obj;
+	less.func = p_function;
+
+	return bisect(_p->array, p_value, p_before, less);
+}
+
+Array &Array::invert() {
 
 	_p->array.invert();
+	return *this;
 }
 
 void Array::push_front(const Variant &p_value) {

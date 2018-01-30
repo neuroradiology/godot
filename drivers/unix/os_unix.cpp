@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "os_unix.h"
 
 #ifdef UNIX_ENABLED
@@ -52,6 +53,7 @@
 
 #if defined(__FreeBSD__) || defined(__OpenBSD__)
 #include <sys/param.h>
+#include <sys/sysctl.h>
 #endif
 #include "project_settings.h"
 #include <assert.h>
@@ -64,39 +66,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <sys/wait.h>
-
-extern bool _print_error_enabled;
-
-void OS_Unix::print_error(const char *p_function, const char *p_file, int p_line, const char *p_code, const char *p_rationale, ErrorType p_type) {
-
-	if (!_print_error_enabled)
-		return;
-
-	const char *err_details;
-	if (p_rationale && p_rationale[0])
-		err_details = p_rationale;
-	else
-		err_details = p_code;
-
-	switch (p_type) {
-		case ERR_ERROR:
-			print("\E[1;31mERROR: %s: \E[0m\E[1m%s\n", p_function, err_details);
-			print("\E[0;31m   At: %s:%i.\E[0m\n", p_file, p_line);
-			break;
-		case ERR_WARNING:
-			print("\E[1;33mWARNING: %s: \E[0m\E[1m%s\n", p_function, err_details);
-			print("\E[0;33m   At: %s:%i.\E[0m\n", p_file, p_line);
-			break;
-		case ERR_SCRIPT:
-			print("\E[1;35mSCRIPT ERROR: %s: \E[0m\E[1m%s\n", p_function, err_details);
-			print("\E[0;35m   At: %s:%i.\E[0m\n", p_file, p_line);
-			break;
-		case ERR_SHADER:
-			print("\E[1;36mSHADER ERROR: %s: \E[0m\E[1m%s\n", p_function, err_details);
-			print("\E[0;36m   At: %s:%i.\E[0m\n", p_file, p_line);
-			break;
-	}
-}
+#include <unistd.h>
 
 void OS_Unix::debug_break() {
 
@@ -168,67 +138,19 @@ void OS_Unix::initialize_core() {
 void OS_Unix::finalize_core() {
 }
 
-void OS_Unix::vprint(const char *p_format, va_list p_list, bool p_stder) {
-
-	if (p_stder) {
-
-		vfprintf(stderr, p_format, p_list);
-		fflush(stderr);
-	} else {
-
-		vprintf(p_format, p_list);
-		fflush(stdout);
-	}
-}
-
-void OS_Unix::print(const char *p_format, ...) {
-
-	va_list argp;
-	va_start(argp, p_format);
-	vprintf(p_format, argp);
-	va_end(argp);
-}
 void OS_Unix::alert(const String &p_alert, const String &p_title) {
 
 	fprintf(stderr, "ERROR: %s\n", p_alert.utf8().get_data());
 }
 
-static int has_data(FILE *p_fd, int timeout_usec = 0) {
-
-	fd_set readset;
-	int fd = fileno(p_fd);
-	FD_ZERO(&readset);
-	FD_SET(fd, &readset);
-	timeval time;
-	time.tv_sec = 0;
-	time.tv_usec = timeout_usec;
-	int res = 0; //select(fd + 1, &readset, NULL, NULL, &time);
-	return res > 0;
-};
-
 String OS_Unix::get_stdin_string(bool p_block) {
 
-	String ret;
 	if (p_block) {
 		char buff[1024];
-		ret = stdin_buf + fgets(buff, 1024, stdin);
+		String ret = stdin_buf + fgets(buff, 1024, stdin);
 		stdin_buf = "";
 		return ret;
-	};
-
-	while (has_data(stdin)) {
-
-		char ch;
-		read(fileno(stdin), &ch, 1);
-		if (ch == '\n') {
-			ret = stdin_buf;
-			stdin_buf = "";
-			return ret;
-		} else {
-			char str[2] = { ch, 0 };
-			stdin_buf += str;
-		};
-	};
+	}
 
 	return "";
 }
@@ -246,8 +168,6 @@ uint64_t OS_Unix::get_unix_time() const {
 uint64_t OS_Unix::get_system_time_secs() const {
 	struct timeval tv_now;
 	gettimeofday(&tv_now, NULL);
-	//localtime(&tv_now.tv_usec);
-	//localtime((const long *)&tv_now.tv_usec);
 	return uint64_t(tv_now.tv_sec);
 }
 
@@ -330,7 +250,7 @@ uint64_t OS_Unix::get_ticks_usec() const {
 	return longtime;
 }
 
-Error OS_Unix::execute(const String &p_path, const List<String> &p_arguments, bool p_blocking, ProcessID *r_child_id, String *r_pipe, int *r_exitcode) {
+Error OS_Unix::execute(const String &p_path, const List<String> &p_arguments, bool p_blocking, ProcessID *r_child_id, String *r_pipe, int *r_exitcode, bool read_stderr) {
 
 	if (p_blocking && r_pipe) {
 
@@ -342,7 +262,11 @@ Error OS_Unix::execute(const String &p_path, const List<String> &p_arguments, bo
 			argss += String(" \"") + p_arguments[i] + "\"";
 		}
 
-		argss += " 2>/dev/null"; //silence stderr
+		if (read_stderr) {
+			argss += " 2>&1"; // Read stderr too
+		} else {
+			argss += " 2>/dev/null"; //silence stderr
+		}
 		FILE *f = popen(argss.utf8().get_data(), "r");
 
 		ERR_FAIL_COND_V(!f, ERR_CANT_OPEN);
@@ -375,17 +299,7 @@ Error OS_Unix::execute(const String &p_path, const List<String> &p_arguments, bo
 			args.push_back((char *)cs[i].get_data()); // shitty C cast
 		args.push_back(0);
 
-#ifdef __FreeBSD__
-		if (p_path.find("/")) {
-			// exec name contains path so use it
-			execv(p_path.utf8().get_data(), &args[0]);
-		} else {
-			// use program name and search through PATH to find it
-			execvp(getprogname(), &args[0]);
-		}
-#else
-		execv(p_path.utf8().get_data(), &args[0]);
-#endif
+		execvp(p_path.utf8().get_data(), &args[0]);
 		// still alive? something failed..
 		fprintf(stderr, "**ERROR** OS_Unix::execute - Could not create child process while executing: %s\n", p_path.utf8().get_data());
 		abort();
@@ -439,8 +353,21 @@ String OS_Unix::get_locale() const {
 	return locale;
 }
 
-Error OS_Unix::open_dynamic_library(const String p_path, void *&p_library_handle) {
-	p_library_handle = dlopen(p_path.utf8().get_data(), RTLD_NOW);
+Error OS_Unix::open_dynamic_library(const String p_path, void *&p_library_handle, bool p_also_set_library_path) {
+
+	String path = p_path;
+
+	if (!FileAccess::exists(path)) {
+		//this code exists so gdnative can load .so files from within the executable path
+		path = get_executable_path().get_base_dir().plus_file(p_path.get_file());
+	}
+
+	if (!FileAccess::exists(path)) {
+		//this code exists so gdnative can load .so files from a standard unix location
+		path = get_executable_path().get_base_dir().plus_file("../lib").plus_file(p_path.get_file());
+	}
+
+	p_library_handle = dlopen(path.utf8().get_data(), RTLD_NOW);
 	if (!p_library_handle) {
 		ERR_EXPLAIN("Can't open dynamic library: " + p_path + ". Error: " + dlerror());
 		ERR_FAIL_V(ERR_CANT_OPEN);
@@ -493,30 +420,23 @@ int OS_Unix::get_processor_count() const {
 	return sysconf(_SC_NPROCESSORS_CONF);
 }
 
-String OS_Unix::get_data_dir() const {
+String OS_Unix::get_user_data_dir() const {
 
-	String an = get_safe_application_name();
-	if (an != "") {
-
-		if (has_environment("HOME")) {
-
-			bool use_godot = ProjectSettings::get_singleton()->get("application/config/use_shared_user_dir");
-			if (use_godot)
-				return get_environment("HOME") + "/.godot/app_userdata/" + an;
-			else
-				return get_environment("HOME") + "/." + an;
+	String appname = get_safe_dir_name(ProjectSettings::get_singleton()->get("application/config/name"));
+	if (appname != "") {
+		bool use_custom_dir = ProjectSettings::get_singleton()->get("application/config/use_custom_user_dir");
+		if (use_custom_dir) {
+			String custom_dir = get_safe_dir_name(ProjectSettings::get_singleton()->get("application/config/custom_user_dir_name"), true);
+			if (custom_dir == "") {
+				custom_dir = appname;
+			}
+			return get_data_path().plus_file(custom_dir);
+		} else {
+			return get_data_path().plus_file(get_godot_dir_name()).plus_file("app_userdata").plus_file(appname);
 		}
 	}
 
 	return ProjectSettings::get_singleton()->get_resource_path();
-}
-
-String OS_Unix::get_installed_templates_path() const {
-	String p = get_global_settings_path();
-	if (p != "")
-		return p + "/templates/";
-	else
-		return "";
 }
 
 String OS_Unix::get_executable_path() const {
@@ -533,12 +453,23 @@ String OS_Unix::get_executable_path() const {
 		return OS::get_executable_path();
 	}
 	return b;
-#elif defined(__FreeBSD__) || defined(__OpenBSD__)
+#elif defined(__OpenBSD__)
 	char resolved_path[MAXPATHLEN];
 
 	realpath(OS::get_executable_path().utf8().get_data(), resolved_path);
 
 	return String(resolved_path);
+#elif defined(__FreeBSD__)
+	int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
+	char buf[MAXPATHLEN];
+	size_t len = sizeof(buf);
+	if (sysctl(mib, 4, buf, &len, NULL, 0) != 0) {
+		WARN_PRINT("Couldn't get executable path from sysctl");
+		return OS::get_executable_path();
+	}
+	String b;
+	b.parse_utf8(buf);
+	return b;
 #elif defined(__APPLE__)
 	char temp_path[1];
 	uint32_t buff_size = 1;
@@ -557,6 +488,46 @@ String OS_Unix::get_executable_path() const {
 	ERR_PRINT("Warning, don't know how to obtain executable path on this OS! Please override this function properly.");
 	return OS::get_executable_path();
 #endif
+}
+
+void UnixTerminalLogger::log_error(const char *p_function, const char *p_file, int p_line, const char *p_code, const char *p_rationale, ErrorType p_type) {
+	if (!should_log(true)) {
+		return;
+	}
+
+	const char *err_details;
+	if (p_rationale && p_rationale[0])
+		err_details = p_rationale;
+	else
+		err_details = p_code;
+
+	switch (p_type) {
+		case ERR_WARNING:
+			logf_error("\E[1;33mWARNING: %s: \E[0m\E[1m%s\n", p_function, err_details);
+			logf_error("\E[0;33m   At: %s:%i.\E[0m\n", p_file, p_line);
+			break;
+		case ERR_SCRIPT:
+			logf_error("\E[1;35mSCRIPT ERROR: %s: \E[0m\E[1m%s\n", p_function, err_details);
+			logf_error("\E[0;35m   At: %s:%i.\E[0m\n", p_file, p_line);
+			break;
+		case ERR_SHADER:
+			logf_error("\E[1;36mSHADER ERROR: %s: \E[0m\E[1m%s\n", p_function, err_details);
+			logf_error("\E[0;36m   At: %s:%i.\E[0m\n", p_file, p_line);
+			break;
+		case ERR_ERROR:
+		default:
+			logf_error("\E[1;31mERROR: %s: \E[0m\E[1m%s\n", p_function, err_details);
+			logf_error("\E[0;31m   At: %s:%i.\E[0m\n", p_file, p_line);
+			break;
+	}
+}
+
+UnixTerminalLogger::~UnixTerminalLogger() {}
+
+OS_Unix::OS_Unix() {
+	Vector<Logger *> loggers;
+	loggers.push_back(memnew(UnixTerminalLogger));
+	_set_logger(memnew(CompositeLogger(loggers)));
 }
 
 #endif

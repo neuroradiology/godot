@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,11 +27,13 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef DYNAMIC_FONT_H
 #define DYNAMIC_FONT_H
 
 #ifdef FREETYPE_ENABLED
 #include "io/resource_loader.h"
+#include "os/mutex.h"
 #include "os/thread_safe.h"
 #include "scene/resources/font.h"
 
@@ -48,15 +50,17 @@ class DynamicFontData : public Resource {
 public:
 	struct CacheID {
 
-		int size;
-		bool mipmaps;
-		bool filter;
-
+		union {
+			struct {
+				uint32_t size : 16;
+				bool mipmaps : 1;
+				bool filter : 1;
+			};
+			uint32_t key;
+		};
 		bool operator<(CacheID right) const;
 		CacheID() {
-			size = 16;
-			mipmaps = false;
-			filter = false;
+			key = 0;
 		}
 	};
 
@@ -97,10 +101,11 @@ class DynamicFontAtSize : public Reference {
 	FT_Face face; /* handle to face object */
 	FT_StreamRec stream;
 
-	int ascent;
-	int descent;
-	int linegap;
-	int rect_margin;
+	float ascent;
+	float descent;
+	float linegap;
+	float rect_margin;
+	float oversampling;
 
 	uint32_t texture_flags;
 
@@ -121,6 +126,7 @@ class DynamicFontAtSize : public Reference {
 		bool found;
 		int texture_idx;
 		Rect2 rect;
+		Rect2 rect_uv;
 		float v_align;
 		float h_align;
 		float advance;
@@ -145,8 +151,9 @@ class DynamicFontAtSize : public Reference {
 	static HashMap<String, Vector<uint8_t> > _fontdata;
 	Error _load();
 
-protected:
 public:
+	static float font_oversampling;
+
 	float get_height() const;
 
 	float get_ascent() const;
@@ -157,6 +164,7 @@ public:
 	float draw_char(RID p_canvas_item, const Point2 &p_pos, CharType p_char, CharType p_next, const Color &p_modulate, const Vector<Ref<DynamicFontAtSize> > &p_fallbacks) const;
 
 	void set_texture_flags(uint32_t p_flags);
+	bool update_oversampling();
 
 	DynamicFontAtSize();
 	~DynamicFontAtSize();
@@ -231,6 +239,15 @@ public:
 	virtual bool is_distance_field_hint() const;
 
 	virtual float draw_char(RID p_canvas_item, const Point2 &p_pos, CharType p_char, CharType p_next = 0, const Color &p_modulate = Color(1, 1, 1)) const;
+
+	SelfList<DynamicFont> font_list;
+
+	static Mutex *dynamic_font_mutex;
+	static SelfList<DynamicFont>::List dynamic_fonts;
+
+	static void initialize_dynamic_fonts();
+	static void finish_dynamic_fonts();
+	static void update_oversampling();
 
 	DynamicFont();
 	~DynamicFont();

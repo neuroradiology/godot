@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "marshalls.h"
 #include "os/keyboard.h"
 #include "print_string.h"
@@ -159,8 +160,8 @@ Error decode_variant(Variant &r_variant, const uint8_t *p_buffer, int p_len, int
 			r_variant = str;
 
 		} break;
-		// math types
 
+		// math types
 		case Variant::VECTOR2: {
 
 			ERR_FAIL_COND_V(len < (int)4 * 2, ERR_INVALID_DATA);
@@ -245,10 +246,10 @@ Error decode_variant(Variant &r_variant, const uint8_t *p_buffer, int p_len, int
 				(*r_len) += 4 * 4;
 
 		} break;
-		case Variant::RECT3: {
+		case Variant::AABB: {
 
 			ERR_FAIL_COND_V(len < (int)4 * 6, ERR_INVALID_DATA);
-			Rect3 val;
+			AABB val;
 			val.position.x = decode_float(&buf[0]);
 			val.position.y = decode_float(&buf[4]);
 			val.position.z = decode_float(&buf[8]);
@@ -324,7 +325,6 @@ Error decode_variant(Variant &r_variant, const uint8_t *p_buffer, int p_len, int
 				ERR_FAIL_COND_V(len < 12, ERR_INVALID_DATA);
 				Vector<StringName> names;
 				Vector<StringName> subnames;
-				StringName prop;
 
 				uint32_t namecount = strlen &= 0x7FFFFFFF;
 				uint32_t subnamecount = decode_uint32(buf + 4);
@@ -333,9 +333,10 @@ Error decode_variant(Variant &r_variant, const uint8_t *p_buffer, int p_len, int
 				len -= 12;
 				buf += 12;
 
+				if (flags & 2) // Obsolete format with property separate from subpath
+					subnamecount++;
+
 				uint32_t total = namecount + subnamecount;
-				if (flags & 2)
-					total++;
 
 				if (r_len)
 					(*r_len) += 12;
@@ -359,10 +360,8 @@ Error decode_variant(Variant &r_variant, const uint8_t *p_buffer, int p_len, int
 
 					if (i < namecount)
 						names.push_back(str);
-					else if (i < namecount + subnamecount)
-						subnames.push_back(str);
 					else
-						prop = str;
+						subnames.push_back(str);
 
 					buf += strlen + pad;
 					len -= strlen + pad;
@@ -371,7 +370,7 @@ Error decode_variant(Variant &r_variant, const uint8_t *p_buffer, int p_len, int
 						(*r_len) += 4 + strlen + pad;
 				}
 
-				r_variant = NodePath(names, subnames, flags & 1, prop);
+				r_variant = NodePath(names, subnames, flags & 1);
 
 			} else {
 				//old format, just a string
@@ -919,8 +918,6 @@ Error encode_variant(const Variant &p_variant, uint8_t *r_buffer, int &r_len, bo
 				uint32_t flags = 0;
 				if (np.is_absolute())
 					flags |= 1;
-				if (np.get_property() != StringName())
-					flags |= 2;
 
 				encode_uint32(flags, buf + 8);
 
@@ -930,8 +927,6 @@ Error encode_variant(const Variant &p_variant, uint8_t *r_buffer, int &r_len, bo
 			r_len += 12;
 
 			int total = np.get_name_count() + np.get_subname_count();
-			if (np.get_property() != StringName())
-				total++;
 
 			for (int i = 0; i < total; i++) {
 
@@ -939,10 +934,8 @@ Error encode_variant(const Variant &p_variant, uint8_t *r_buffer, int &r_len, bo
 
 				if (i < np.get_name_count())
 					str = np.get_name(i);
-				else if (i < np.get_name_count() + np.get_subname_count())
-					str = np.get_subname(i - np.get_subname_count());
 				else
-					str = np.get_property();
+					str = np.get_subname(i - np.get_name_count());
 
 				CharString utf8 = str.utf8();
 
@@ -967,8 +960,8 @@ Error encode_variant(const Variant &p_variant, uint8_t *r_buffer, int &r_len, bo
 			_encode_string(p_variant, buf, r_len);
 
 		} break;
-		// math types
 
+		// math types
 		case Variant::VECTOR2: {
 
 			if (buf) {
@@ -1045,10 +1038,10 @@ Error encode_variant(const Variant &p_variant, uint8_t *r_buffer, int &r_len, bo
 			r_len += 4 * 4;
 
 		} break;
-		case Variant::RECT3: {
+		case Variant::AABB: {
 
 			if (buf) {
-				Rect3 aabb = p_variant;
+				AABB aabb = p_variant;
 				encode_float(aabb.position.x, &buf[0]);
 				encode_float(aabb.position.y, &buf[4]);
 				encode_float(aabb.position.z, &buf[8]);
@@ -1140,8 +1133,9 @@ Error encode_variant(const Variant &p_variant, uint8_t *r_buffer, int &r_len, bo
 					if (buf) {
 						encode_uint32(0, buf);
 						buf += 4;
-						r_len += 4;
 					}
+					r_len += 4;
+
 				} else {
 					_encode_string(obj->get_class(), buf, r_len);
 

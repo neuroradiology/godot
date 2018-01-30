@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef PROXIMITY_GROUP_H
 #define PROXIMITY_GROUP_H
 
@@ -66,15 +67,21 @@ public:
 	static void _bind_methods();
 
 public:
-	void set_group_name(String p_group_name);
-	void broadcast(String p_name, Variant p_params);
-	void set_dispatch_mode(int p_mode);
+	void set_group_name(const String &p_group_name);
+	String get_group_name() const;
+
+	void set_dispatch_mode(DispatchMode p_mode);
+	DispatchMode get_dispatch_mode() const;
 
 	void set_grid_radius(const Vector3 &p_radius);
 	Vector3 get_grid_radius() const;
 
+	void broadcast(String p_name, Variant p_params);
+
 	ProximityGroup();
 	~ProximityGroup();
 };
+
+VARIANT_ENUM_CAST(ProximityGroup::DispatchMode);
 
 #endif

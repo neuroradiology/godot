@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "collision_polygon.h"
 
 #include "collision_object.h"
@@ -72,6 +73,14 @@ void CollisionPolygon::_build_polygon() {
 	}
 }
 
+void CollisionPolygon::_update_in_shape_owner(bool p_xform_only) {
+
+	parent->shape_owner_set_transform(owner_id, get_transform());
+	if (p_xform_only)
+		return;
+	parent->shape_owner_set_disabled(owner_id, disabled);
+}
+
 void CollisionPolygon::_notification(int p_what) {
 
 	switch (p_what) {
@@ -81,14 +90,20 @@ void CollisionPolygon::_notification(int p_what) {
 			if (parent) {
 				owner_id = parent->create_shape_owner(this);
 				_build_polygon();
-				parent->shape_owner_set_transform(owner_id, get_transform());
-				parent->shape_owner_set_disabled(owner_id, disabled);
+				_update_in_shape_owner();
 			}
+		} break;
+		case NOTIFICATION_ENTER_TREE: {
+
+			if (parent) {
+				_update_in_shape_owner();
+			}
+
 		} break;
 		case NOTIFICATION_LOCAL_TRANSFORM_CHANGED: {
 
 			if (parent) {
-				parent->shape_owner_set_transform(owner_id, get_transform());
+				_update_in_shape_owner(true);
 			}
 
 		} break;
@@ -117,7 +132,7 @@ Vector<Point2> CollisionPolygon::get_polygon() const {
 	return polygon;
 }
 
-Rect3 CollisionPolygon::get_item_rect() const {
+AABB CollisionPolygon::get_item_rect() const {
 
 	return aabb;
 }
@@ -176,7 +191,7 @@ void CollisionPolygon::_bind_methods() {
 
 CollisionPolygon::CollisionPolygon() {
 
-	aabb = Rect3(Vector3(-1, -1, -1), Vector3(2, 2, 2));
+	aabb = AABB(Vector3(-1, -1, -1), Vector3(2, 2, 2));
 	depth = 1.0;
 	set_notify_local_transform(true);
 	parent = NULL;

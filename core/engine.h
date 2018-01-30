@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef ENGINE_H
 #define ENGINE_H
 
@@ -37,6 +38,17 @@
 
 class Engine {
 
+public:
+	struct Singleton {
+		StringName name;
+		Object *ptr;
+		Singleton(const StringName &p_name = StringName(), Object *p_ptr = NULL) :
+				name(p_name),
+				ptr(p_ptr) {
+		}
+	};
+
+private:
 	friend class Main;
 
 	uint64_t frames_drawn;
@@ -49,10 +61,13 @@ class Engine {
 	int _target_fps;
 	float _time_scale;
 	bool _pixel_snap;
-	uint64_t _fixed_frames;
+	uint64_t _physics_frames;
 
 	uint64_t _idle_frames;
-	bool _in_fixed;
+	bool _in_physics;
+
+	List<Singleton> singletons;
+	Map<StringName, Object *> singleton_ptrs;
 
 	bool editor_hint;
 
@@ -71,9 +86,9 @@ public:
 
 	uint64_t get_frames_drawn();
 
-	uint64_t get_fixed_frames() const { return _fixed_frames; }
+	uint64_t get_physics_frames() const { return _physics_frames; }
 	uint64_t get_idle_frames() const { return _idle_frames; }
-	bool is_in_fixed_frame() const { return _in_fixed; }
+	bool is_in_physics_frame() const { return _in_physics; }
 	uint64_t get_idle_frame_ticks() const { return _frame_ticks; }
 	float get_idle_frame_step() const { return _frame_step; }
 
@@ -82,6 +97,11 @@ public:
 
 	void set_frame_delay(uint32_t p_msec);
 	uint32_t get_frame_delay() const;
+
+	void add_singleton(const Singleton &p_singleton);
+	void get_singletons(List<Singleton> *p_singletons);
+	bool has_singleton(const String &p_name) const;
+	Object *get_singleton_object(const String &p_name) const;
 
 	_FORCE_INLINE_ bool get_use_pixel_snap() const { return _pixel_snap; }
 

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef NETWORKED_MULTIPLAYER_ENET_H
 #define NETWORKED_MULTIPLAYER_ENET_H
 
@@ -86,12 +87,12 @@ private:
 
 	CompressionMode compression_mode;
 
-	mutable List<Packet> incoming_packets;
+	List<Packet> incoming_packets;
 
-	mutable Packet current_packet;
+	Packet current_packet;
 
 	uint32_t _gen_unique_id() const;
-	void _pop_current_packet() const;
+	void _pop_current_packet();
 
 	Vector<uint8_t> src_compressor_mem;
 	Vector<uint8_t> dst_compressor_mem;
@@ -109,6 +110,7 @@ protected:
 
 public:
 	virtual void set_transfer_mode(TransferMode p_mode);
+	virtual TransferMode get_transfer_mode() const;
 	virtual void set_target_peer(int p_peer);
 
 	virtual int get_packet_peer() const;
@@ -123,7 +125,7 @@ public:
 	virtual bool is_server() const;
 
 	virtual int get_available_packet_count() const;
-	virtual Error get_packet(const uint8_t **r_buffer, int &r_buffer_size) const; ///< buffer is GONE after next get_packet
+	virtual Error get_packet(const uint8_t **r_buffer, int &r_buffer_size); ///< buffer is GONE after next get_packet
 	virtual Error put_packet(const uint8_t *p_buffer, int p_buffer_size);
 
 	virtual int get_max_packet_size() const;

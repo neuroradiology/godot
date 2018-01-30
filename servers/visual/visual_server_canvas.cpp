@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "visual_server_canvas.h"
 #include "visual_server_global.h"
 #include "visual_server_viewport.h"
@@ -102,9 +103,9 @@ void VisualServerCanvas::_render_canvas_item(Item *p_canvas_item, const Transfor
 	}
 
 	if (ci->z_relative)
-		p_z = CLAMP(p_z + ci->z, VS::CANVAS_ITEM_Z_MIN, VS::CANVAS_ITEM_Z_MAX);
+		p_z = CLAMP(p_z + ci->z_index, VS::CANVAS_ITEM_Z_MIN, VS::CANVAS_ITEM_Z_MAX);
 	else
-		p_z = ci->z;
+		p_z = ci->z_index;
 
 	for (int i = 0; i < child_item_count; i++) {
 
@@ -182,7 +183,7 @@ void VisualServerCanvas::render_canvas(Canvas *p_canvas, const Transform2D &p_tr
 	}
 
 	int l = p_canvas->child_items.size();
-	Canvas::ChildItem *ci = p_canvas->child_items.ptr();
+	Canvas::ChildItem *ci = p_canvas->child_items.ptrw();
 
 	bool has_mirror = false;
 	for (int i = 0; i < l; i++) {
@@ -416,6 +417,7 @@ void VisualServerCanvas::canvas_item_add_polyline(RID p_item, const Vector<Point
 	ERR_FAIL_COND(!pline);
 
 	pline->antialiased = p_antialiased;
+	pline->multiline = false;
 
 	if (p_width <= 1) {
 		pline->lines = p_points;
@@ -482,6 +484,30 @@ void VisualServerCanvas::canvas_item_add_polyline(RID p_item, const Vector<Point
 			prev_t = t;
 		}
 	}
+	canvas_item->rect_dirty = true;
+	canvas_item->commands.push_back(pline);
+}
+
+void VisualServerCanvas::canvas_item_add_multiline(RID p_item, const Vector<Point2> &p_points, const Vector<Color> &p_colors, float p_width, bool p_antialiased) {
+
+	ERR_FAIL_COND(p_points.size() < 2);
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND(!canvas_item);
+
+	Item::CommandPolyLine *pline = memnew(Item::CommandPolyLine);
+	ERR_FAIL_COND(!pline);
+
+	pline->antialiased = false; //todo
+	pline->multiline = true;
+
+	pline->lines = p_points;
+	pline->line_colors = p_colors;
+	if (pline->line_colors.size() == 0) {
+		pline->line_colors.push_back(Color(1, 1, 1, 1));
+	} else if (pline->line_colors.size() > 1 && pline->line_colors.size() != pline->lines.size()) {
+		pline->line_colors.resize(1);
+	}
+
 	canvas_item->rect_dirty = true;
 	canvas_item->commands.push_back(pline);
 }
@@ -780,14 +806,14 @@ void VisualServerCanvas::canvas_item_set_sort_children_by_y(RID p_item, bool p_e
 
 	canvas_item->sort_y = p_enable;
 }
-void VisualServerCanvas::canvas_item_set_z(RID p_item, int p_z) {
+void VisualServerCanvas::canvas_item_set_z_index(RID p_item, int p_z) {
 
 	ERR_FAIL_COND(p_z < VS::CANVAS_ITEM_Z_MIN || p_z > VS::CANVAS_ITEM_Z_MAX);
 
 	Item *canvas_item = canvas_item_owner.getornull(p_item);
 	ERR_FAIL_COND(!canvas_item);
 
-	canvas_item->z = p_z;
+	canvas_item->z_index = p_z;
 }
 void VisualServerCanvas::canvas_item_set_z_as_relative_to_parent(RID p_item, bool p_enable) {
 

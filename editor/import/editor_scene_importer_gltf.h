@@ -1,3 +1,33 @@
+/*************************************************************************/
+/*  editor_scene_importer_gltf.h                                         */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                      https://godotengine.org                          */
+/*************************************************************************/
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
+
 #ifndef EDITOR_SCENE_IMPORTER_GLTF_H
 #define EDITOR_SCENE_IMPORTER_GLTF_H
 
@@ -52,18 +82,29 @@ class EditorSceneImporterGLTF : public EditorSceneImporter {
 
 		Transform xform;
 		String name;
-		Node *godot_node;
-		int godot_bone_index;
+		//Node *godot_node;
+		//int godot_bone_index;
 
 		int mesh;
 		int camera;
 		int skin;
-		int skeleton_skin;
-		int child_of_skeleton; // put as children of skeleton
-		Vector<int> skeleton_children; //skeleton put as children of this
+		//int skeleton_skin;
+		//int child_of_skeleton; // put as children of skeleton
+		//Vector<int> skeleton_children; //skeleton put as children of this
 
-		int joint_skin;
-		int joint_bone;
+		struct Joint {
+			int skin;
+			int bone;
+			int godot_bone_index;
+
+			Joint() {
+				skin = -1;
+				bone = -1;
+				godot_bone_index = -1;
+			}
+		};
+
+		Vector<Joint> joints;
 
 		//keep them for animation
 		Vector3 translation;
@@ -71,17 +112,15 @@ class EditorSceneImporterGLTF : public EditorSceneImporter {
 		Vector3 scale;
 
 		Vector<int> children;
+		Vector<Node *> godot_nodes;
 
 		GLTFNode() {
-			godot_node = NULL;
-			godot_bone_index = -1;
-			joint_skin = -1;
-			joint_bone = -1;
-			child_of_skeleton = -1;
-			skeleton_skin = -1;
+			//			child_of_skeleton = -1;
+			//			skeleton_skin = -1;
 			mesh = -1;
 			camera = -1;
 			parent = -1;
+			skin = -1;
 			scale = Vector3(1, 1, 1);
 		}
 	};
@@ -235,7 +274,10 @@ class EditorSceneImporterGLTF : public EditorSceneImporter {
 
 		Vector<GLTFAnimation> animations;
 
-		Map<int, Vector<int> > skin_users; //cache skin users
+		Map<int, Vector<int> > skeleton_nodes;
+		Map<Node *, Skeleton *> paths_to_skeleton;
+
+		//Map<int, Vector<int> > skin_users; //cache skin users
 
 		~GLTFState() {
 			for (int i = 0; i < nodes.size(); i++) {
@@ -269,7 +311,7 @@ class EditorSceneImporterGLTF : public EditorSceneImporter {
 	Vector<Basis> _decode_accessor_as_basis(GLTFState &state, int p_accessor, bool p_for_vertex);
 	Vector<Transform> _decode_accessor_as_xform(GLTFState &state, int p_accessor, bool p_for_vertex);
 
-	void _generate_bone(GLTFState &state, int p_node, Vector<Skeleton *> &skeletons, int p_parent_bone);
+	void _generate_bone(GLTFState &state, int p_node, Vector<Skeleton *> &skeletons, const Vector<int> &p_parent_bones, Node *p_parent_node);
 	void _generate_node(GLTFState &state, int p_node, Node *p_parent, Node *p_owner, Vector<Skeleton *> &skeletons);
 	void _import_animation(GLTFState &state, AnimationPlayer *ap, int index, int bake_fps, Vector<Skeleton *> skeletons);
 
@@ -296,7 +338,7 @@ public:
 	virtual uint32_t get_import_flags() const;
 	virtual void get_extensions(List<String> *r_extensions) const;
 	virtual Node *import_scene(const String &p_path, uint32_t p_flags, int p_bake_fps, List<String> *r_missing_deps = NULL, Error *r_err = NULL);
-	virtual Ref<Animation> import_animation(const String &p_path, uint32_t p_flags);
+	virtual Ref<Animation> import_animation(const String &p_path, uint32_t p_flags, int p_bake_fps);
 
 	EditorSceneImporterGLTF();
 };

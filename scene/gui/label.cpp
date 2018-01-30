@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "label.h"
 #include "print_string.h"
 #include "project_settings.h"
@@ -207,7 +208,7 @@ void Label::_notification(int p_what) {
 				} break;
 			}
 
-			int y_ofs = style->get_offset().y;
+			float y_ofs = style->get_offset().y;
 			y_ofs += (line - lines_skipped) * font_h + font->get_ascent();
 			y_ofs += vbegin + line * vsep;
 
@@ -563,6 +564,7 @@ void Label::set_visible_characters(int p_amount) {
 	if (get_total_character_count() > 0) {
 		percent_visible = (float)p_amount / (float)total_char_cache;
 	}
+	_change_notify("percent_visible");
 	update();
 }
 
@@ -583,6 +585,7 @@ void Label::set_percent_visible(float p_percent) {
 		visible_chars = get_total_character_count() * p_percent;
 		percent_visible = p_percent;
 	}
+	_change_notify("visible_chars");
 	update();
 }
 
@@ -664,6 +667,7 @@ void Label::_bind_methods() {
 	ADD_PROPERTYNZ(PropertyInfo(Variant::BOOL, "autowrap"), "set_autowrap", "has_autowrap");
 	ADD_PROPERTYNZ(PropertyInfo(Variant::BOOL, "clip_text"), "set_clip_text", "is_clipping_text");
 	ADD_PROPERTYNZ(PropertyInfo(Variant::BOOL, "uppercase"), "set_uppercase", "is_uppercase");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "visible_characters", PROPERTY_HINT_RANGE, "-1,128000,1", PROPERTY_USAGE_EDITOR), "set_visible_characters", "get_visible_characters");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "percent_visible", PROPERTY_HINT_RANGE, "0,1,0.001"), "set_percent_visible", "get_percent_visible");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "lines_skipped", PROPERTY_HINT_RANGE, "0,999,1"), "set_lines_skipped", "get_lines_skipped");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "max_lines_visible", PROPERTY_HINT_RANGE, "-1,999,1"), "set_max_lines_visible", "get_max_lines_visible");

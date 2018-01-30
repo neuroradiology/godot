@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "style_box_editor_plugin.h"
 
 void StyleBoxEditor::edit(const Ref<StyleBox> &p_stylebox) {
@@ -103,6 +104,6 @@ StyleBoxEditorPlugin::StyleBoxEditorPlugin(EditorNode *p_node) {
 	stylebox_editor->set_custom_minimum_size(Size2(0, 250));
 
 	//p_node->get_viewport()->add_child(stylebox_editor);
-	button = p_node->add_bottom_panel_item("StyleBox", stylebox_editor);
+	button = p_node->add_bottom_panel_item(TTR("StyleBox"), stylebox_editor);
 	button->hide();
 }

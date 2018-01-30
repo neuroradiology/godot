@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 package org.godotengine.godot.input;
 import android.content.Context;
 import android.text.Editable;
@@ -67,7 +68,7 @@ public class GodotTextInputWrapper implements TextWatcher, OnEditorActionListene
 
 	private boolean isFullScreenEdit() {
 		final TextView textField = this.mEdit;
-		final InputMethodManager imm = (InputMethodManager) textField.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+		final InputMethodManager imm = (InputMethodManager)textField.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
 		return imm.isFullscreenMode();
 	}
 
@@ -81,86 +82,57 @@ public class GodotTextInputWrapper implements TextWatcher, OnEditorActionListene
 
 	@Override
 	public void afterTextChanged(final Editable s) {
-
 	}
 
 	@Override
 	public void beforeTextChanged(final CharSequence pCharSequence, final int start, final int count, final int after) {
 		//Log.d(TAG, "beforeTextChanged(" + pCharSequence + ")start: " + start + ",count: " + count + ",after: " + after);
 
-		for (int i=0;i<count;i++){
-			mView.queueEvent(new Runnable() {
-				@Override
-				public void run() {
+		mView.queueEvent(new Runnable() {
+			@Override
+			public void run() {
+				for (int i = 0; i < count; ++i) {
 					GodotLib.key(KeyEvent.KEYCODE_DEL, 0, true);
 					GodotLib.key(KeyEvent.KEYCODE_DEL, 0, false);
 				}
-			});
-		}
+			}
+		});
 	}
 
 	@Override
 	public void onTextChanged(final CharSequence pCharSequence, final int start, final int before, final int count) {
 		//Log.d(TAG, "onTextChanged(" + pCharSequence + ")start: " + start + ",count: " + count + ",before: " + before);
 
-		for (int i=start;i<start+count;i++){
-			final int ch = pCharSequence.charAt(i);
-			mView.queueEvent(new Runnable() {
-				@Override
-				public void run() {
-					GodotLib.key(0, ch, true);
-					GodotLib.key(0, ch, false);
-				}
-			});
+		final int[] newChars = new int[count];
+		for (int i = start; i < start + count; ++i) {
+			newChars[i - start] = pCharSequence.charAt(i);
 		}
-
+		mView.queueEvent(new Runnable() {
+			@Override
+			public void run() {
+				for (int i = 0; i < count; ++i) {
+					GodotLib.key(0, newChars[i], true);
+					GodotLib.key(0, newChars[i], false);
+				}
+			}
+		});
 	}
 
 	@Override
 	public boolean onEditorAction(final TextView pTextView, final int pActionID, final KeyEvent pKeyEvent) {
 		if (this.mEdit == pTextView && this.isFullScreenEdit()) {
-			// user press the action button, delete all old text and insert new text
-			for (int i = this.mOriginText.length(); i > 0; i--) {
-				mView.queueEvent(new Runnable() {
-					@Override
-					public void run() {
-						GodotLib.key(KeyEvent.KEYCODE_DEL, 0, true);
-						GodotLib.key(KeyEvent.KEYCODE_DEL, 0, false);
-					}
-				});
+			final String characters = pKeyEvent.getCharacters();
 
-				/*
-				if (BuildConfig.DEBUG) {
-					Log.d(TAG, "deleteBackward");
-				}
-				*/
-			}
-			String text = pTextView.getText().toString();
-
-			/* If user input nothing, translate "\n" to engine. */
-			if (text.compareTo("") == 0) {
-				text = "\n";
-			}
-
-			if ('\n' != text.charAt(text.length() - 1)) {
-				text += '\n';
-			}
-
-			for(int i = 0; i < text.length(); i++) {
-				final int ch = text.codePointAt(i);
-				mView.queueEvent(new Runnable() {
-					@Override
-					public void run() {
+			mView.queueEvent(new Runnable() {
+				@Override
+				public void run() {
+					for (int i = 0; i < characters.length(); i++) {
+						final int ch = characters.codePointAt(i);
 						GodotLib.key(0, ch, true);
 						GodotLib.key(0, ch, false);
 					}
-				});
-			}
-			/*
-			if (BuildConfig.DEBUG) {
-				Log.d(TAG, "insertText(" + insertText + ")");
-			}
-			*/
+				}
+			});
 		}
 
 		if (pActionID == EditorInfo.IME_ACTION_DONE) {

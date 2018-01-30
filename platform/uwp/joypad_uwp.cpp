@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -54,7 +54,7 @@ void JoypadUWP::process_controllers() {
 
 			case ControllerType::GAMEPAD_CONTROLLER: {
 
-				GamepadReading reading = ((Gamepad ^)joy.controller_reference)->GetCurrentReading();
+				GamepadReading reading = ((Gamepad ^) joy.controller_reference)->GetCurrentReading();
 
 				int button_mask = (int)GamepadButtons::Menu;
 				for (int j = 0; j < 14; j++) {
@@ -161,7 +161,7 @@ void JoypadUWP::joypad_vibration_start(int p_device, float p_weak_magnitude, flo
 		GamepadVibration vibration;
 		vibration.LeftMotor = p_strong_magnitude;
 		vibration.RightMotor = p_weak_magnitude;
-		((Gamepad ^)joy.controller_reference)->Vibration = vibration;
+		((Gamepad ^) joy.controller_reference)->Vibration = vibration;
 
 		joy.ff_timestamp = p_timestamp;
 		joy.ff_end_timestamp = p_duration == 0 ? 0 : p_timestamp + (uint64_t)(p_duration * 1000000.0);
@@ -175,7 +175,7 @@ void JoypadUWP::joypad_vibration_stop(int p_device, uint64_t p_timestamp) {
 		GamepadVibration vibration;
 		vibration.LeftMotor = 0.0;
 		vibration.RightMotor = 0.0;
-		((Gamepad ^)joy.controller_reference)->Vibration = vibration;
+		((Gamepad ^) joy.controller_reference)->Vibration = vibration;
 
 		joy.ff_timestamp = p_timestamp;
 		joy.vibrating = false;

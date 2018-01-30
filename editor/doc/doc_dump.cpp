@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "doc_dump.h"
 
 #include "os/file_access.h"
@@ -82,8 +83,8 @@ void DocDump::dump(const String &p_file) {
 	FileAccess *f = FileAccess::open(p_file, FileAccess::WRITE);
 
 	_write_string(f, 0, "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>");
+	_write_string(f, 0, String("<doc version=\"") + itos(VERSION_MAJOR) + "." + itos(VERSION_MINOR) + "-" + VERSION_STATUS + "\" name=\"Engine Types\">");
 
-	_write_string(f, 0, "<doc version=\"" + String(VERSION_MKSTRING) + "\" name=\"Engine Types\">");
 	while (class_list.size()) {
 
 		String name = class_list.front()->get();
@@ -182,7 +183,7 @@ void DocDump::dump(const String &p_file) {
 							case Variant::VECTOR3:
 							case Variant::PLANE:
 							case Variant::QUAT:
-							case Variant::RECT3:
+							case Variant::AABB:
 							case Variant::BASIS:
 							case Variant::COLOR:
 							case Variant::POOL_BYTE_ARRAY:

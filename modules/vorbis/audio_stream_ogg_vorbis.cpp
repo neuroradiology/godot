@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "audio_stream_ogg_vorbis.h"
 
 size_t AudioStreamPlaybackOGGVorbis::_ov_read_func(void *p_dst, size_t p_data, size_t p_count, void *_f) {
@@ -64,7 +65,7 @@ int AudioStreamPlaybackOGGVorbis::_ov_seek_func(void *_f, ogg_int64_t offs, int 
 		fa->seek_end(offs);
 	} else {
 
-		ERR_PRINT("BUG, wtf was whence set to?\n");
+		ERR_PRINT("Vorbis seek function failure: Unexpected value in _whence\n");
 	}
 	int ret = fa->eof_reached() ? -1 : 0;
 	//printf("returning %i\n",ret);
@@ -92,7 +93,7 @@ long AudioStreamPlaybackOGGVorbis::_ov_tell_func(void *_f) {
 	return fa->get_position();
 }
 
-int AudioStreamPlaybackOGGVorbis::mix(int16_t *p_bufer, int p_frames) {
+int AudioStreamPlaybackOGGVorbis::mix(int16_t *p_buffer, int p_frames) {
 
 	if (!playing)
 		return 0;
@@ -106,12 +107,10 @@ int AudioStreamPlaybackOGGVorbis::mix(int16_t *p_bufer, int p_frames) {
 			break;
 		}
 
-//printf("to mix %i - mix me %i bytes\n",to_mix,to_mix*stream_channels*sizeof(int16_t));
-
 #ifdef BIG_ENDIAN_ENABLED
-		long ret = ov_read(&vf, (char *)p_bufer, todo * stream_channels * sizeof(int16_t), 1, 2, 1, &current_section);
+		long ret = ov_read(&vf, (char *)p_buffer, todo * stream_channels * sizeof(int16_t), 1, 2, 1, &current_section);
 #else
-		long ret = ov_read(&vf, (char *)p_bufer, todo * stream_channels * sizeof(int16_t), 0, 2, 1, &current_section);
+		long ret = ov_read(&vf, (char *)p_buffer, todo * stream_channels * sizeof(int16_t), 0, 2, 1, &current_section);
 #endif
 
 		if (ret < 0) {
@@ -162,7 +161,7 @@ int AudioStreamPlaybackOGGVorbis::mix(int16_t *p_bufer, int p_frames) {
 
 		frames_mixed += ret;
 
-		p_bufer += ret * stream_channels;
+		p_buffer += ret * stream_channels;
 		p_frames -= ret;
 	}
 
@@ -359,7 +358,7 @@ void AudioStreamPlaybackOGGVorbis::set_paused(bool p_paused) {
 	paused = p_paused;
 }
 
-bool AudioStreamPlaybackOGGVorbis::is_paused(bool p_paused) const {
+bool AudioStreamPlaybackOGGVorbis::is_paused() const {
 
 	return paused;
 }

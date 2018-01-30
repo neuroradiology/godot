@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,14 +27,15 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "api_generator.h"
 
 #ifdef TOOLS_ENABLED
 
-#include "class_db.h"
+#include "core/class_db.h"
+#include "core/engine.h"
 #include "core/global_constants.h"
 #include "core/pair.h"
-#include "core/project_settings.h"
 #include "os/file_access.h"
 
 // helper stuff
@@ -80,6 +81,7 @@ struct PropertyAPI {
 	String getter;
 	String setter;
 	String type;
+	int index;
 };
 
 struct ConstantAPI {
@@ -176,7 +178,7 @@ List<ClassAPI> generate_c_api_classes() {
 			if (name.begins_with("_")) {
 				name.remove(0);
 			}
-			class_api.is_singleton = ProjectSettings::get_singleton()->has_singleton(name);
+			class_api.is_singleton = Engine::get_singleton()->has_singleton(name);
 		}
 		class_api.is_instanciable = !class_api.is_singleton && ClassDB::can_instance(class_name);
 
@@ -258,6 +260,8 @@ List<ClassAPI> generate_c_api_classes() {
 				} else {
 					property_api.type = get_type_name(p->get());
 				}
+
+				property_api.index = ClassDB::get_property_index(class_name, p->get().name);
 
 				if (!property_api.setter.empty() || !property_api.getter.empty()) {
 					class_api.properties.push_back(property_api);
@@ -395,7 +399,8 @@ static List<String> generate_c_api_json(const List<ClassAPI> &p_api) {
 			source.push_back("\t\t\t\t\"name\": \"" + e->get().name + "\",\n");
 			source.push_back("\t\t\t\t\"type\": \"" + e->get().type + "\",\n");
 			source.push_back("\t\t\t\t\"getter\": \"" + e->get().getter + "\",\n");
-			source.push_back("\t\t\t\t\"setter\": \"" + e->get().setter + "\"\n");
+			source.push_back("\t\t\t\t\"setter\": \"" + e->get().setter + "\",\n");
+			source.push_back(String("\t\t\t\t\"index\": ") + itos(e->get().index) + "\n");
 			source.push_back(String("\t\t\t}") + (e->next() ? "," : "") + "\n");
 		}
 		source.push_back("\t\t],\n");
@@ -463,8 +468,6 @@ static List<String> generate_c_api_json(const List<ClassAPI> &p_api) {
 
 	return source;
 }
-
-//
 
 #endif
 

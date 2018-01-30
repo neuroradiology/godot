@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "networked_multiplayer_enet.h"
 #include "io/marshalls.h"
 #include "os/os.h"
@@ -34,6 +35,10 @@
 void NetworkedMultiplayerENet::set_transfer_mode(TransferMode p_mode) {
 
 	transfer_mode = p_mode;
+}
+NetworkedMultiplayerPeer::TransferMode NetworkedMultiplayerENet::get_transfer_mode() const {
+
+	return transfer_mode;
 }
 
 void NetworkedMultiplayerENet::set_target_peer(int p_peer) {
@@ -386,7 +391,7 @@ int NetworkedMultiplayerENet::get_available_packet_count() const {
 
 	return incoming_packets.size();
 }
-Error NetworkedMultiplayerENet::get_packet(const uint8_t **r_buffer, int &r_buffer_size) const {
+Error NetworkedMultiplayerENet::get_packet(const uint8_t **r_buffer, int &r_buffer_size) {
 
 	ERR_FAIL_COND_V(incoming_packets.size() == 0, ERR_UNAVAILABLE);
 
@@ -480,7 +485,7 @@ int NetworkedMultiplayerENet::get_max_packet_size() const {
 	return 1 << 24; //anything is good
 }
 
-void NetworkedMultiplayerENet::_pop_current_packet() const {
+void NetworkedMultiplayerENet::_pop_current_packet() {
 
 	if (current_packet.packet) {
 		enet_packet_destroy(current_packet.packet);
@@ -505,7 +510,7 @@ uint32_t NetworkedMultiplayerENet::_gen_unique_id() const {
 		hash = hash_djb2_one_32(
 				(uint32_t)OS::get_singleton()->get_unix_time(), hash);
 		hash = hash_djb2_one_32(
-				(uint32_t)OS::get_singleton()->get_data_dir().hash64(), hash);
+				(uint32_t)OS::get_singleton()->get_user_data_dir().hash64(), hash);
 		/*
 		hash = hash_djb2_one_32(
 					(uint32_t)OS::get_singleton()->get_unique_id().hash64(), hash );
@@ -585,7 +590,7 @@ size_t NetworkedMultiplayerENet::enet_compress(void *context, const ENetBuffer *
 	if (enet->dst_compressor_mem.size() < req_size) {
 		enet->dst_compressor_mem.resize(req_size);
 	}
-	int ret = Compression::compress(enet->dst_compressor_mem.ptr(), enet->src_compressor_mem.ptr(), ofs, mode);
+	int ret = Compression::compress(enet->dst_compressor_mem.ptrw(), enet->src_compressor_mem.ptr(), ofs, mode);
 
 	if (ret < 0)
 		return 0;
@@ -657,6 +662,8 @@ void NetworkedMultiplayerENet::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_compression_mode", "mode"), &NetworkedMultiplayerENet::set_compression_mode);
 	ClassDB::bind_method(D_METHOD("get_compression_mode"), &NetworkedMultiplayerENet::get_compression_mode);
 	ClassDB::bind_method(D_METHOD("set_bind_ip", "ip"), &NetworkedMultiplayerENet::set_bind_ip);
+
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "compression_mode", PROPERTY_HINT_ENUM, "None,Range Coder,FastLZ,ZLib,ZStd"), "set_compression_mode", "get_compression_mode");
 
 	BIND_ENUM_CONSTANT(COMPRESS_NONE);
 	BIND_ENUM_CONSTANT(COMPRESS_RANGE_CODER);

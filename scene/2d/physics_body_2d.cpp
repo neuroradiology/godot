@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "physics_body_2d.h"
 
 #include "engine.h"
@@ -132,9 +133,10 @@ bool PhysicsBody2D::get_collision_layer_bit(int p_bit) const {
 	return get_collision_layer() & (1 << p_bit);
 }
 
-PhysicsBody2D::PhysicsBody2D(Physics2DServer::BodyMode p_mode)
-	: CollisionObject2D(Physics2DServer::get_singleton()->body_create(p_mode), false) {
+PhysicsBody2D::PhysicsBody2D(Physics2DServer::BodyMode p_mode) :
+		CollisionObject2D(Physics2DServer::get_singleton()->body_create(), false) {
 
+	Physics2DServer::get_singleton()->body_set_mode(get_rid(), p_mode);
 	collision_layer = 1;
 	collision_mask = 1;
 	set_pickable(false);
@@ -225,8 +227,8 @@ void StaticBody2D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "bounce", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_bounce", "get_bounce");
 }
 
-StaticBody2D::StaticBody2D()
-	: PhysicsBody2D(Physics2DServer::BODY_MODE_STATIC) {
+StaticBody2D::StaticBody2D() :
+		PhysicsBody2D(Physics2DServer::BODY_MODE_STATIC) {
 
 	constant_angular_velocity = 0;
 	bounce = 0;
@@ -242,6 +244,7 @@ void RigidBody2D::_body_enter_tree(ObjectID p_id) {
 	Node *node = Object::cast_to<Node>(obj);
 	ERR_FAIL_COND(!node);
 
+	ERR_FAIL_COND(!contact_monitor);
 	Map<ObjectID, BodyState>::Element *E = contact_monitor->body_map.find(p_id);
 	ERR_FAIL_COND(!E);
 	ERR_FAIL_COND(E->get().in_scene);
@@ -264,6 +267,7 @@ void RigidBody2D::_body_exit_tree(ObjectID p_id) {
 	Object *obj = ObjectDB::get_instance(p_id);
 	Node *node = Object::cast_to<Node>(obj);
 	ERR_FAIL_COND(!node);
+	ERR_FAIL_COND(!contact_monitor);
 	Map<ObjectID, BodyState>::Element *E = contact_monitor->body_map.find(p_id);
 	ERR_FAIL_COND(!E);
 	ERR_FAIL_COND(!E->get().in_scene);
@@ -289,6 +293,7 @@ void RigidBody2D::_body_inout(int p_status, ObjectID p_instance, int p_body_shap
 	Object *obj = ObjectDB::get_instance(objid);
 	Node *node = Object::cast_to<Node>(obj);
 
+	ERR_FAIL_COND(!contact_monitor);
 	Map<ObjectID, BodyState>::Element *E = contact_monitor->body_map.find(objid);
 
 	/*if (obj) {
@@ -308,7 +313,7 @@ void RigidBody2D::_body_inout(int p_status, ObjectID p_instance, int p_body_shap
 			E->get().in_scene = node && node->is_inside_tree();
 			if (node) {
 				node->connect(SceneStringNames::get_singleton()->tree_entered, this, SceneStringNames::get_singleton()->_body_enter_tree, make_binds(objid));
-				node->connect(SceneStringNames::get_singleton()->tree_exited, this, SceneStringNames::get_singleton()->_body_exit_tree, make_binds(objid));
+				node->connect(SceneStringNames::get_singleton()->tree_exiting, this, SceneStringNames::get_singleton()->_body_exit_tree, make_binds(objid));
 				if (E->get().in_scene) {
 					emit_signal(SceneStringNames::get_singleton()->body_entered, node);
 				}
@@ -337,7 +342,7 @@ void RigidBody2D::_body_inout(int p_status, ObjectID p_instance, int p_body_shap
 
 			if (node) {
 				node->disconnect(SceneStringNames::get_singleton()->tree_entered, this, SceneStringNames::get_singleton()->_body_enter_tree);
-				node->disconnect(SceneStringNames::get_singleton()->tree_exited, this, SceneStringNames::get_singleton()->_body_exit_tree);
+				node->disconnect(SceneStringNames::get_singleton()->tree_exiting, this, SceneStringNames::get_singleton()->_body_exit_tree);
 				if (in_scene)
 					emit_signal(SceneStringNames::get_singleton()->body_exited, obj);
 			}
@@ -761,6 +766,14 @@ void RigidBody2D::set_contact_monitor(bool p_enabled) {
 		for (Map<ObjectID, BodyState>::Element *E = contact_monitor->body_map.front(); E; E = E->next()) {
 
 			//clean up mess
+			Object *obj = ObjectDB::get_instance(E->key());
+			Node *node = Object::cast_to<Node>(obj);
+
+			if (node) {
+
+				node->disconnect(SceneStringNames::get_singleton()->tree_entered, this, SceneStringNames::get_singleton()->_body_enter_tree);
+				node->disconnect(SceneStringNames::get_singleton()->tree_exiting, this, SceneStringNames::get_singleton()->_body_exit_tree);
+			}
 		}
 
 		memdelete(contact_monitor);
@@ -805,7 +818,7 @@ String RigidBody2D::get_configuration_warning() const {
 		if (warning != String()) {
 			warning += "\n";
 		}
-		warning += TTR("Size changes to RigidBody2D (in character or rigid modes) will be overriden by the physics engine when running.\nChange the size in children collision shapes instead.");
+		warning += TTR("Size changes to RigidBody2D (in character or rigid modes) will be overridden by the physics engine when running.\nChange the size in children collision shapes instead.");
 	}
 
 	return warning;
@@ -887,6 +900,7 @@ void RigidBody2D::_bind_methods() {
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Rigid,Static,Character,Kinematic"), "set_mode", "get_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "mass", PROPERTY_HINT_EXP_RANGE, "0.01,65535,0.01"), "set_mass", "get_mass");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "inertia", PROPERTY_HINT_EXP_RANGE, "0.01,65535,0.01", 0), "set_inertia", "get_inertia");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "weight", PROPERTY_HINT_EXP_RANGE, "0.01,65535,0.01", PROPERTY_USAGE_EDITOR), "set_weight", "get_weight");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "friction", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_friction", "get_friction");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "bounce", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_bounce", "get_bounce");
@@ -903,6 +917,9 @@ void RigidBody2D::_bind_methods() {
 	ADD_GROUP("Angular", "angular_");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "angular_velocity"), "set_angular_velocity", "get_angular_velocity");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "angular_damp", PROPERTY_HINT_RANGE, "-1,128,0.01"), "set_angular_damp", "get_angular_damp");
+	ADD_GROUP("Applied Forces", "applied_");
+	ADD_PROPERTYNZ(PropertyInfo(Variant::VECTOR2, "applied_force"), "set_applied_force", "get_applied_force");
+	ADD_PROPERTYNZ(PropertyInfo(Variant::REAL, "applied_torque"), "set_applied_torque", "get_applied_torque");
 
 	ADD_SIGNAL(MethodInfo("body_shape_entered", PropertyInfo(Variant::INT, "body_id"), PropertyInfo(Variant::OBJECT, "body"), PropertyInfo(Variant::INT, "body_shape"), PropertyInfo(Variant::INT, "local_shape")));
 	ADD_SIGNAL(MethodInfo("body_shape_exited", PropertyInfo(Variant::INT, "body_id"), PropertyInfo(Variant::OBJECT, "body"), PropertyInfo(Variant::INT, "body_shape"), PropertyInfo(Variant::INT, "local_shape")));
@@ -910,18 +927,18 @@ void RigidBody2D::_bind_methods() {
 	ADD_SIGNAL(MethodInfo("body_exited", PropertyInfo(Variant::OBJECT, "body")));
 	ADD_SIGNAL(MethodInfo("sleeping_state_changed"));
 
-	BIND_ENUM_CONSTANT(MODE_STATIC);
-	BIND_ENUM_CONSTANT(MODE_KINEMATIC);
 	BIND_ENUM_CONSTANT(MODE_RIGID);
+	BIND_ENUM_CONSTANT(MODE_STATIC);
 	BIND_ENUM_CONSTANT(MODE_CHARACTER);
+	BIND_ENUM_CONSTANT(MODE_KINEMATIC);
 
 	BIND_ENUM_CONSTANT(CCD_MODE_DISABLED);
 	BIND_ENUM_CONSTANT(CCD_MODE_CAST_RAY);
 	BIND_ENUM_CONSTANT(CCD_MODE_CAST_SHAPE);
 }
 
-RigidBody2D::RigidBody2D()
-	: PhysicsBody2D(Physics2DServer::BODY_MODE_RIGID) {
+RigidBody2D::RigidBody2D() :
+		PhysicsBody2D(Physics2DServer::BODY_MODE_RIGID) {
 
 	mode = MODE_RIGID;
 
@@ -999,7 +1016,7 @@ bool KinematicBody2D::move_and_collide(const Vector2 &p_motion, Collision &r_col
 
 Vector2 KinematicBody2D::move_and_slide(const Vector2 &p_linear_velocity, const Vector2 &p_floor_direction, float p_slope_stop_min_velocity, int p_max_slides, float p_floor_max_angle) {
 
-	Vector2 motion = (floor_velocity + p_linear_velocity) * get_fixed_process_delta_time();
+	Vector2 motion = (floor_velocity + p_linear_velocity) * get_physics_process_delta_time();
 	Vector2 lv = p_linear_velocity;
 
 	on_floor = false;
@@ -1027,7 +1044,10 @@ Vector2 KinematicBody2D::move_and_slide(const Vector2 &p_linear_velocity, const 
 					on_floor = true;
 					floor_velocity = collision.collider_vel;
 
-					if (collision.travel.length() < 1 && ABS((lv.x - floor_velocity.x)) < p_slope_stop_min_velocity) {
+					Vector2 rel_v = lv - floor_velocity;
+					Vector2 hv = rel_v - p_floor_direction * p_floor_direction.dot(rel_v);
+
+					if (collision.travel.length() < 1 && hv.length() < p_slope_stop_min_velocity) {
 						Transform2D gt = get_global_transform();
 						gt.elements[2] -= collision.travel;
 						set_global_transform(gt);
@@ -1140,8 +1160,8 @@ void KinematicBody2D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "collision/safe_margin", PROPERTY_HINT_RANGE, "0.001,256,0.001"), "set_safe_margin", "get_safe_margin");
 }
 
-KinematicBody2D::KinematicBody2D()
-	: PhysicsBody2D(Physics2DServer::BODY_MODE_KINEMATIC) {
+KinematicBody2D::KinematicBody2D() :
+		PhysicsBody2D(Physics2DServer::BODY_MODE_KINEMATIC) {
 
 	margin = 0.08;
 

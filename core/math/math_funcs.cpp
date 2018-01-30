@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "math_funcs.h"
 
 #include "core/os/os.h"
@@ -175,4 +176,19 @@ float Math::random(float from, float to) {
 	unsigned int r = Math::rand();
 	float ret = (float)r / (float)RANDOM_MAX;
 	return (ret) * (to - from) + from;
+}
+
+int Math::wrapi(int value, int min, int max) {
+	--max;
+	int rng = max - min + 1;
+	value = ((value - min) % rng);
+	if (value < 0)
+		return max + 1 + value;
+	else
+		return min + value;
+}
+
+float Math::wrapf(float value, float min, float max) {
+	float rng = max - min;
+	return min + (value - min) - (rng * floor((value - min) / rng));
 }

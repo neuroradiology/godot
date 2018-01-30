@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef TILE_MAP_EDITOR_PLUGIN_H
 #define TILE_MAP_EDITOR_PLUGIN_H
 
@@ -137,6 +138,8 @@ class TileMapEditor : public VBoxContainer {
 		bool flip_h;
 		bool flip_v;
 		bool transpose;
+		int auto_x;
+		int auto_y;
 	};
 
 	List<TileData> copydata;
@@ -163,10 +166,9 @@ class TileMapEditor : public VBoxContainer {
 	void _text_changed(const String &p_text);
 	void _sbox_input(const Ref<InputEvent> &p_ie);
 	void _update_palette();
-	void _canvas_draw();
 	void _menu_option(int p_option);
 
-	void _set_cell(const Point2i &p_pos, int p_value, bool p_flip_h = false, bool p_flip_v = false, bool p_transpose = false, bool p_with_undo = false);
+	void _set_cell(const Point2i &p_pos, int p_value, bool p_flip_h = false, bool p_flip_v = false, bool p_transpose = false);
 
 	void _canvas_mouse_enter();
 	void _canvas_mouse_exit();
@@ -183,6 +185,8 @@ public:
 	HBoxContainer *get_toolbar() const { return toolbar; }
 
 	bool forward_gui_input(const Ref<InputEvent> &p_event);
+	void forward_draw_over_viewport(Control *p_overlay);
+
 	void edit(Node *p_tile_map);
 
 	TileMapEditor(EditorNode *p_editor);
@@ -196,7 +200,8 @@ class TileMapEditorPlugin : public EditorPlugin {
 	TileMapEditor *tile_map_editor;
 
 public:
-	virtual bool forward_canvas_gui_input(const Transform2D &p_canvas_xform, const Ref<InputEvent> &p_event) { return tile_map_editor->forward_gui_input(p_event); }
+	virtual bool forward_canvas_gui_input(const Ref<InputEvent> &p_event) { return tile_map_editor->forward_gui_input(p_event); }
+	virtual void forward_draw_over_viewport(Control *p_overlay) { tile_map_editor->forward_draw_over_viewport(p_overlay); }
 
 	virtual String get_name() const { return "TileMap"; }
 	bool has_main_screen() const { return false; }

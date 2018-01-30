@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "collision_polygon_2d.h"
 
 #include "collision_object_2d.h"
@@ -114,6 +115,15 @@ Vector<Vector<Vector2> > CollisionPolygon2D::_decompose_in_convex() {
 	return decomp;
 }
 
+void CollisionPolygon2D::_update_in_shape_owner(bool p_xform_only) {
+
+	parent->shape_owner_set_transform(owner_id, get_transform());
+	if (p_xform_only)
+		return;
+	parent->shape_owner_set_disabled(owner_id, disabled);
+	parent->shape_owner_set_one_way_collision(owner_id, one_way_collision);
+}
+
 void CollisionPolygon2D::_notification(int p_what) {
 
 	switch (p_what) {
@@ -123,22 +133,27 @@ void CollisionPolygon2D::_notification(int p_what) {
 			if (parent) {
 				owner_id = parent->create_shape_owner(this);
 				_build_polygon();
-				parent->shape_owner_set_transform(owner_id, get_transform());
-				parent->shape_owner_set_disabled(owner_id, disabled);
-				parent->shape_owner_set_one_way_collision(owner_id, one_way_collision);
+				_update_in_shape_owner();
 			}
 
 			/*if (Engine::get_singleton()->is_editor_hint()) {
 				//display above all else
 				set_z_as_relative(false);
-				set_z(VS::CANVAS_ITEM_Z_MAX - 1);
+				set_z_index(VS::CANVAS_ITEM_Z_MAX - 1);
 			}*/
+
+		} break;
+		case NOTIFICATION_ENTER_TREE: {
+
+			if (parent) {
+				_update_in_shape_owner();
+			}
 
 		} break;
 		case NOTIFICATION_LOCAL_TRANSFORM_CHANGED: {
 
 			if (parent) {
-				parent->shape_owner_set_transform(owner_id, get_transform());
+				_update_in_shape_owner(true);
 			}
 
 		} break;
@@ -243,9 +258,14 @@ CollisionPolygon2D::BuildMode CollisionPolygon2D::get_build_mode() const {
 	return build_mode;
 }
 
-Rect2 CollisionPolygon2D::get_item_rect() const {
+Rect2 CollisionPolygon2D::_edit_get_rect() const {
 
 	return aabb;
+}
+
+bool CollisionPolygon2D::_edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const {
+
+	return Geometry::is_point_in_polygon(p_point, Variant(polygon));
 }
 
 String CollisionPolygon2D::get_configuration_warning() const {

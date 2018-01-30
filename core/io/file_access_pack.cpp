@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "file_access_pack.h"
 #include "version.h"
 
@@ -293,6 +294,11 @@ Error FileAccessPack::get_error() const {
 	return OK;
 }
 
+void FileAccessPack::flush() {
+
+	ERR_FAIL();
+}
+
 void FileAccessPack::store_8(uint8_t p_dest) {
 
 	ERR_FAIL();
@@ -308,9 +314,9 @@ bool FileAccessPack::file_exists(const String &p_name) {
 	return false;
 }
 
-FileAccessPack::FileAccessPack(const String &p_path, const PackedData::PackedFile &p_file)
-	: pf(p_file),
-	  f(FileAccess::open(pf.pack, FileAccess::READ)) {
+FileAccessPack::FileAccessPack(const String &p_path, const PackedData::PackedFile &p_file) :
+		pf(p_file),
+		f(FileAccess::open(pf.pack, FileAccess::READ)) {
 	if (!f) {
 		ERR_EXPLAIN("Can't open pack-referenced file: " + String(pf.pack));
 		ERR_FAIL_COND(!f);

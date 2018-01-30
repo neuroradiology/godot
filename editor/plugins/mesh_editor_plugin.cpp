@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "mesh_editor_plugin.h"
 
 void MeshEditor::_gui_input(Ref<InputEvent> p_event) {
@@ -47,7 +48,7 @@ void MeshEditor::_gui_input(Ref<InputEvent> p_event) {
 
 void MeshEditor::_notification(int p_what) {
 
-	if (p_what == NOTIFICATION_FIXED_PROCESS) {
+	if (p_what == NOTIFICATION_PHYSICS_PROCESS) {
 	}
 
 	if (p_what == NOTIFICATION_READY) {
@@ -95,7 +96,7 @@ void MeshEditor::edit(Ref<Mesh> p_mesh) {
 		rot_y = 0;
 		_update_rotation();
 
-		Rect3 aabb = mesh->get_aabb();
+		AABB aabb = mesh->get_aabb();
 		print_line("aabb: " + aabb);
 		Vector3 ofs = aabb.position + aabb.size * 0.5;
 		float m = aabb.get_longest_axis_size();

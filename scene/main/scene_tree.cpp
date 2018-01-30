@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "scene_tree.h"
 
 #include "editor/editor_node.h"
@@ -38,6 +39,7 @@
 #include "os/os.h"
 #include "print_string.h"
 #include "project_settings.h"
+#include "scene/resources/dynamic_font.h"
 #include "scene/resources/material.h"
 #include "scene/resources/mesh.h"
 #include "scene/resources/packed_scene.h"
@@ -52,6 +54,8 @@ void SceneTreeTimer::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_time_left", "time"), &SceneTreeTimer::set_time_left);
 	ClassDB::bind_method(D_METHOD("get_time_left"), &SceneTreeTimer::get_time_left);
+
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "time_left"), "set_time_left", "get_time_left");
 
 	ADD_SIGNAL(MethodInfo("timeout"));
 }
@@ -83,6 +87,11 @@ void SceneTree::tree_changed() {
 
 	tree_version++;
 	emit_signal(tree_changed_name);
+}
+
+void SceneTree::node_added(Node *p_node) {
+
+	emit_signal(node_added_name, p_node);
 }
 
 void SceneTree::node_removed(Node *p_node) {
@@ -122,7 +131,7 @@ void SceneTree::remove_from_group(const StringName &p_group, Node *p_node) {
 		group_map.erase(E);
 }
 
-void SceneTree::_flush_transform_notifications() {
+void SceneTree::flush_transform_notifications() {
 
 	SelfList<Node> *n = xform_change_list.first();
 	while (n) {
@@ -385,13 +394,12 @@ void SceneTree::input_event(const Ref<InputEvent> &p_event) {
 	if (Engine::get_singleton()->is_editor_hint() && (Object::cast_to<InputEventJoypadButton>(p_event.ptr()) || Object::cast_to<InputEventJoypadMotion>(*p_event)))
 		return; //avoid joy input on editor
 
+	current_event++;
 	root_lock++;
-	//last_id=p_event.ID;
 
 	input_handled = false;
 
 	Ref<InputEvent> ev = p_event;
-	ev->set_id(++last_id); //this should work better
 
 	MainLoop::input_event(ev);
 
@@ -413,12 +421,12 @@ void SceneTree::input_event(const Ref<InputEvent> &p_event) {
 
 	if (!input_handled) {
 		call_group_flags(GROUP_CALL_REALTIME, "_viewports", "_vp_unhandled_input", ev); //special one for GUI, as controls use their own process check
-		input_handled = true;
 		_flush_ugc();
+		//		input_handled = true; - no reason to set this as handled
 		root_lock--;
 		//MessageQueue::get_singleton()->flush(); //flushing here causes UI and other places slowness
 	} else {
-		input_handled = true;
+		//		input_handled = true; - no reason to set this as handled
 		root_lock--;
 	}
 
@@ -443,18 +451,18 @@ bool SceneTree::iteration(float p_time) {
 
 	current_frame++;
 
-	_flush_transform_notifications();
+	flush_transform_notifications();
 
 	MainLoop::iteration(p_time);
-	fixed_process_time = p_time;
+	physics_process_time = p_time;
 
-	emit_signal("fixed_frame");
+	emit_signal("physics_frame");
 
-	_notify_group_pause("fixed_process_internal", Node::NOTIFICATION_INTERNAL_FIXED_PROCESS);
-	_notify_group_pause("fixed_process", Node::NOTIFICATION_FIXED_PROCESS);
+	_notify_group_pause("physics_process_internal", Node::NOTIFICATION_INTERNAL_PHYSICS_PROCESS);
+	_notify_group_pause("physics_process", Node::NOTIFICATION_PHYSICS_PROCESS);
 	_flush_ugc();
 	MessageQueue::get_singleton()->flush(); //small little hack
-	_flush_transform_notifications();
+	flush_transform_notifications();
 	call_group_flags(GROUP_CALL_REALTIME, "_viewports", "update_worlds");
 	root_lock--;
 
@@ -482,13 +490,18 @@ bool SceneTree::idle(float p_time) {
 
 	MessageQueue::get_singleton()->flush(); //small little hack
 
-	_flush_transform_notifications();
+	flush_transform_notifications();
 
 	_notify_group_pause("idle_process_internal", Node::NOTIFICATION_INTERNAL_PROCESS);
 	_notify_group_pause("idle_process", Node::NOTIFICATION_PROCESS);
 
 	Size2 win_size = Size2(OS::get_singleton()->get_video_mode().width, OS::get_singleton()->get_video_mode().height);
 	if (win_size != last_screen_size) {
+
+		if (use_font_oversampling) {
+			DynamicFontAtSize::font_oversampling = OS::get_singleton()->get_window_size().width / root->get_visible_rect().size.width;
+			DynamicFont::update_oversampling();
+		}
 
 		last_screen_size = win_size;
 		_update_root_rect();
@@ -498,7 +511,7 @@ bool SceneTree::idle(float p_time) {
 
 	_flush_ugc();
 	MessageQueue::get_singleton()->flush(); //small little hack
-	_flush_transform_notifications(); //transforms after world update, to avoid unnecessary enter/exit notifications
+	flush_transform_notifications(); //transforms after world update, to avoid unnecessary enter/exit notifications
 	call_group_flags(GROUP_CALL_REALTIME, "_viewports", "update_worlds");
 
 	root_lock--;
@@ -789,6 +802,7 @@ Ref<ArrayMesh> SceneTree::get_debug_contact_mesh() {
 		Vector3(0, 0, 1)
 	};
 
+	/* clang-format off */
 	int diamond_faces[8 * 3] = {
 		0, 2, 4,
 		0, 3, 4,
@@ -799,6 +813,7 @@ Ref<ArrayMesh> SceneTree::get_debug_contact_mesh() {
 		1, 2, 5,
 		1, 3, 5,
 	};
+	/* clang-format on */
 
 	PoolVector<int> indices;
 	for (int i = 0; i < 8 * 3; i++)
@@ -928,11 +943,6 @@ void SceneMainLoop::_update_listener_2d() {
 }
 */
 
-uint32_t SceneTree::get_last_event_id() const {
-
-	return last_id;
-}
-
 Variant SceneTree::_call_group_flags(const Variant **p_args, int p_argcount, Variant::CallError &r_error) {
 
 	r_error.error = Variant::CallError::CALL_OK;
@@ -981,6 +991,10 @@ int64_t SceneTree::get_frame() const {
 
 	return current_frame;
 }
+int64_t SceneTree::get_event_count() const {
+
+	return current_event;
+}
 
 Array SceneTree::_get_nodes_in_group(const StringName &p_group) {
 
@@ -996,7 +1010,7 @@ Array SceneTree::_get_nodes_in_group(const StringName &p_group) {
 
 	ret.resize(nc);
 
-	Node **ptr = E->get().nodes.ptr();
+	Node **ptr = E->get().nodes.ptrw();
 	for (int i = 0; i < nc; i++) {
 
 		ret[i] = ptr[i];
@@ -1019,7 +1033,7 @@ void SceneTree::get_nodes_in_group(const StringName &p_group, List<Node *> *p_li
 	int nc = E->get().nodes.size();
 	if (nc == 0)
 		return;
-	Node **ptr = E->get().nodes.ptr();
+	Node **ptr = E->get().nodes.ptrw();
 	for (int i = 0; i < nc; i++) {
 
 		p_list->push_back(ptr[i]);
@@ -1172,7 +1186,7 @@ void SceneTree::_update_root_rect() {
 	}
 }
 
-void SceneTree::set_screen_stretch(StretchMode p_mode, StretchAspect p_aspect, const Size2 p_minsize, int p_shrink) {
+void SceneTree::set_screen_stretch(StretchMode p_mode, StretchAspect p_aspect, const Size2 p_minsize, real_t p_shrink) {
 
 	stretch_mode = p_mode;
 	stretch_aspect = p_aspect;
@@ -1672,6 +1686,11 @@ void SceneTree::set_network_peer(const Ref<NetworkedMultiplayerPeer> &p_network_
 	}
 }
 
+Ref<NetworkedMultiplayerPeer> SceneTree::get_network_peer() const {
+
+	return network_peer;
+}
+
 bool SceneTree::is_network_server() const {
 
 	ERR_FAIL_COND_V(!network_peer.is_valid(), false);
@@ -1992,9 +2011,9 @@ void SceneTree::_network_process_packet(int p_from, const uint8_t *p_packet, int
 
 				Variant::CallError ce;
 
-				node->call(name, argp.ptr(), argc, ce);
+				node->call(name, (const Variant **)argp.ptr(), argc, ce);
 				if (ce.error != Variant::CallError::CALL_OK) {
-					String error = Variant::get_call_error_text(node, name, argp.ptr(), argc, ce);
+					String error = Variant::get_call_error_text(node, name, (const Variant **)argp.ptr(), argc, ce);
 					error = "RPC - " + error;
 					ERR_PRINTS(error);
 				}
@@ -2115,6 +2134,7 @@ void SceneTree::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("has_group", "name"), &SceneTree::has_group);
 
 	ClassDB::bind_method(D_METHOD("set_auto_accept_quit", "enabled"), &SceneTree::set_auto_accept_quit);
+	ClassDB::bind_method(D_METHOD("set_quit_on_go_back", "enabled"), &SceneTree::set_quit_on_go_back);
 
 	ClassDB::bind_method(D_METHOD("set_debug_collisions_hint", "enable"), &SceneTree::set_debug_collisions_hint);
 	ClassDB::bind_method(D_METHOD("is_debugging_collisions_hint"), &SceneTree::is_debugging_collisions_hint);
@@ -2175,6 +2195,7 @@ void SceneTree::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_change_scene"), &SceneTree::_change_scene);
 
 	ClassDB::bind_method(D_METHOD("set_network_peer", "peer"), &SceneTree::set_network_peer);
+	ClassDB::bind_method(D_METHOD("get_network_peer"), &SceneTree::get_network_peer);
 	ClassDB::bind_method(D_METHOD("is_network_server"), &SceneTree::is_network_server);
 	ClassDB::bind_method(D_METHOD("has_network_peer"), &SceneTree::has_network_peer);
 	ClassDB::bind_method(D_METHOD("get_network_connected_peers"), &SceneTree::get_network_connected_peers);
@@ -2188,13 +2209,29 @@ void SceneTree::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_connection_failed"), &SceneTree::_connection_failed);
 	ClassDB::bind_method(D_METHOD("_server_disconnected"), &SceneTree::_server_disconnected);
 
+	ClassDB::bind_method(D_METHOD("set_use_font_oversampling", "enable"), &SceneTree::set_use_font_oversampling);
+	ClassDB::bind_method(D_METHOD("is_using_font_oversampling"), &SceneTree::is_using_font_oversampling);
+
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "debug_collisions_hint"), "set_debug_collisions_hint", "is_debugging_collisions_hint");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "debug_navigation_hint"), "set_debug_navigation_hint", "is_debugging_navigation_hint");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "paused"), "set_pause", "is_paused");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "refuse_new_network_connections"), "set_refuse_new_network_connections", "is_refusing_new_network_connections");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_font_oversampling"), "set_use_font_oversampling", "is_using_font_oversampling");
+#ifdef TOOLS_ENABLED
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "edited_scene_root", PROPERTY_HINT_RESOURCE_TYPE, "Node", 0), "set_edited_scene_root", "get_edited_scene_root");
+#endif
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "current_scene", PROPERTY_HINT_RESOURCE_TYPE, "Node", 0), "set_current_scene", "get_current_scene");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "network_peer", PROPERTY_HINT_RESOURCE_TYPE, "NetworkedMultiplayerPeer", 0), "set_network_peer", "get_network_peer");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "root", PROPERTY_HINT_RESOURCE_TYPE, "Node", 0), "", "get_root");
+
 	ADD_SIGNAL(MethodInfo("tree_changed"));
+	ADD_SIGNAL(MethodInfo("node_added", PropertyInfo(Variant::OBJECT, "node")));
 	ADD_SIGNAL(MethodInfo("node_removed", PropertyInfo(Variant::OBJECT, "node")));
 	ADD_SIGNAL(MethodInfo("screen_resized"));
 	ADD_SIGNAL(MethodInfo("node_configuration_warning_changed", PropertyInfo(Variant::OBJECT, "node")));
 
 	ADD_SIGNAL(MethodInfo("idle_frame"));
-	ADD_SIGNAL(MethodInfo("fixed_frame"));
+	ADD_SIGNAL(MethodInfo("physics_frame"));
 
 	ADD_SIGNAL(MethodInfo("files_dropped", PropertyInfo(Variant::POOL_STRING_ARRAY, "files"), PropertyInfo(Variant::INT, "screen")));
 	ADD_SIGNAL(MethodInfo("network_peer_connected", PropertyInfo(Variant::INT, "id")));
@@ -2236,6 +2273,20 @@ void SceneTree::add_idle_callback(IdleCallback p_callback) {
 	idle_callbacks[idle_callback_count++] = p_callback;
 }
 
+void SceneTree::set_use_font_oversampling(bool p_oversampling) {
+
+	use_font_oversampling = p_oversampling;
+	if (use_font_oversampling) {
+		DynamicFontAtSize::font_oversampling = OS::get_singleton()->get_window_size().width / root->get_visible_rect().size.width;
+	} else {
+		DynamicFontAtSize::font_oversampling = 1.0;
+	}
+}
+
+bool SceneTree::is_using_font_oversampling() const {
+	return use_font_oversampling;
+}
+
 SceneTree::SceneTree() {
 
 	singleton = this;
@@ -2254,12 +2305,14 @@ SceneTree::SceneTree() {
 	collision_debug_contacts = GLOBAL_DEF("debug/shapes/collision/max_contacts_displayed", 10000);
 
 	tree_version = 1;
-	fixed_process_time = 1;
+	physics_process_time = 1;
 	idle_process_time = 1;
-	last_id = 1;
+
 	root = NULL;
 	current_frame = 0;
+	current_event = 0;
 	tree_changed_name = "tree_changed";
+	node_added_name = "node_added";
 	node_removed_name = "node_removed";
 	ugc_locked = false;
 	call_lock = 0;
@@ -2318,7 +2371,7 @@ SceneTree::SceneTree() {
 					ProjectSettings::get_singleton()->set("rendering/environment/default_environment", "");
 				} else {
 					//file was erased, notify user.
-					ERR_PRINTS(RTR("Default Environment as specified in Project Setings (Rendering -> Viewport -> Default Environment) could not be loaded."));
+					ERR_PRINTS(RTR("Default Environment as specified in Project Settings (Rendering -> Environment -> Default Environment) could not be loaded."));
 				}
 			}
 		}
@@ -2371,6 +2424,8 @@ SceneTree::SceneTree() {
 	last_send_cache_id = 1;
 
 #endif
+
+	use_font_oversampling = false;
 }
 
 SceneTree::~SceneTree() {

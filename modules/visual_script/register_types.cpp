@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,8 +27,10 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "register_types.h"
 
+#include "core/engine.h"
 #include "io/resource_loader.h"
 #include "visual_script.h"
 #include "visual_script_builtin_funcs.h"
@@ -40,6 +42,9 @@
 #include "visual_script_yield_nodes.h"
 
 VisualScriptLanguage *visual_script_language = NULL;
+#ifdef TOOLS_ENABLED
+static _VisualScriptEditor *vs_editor_singleton = NULL;
+#endif
 
 void register_visual_script_types() {
 
@@ -49,7 +54,7 @@ void register_visual_script_types() {
 
 	ClassDB::register_class<VisualScript>();
 	ClassDB::register_virtual_class<VisualScriptNode>();
-	ClassDB::register_virtual_class<VisualScriptFunctionState>();
+	ClassDB::register_class<VisualScriptFunctionState>();
 	ClassDB::register_class<VisualScriptFunction>();
 	ClassDB::register_class<VisualScriptOperator>();
 	ClassDB::register_class<VisualScriptVariableSet>();
@@ -107,6 +112,10 @@ void register_visual_script_types() {
 	register_visual_script_expression_node();
 
 #ifdef TOOLS_ENABLED
+	ClassDB::register_class<_VisualScriptEditor>();
+	vs_editor_singleton = memnew(_VisualScriptEditor);
+	Engine::get_singleton()->add_singleton(Engine::Singleton("VisualScriptEditor", _VisualScriptEditor::get_singleton()));
+
 	VisualScriptEditor::register_editor();
 #endif
 }
@@ -119,6 +128,9 @@ void unregister_visual_script_types() {
 
 #ifdef TOOLS_ENABLED
 	VisualScriptEditor::free_clipboard();
+	if (vs_editor_singleton) {
+		memdelete(vs_editor_singleton);
+	}
 #endif
 	if (visual_script_language)
 		memdelete(visual_script_language);

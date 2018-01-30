@@ -5,10 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
-/*                                                                       */
-/* Author: Mariano Suligoy                                               */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -37,9 +35,13 @@
 #include "editor/editor_node.h"
 #include "editor/editor_plugin.h"
 #include "scene/2d/sprite.h"
-#include "scene/gui/patch_9_rect.h"
+#include "scene/gui/nine_patch_rect.h"
 #include "scene/resources/style_box.h"
 #include "scene/resources/texture.h"
+
+/**
+	@author Mariano Suligoy
+*/
 
 class TextureRegionEditor : public Control {
 
@@ -82,7 +84,7 @@ class TextureRegionEditor : public Control {
 	Vector2 snap_step;
 	Vector2 snap_separation;
 
-	NinePatchRect *node_patch9;
+	NinePatchRect *node_ninepatch;
 	Sprite *node_sprite;
 	Ref<StyleBoxTexture> obj_styleBox;
 	Ref<AtlasTexture> atlas_tex;

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -156,6 +156,10 @@ void RegExMatch::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_string", "name"), &RegExMatch::get_string, DEFVAL(0));
 	ClassDB::bind_method(D_METHOD("get_start", "name"), &RegExMatch::get_start, DEFVAL(0));
 	ClassDB::bind_method(D_METHOD("get_end", "name"), &RegExMatch::get_end, DEFVAL(0));
+
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "subject"), "", "get_subject");
+	ADD_PROPERTY(PropertyInfo(Variant::DICTIONARY, "names"), "", "get_names");
+	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "strings"), "", "get_strings");
 }
 
 void RegEx::_pattern_info(uint32_t what, void *where) const {
@@ -324,18 +328,38 @@ Ref<RegExMatch> RegEx::search(const String &p_subject, int p_offset, int p_end) 
 	return result;
 }
 
+Array RegEx::search_all(const String &p_subject, int p_offset, int p_end) const {
+
+	int last_end = -1;
+	Array result;
+	Ref<RegExMatch> match = search(p_subject, p_offset, p_end);
+	while (match.is_valid()) {
+		if (last_end == match->get_end(0))
+			break;
+		result.push_back(match);
+		last_end = match->get_end(0);
+		match = search(p_subject, match->get_end(0), p_end);
+	}
+	return result;
+}
+
 String RegEx::sub(const String &p_subject, const String &p_replacement, bool p_all, int p_offset, int p_end) const {
 
 	ERR_FAIL_COND_V(!is_valid(), String());
 
-	String output;
-	output.resize(p_subject.length());
+	// safety_zone is the number of chars we allocate in addition to the number of chars expected in order to
+	// guard against the PCRE API writing one additional \0 at the end. PCRE's API docs are unclear on whether
+	// PCRE understands outlength in pcre2_substitute() as counting an implicit additional terminating char or
+	// not. always allocating one char more than telling PCRE has us on the safe side.
+	const int safety_zone = 1;
+
+	PCRE2_SIZE olength = p_subject.length() + 1; // space for output string and one terminating \0 character
+	Vector<CharType> output;
+	output.resize(olength + safety_zone);
 
 	uint32_t flags = PCRE2_SUBSTITUTE_OVERFLOW_LENGTH;
 	if (p_all)
 		flags |= PCRE2_SUBSTITUTE_GLOBAL;
-
-	PCRE2_SIZE olength = output.length();
 
 	PCRE2_SIZE length = p_subject.length();
 	if (p_end >= 0 && (uint32_t)p_end < length)
@@ -348,15 +372,15 @@ String RegEx::sub(const String &p_subject, const String &p_replacement, bool p_a
 		pcre2_match_context_16 *mctx = pcre2_match_context_create_16(gctx);
 		PCRE2_SPTR16 s = (PCRE2_SPTR16)p_subject.c_str();
 		PCRE2_SPTR16 r = (PCRE2_SPTR16)p_replacement.c_str();
-		PCRE2_UCHAR16 *o = (PCRE2_UCHAR16 *)output.c_str();
+		PCRE2_UCHAR16 *o = (PCRE2_UCHAR16 *)output.ptrw();
 
 		pcre2_match_data_16 *match = pcre2_match_data_create_from_pattern_16(c, gctx);
 
 		int res = pcre2_substitute_16(c, s, length, p_offset, flags, match, mctx, r, p_replacement.length(), o, &olength);
 
 		if (res == PCRE2_ERROR_NOMEMORY) {
-			output.resize(olength);
-			o = (PCRE2_UCHAR16 *)output.c_str();
+			output.resize(olength + safety_zone);
+			o = (PCRE2_UCHAR16 *)output.ptrw();
 			res = pcre2_substitute_16(c, s, length, p_offset, flags, match, mctx, r, p_replacement.length(), o, &olength);
 		}
 
@@ -373,15 +397,15 @@ String RegEx::sub(const String &p_subject, const String &p_replacement, bool p_a
 		pcre2_match_context_32 *mctx = pcre2_match_context_create_32(gctx);
 		PCRE2_SPTR32 s = (PCRE2_SPTR32)p_subject.c_str();
 		PCRE2_SPTR32 r = (PCRE2_SPTR32)p_replacement.c_str();
-		PCRE2_UCHAR32 *o = (PCRE2_UCHAR32 *)output.c_str();
+		PCRE2_UCHAR32 *o = (PCRE2_UCHAR32 *)output.ptrw();
 
 		pcre2_match_data_32 *match = pcre2_match_data_create_from_pattern_32(c, gctx);
 
 		int res = pcre2_substitute_32(c, s, length, p_offset, flags, match, mctx, r, p_replacement.length(), o, &olength);
 
 		if (res == PCRE2_ERROR_NOMEMORY) {
-			output.resize(olength);
-			o = (PCRE2_UCHAR32 *)output.c_str();
+			output.resize(olength + safety_zone);
+			o = (PCRE2_UCHAR32 *)output.ptrw();
 			res = pcre2_substitute_32(c, s, length, p_offset, flags, match, mctx, r, p_replacement.length(), o, &olength);
 		}
 
@@ -392,7 +416,7 @@ String RegEx::sub(const String &p_subject, const String &p_replacement, bool p_a
 			return String();
 	}
 
-	return output;
+	return String(output.ptr(), olength);
 }
 
 bool RegEx::is_valid() const {
@@ -489,6 +513,7 @@ void RegEx::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("clear"), &RegEx::clear);
 	ClassDB::bind_method(D_METHOD("compile", "pattern"), &RegEx::compile);
 	ClassDB::bind_method(D_METHOD("search", "subject", "offset", "end"), &RegEx::search, DEFVAL(0), DEFVAL(-1));
+	ClassDB::bind_method(D_METHOD("search_all", "subject", "offset", "end"), &RegEx::search_all, DEFVAL(0), DEFVAL(-1));
 	ClassDB::bind_method(D_METHOD("sub", "subject", "replacement", "all", "offset", "end"), &RegEx::sub, DEFVAL(false), DEFVAL(0), DEFVAL(-1));
 	ClassDB::bind_method(D_METHOD("is_valid"), &RegEx::is_valid);
 	ClassDB::bind_method(D_METHOD("get_pattern"), &RegEx::get_pattern);

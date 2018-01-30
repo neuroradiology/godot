@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,10 +27,11 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifdef MINIZIP_ENABLED
 
-#ifndef FILE_ACCESS_Zip_H
-#define FILE_ACCESS_Zip_H
+#ifndef FILE_ACCESS_ZIP_H
+#define FILE_ACCESS_ZIP_H
 
 #include "core/io/file_access_pack.h"
 #include "map.h"
@@ -108,6 +109,7 @@ public:
 
 	virtual Error get_error() const; ///< get last error
 
+	virtual void flush();
 	virtual void store_8(uint8_t p_dest); ///< store a byte
 	virtual bool file_exists(const String &p_name); ///< return true if a file exists
 
@@ -119,4 +121,4 @@ public:
 
 #endif // FILE_ACCESS_ZIP_H
 
-#endif
+#endif // MINIZIP_ENABLED

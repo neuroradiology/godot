@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef PROJECT_EXPORT_SETTINGS_H
 #define PROJECT_EXPORT_SETTINGS_H
 
@@ -72,6 +73,7 @@ private:
 	Button *button_export;
 	bool updating;
 
+	AcceptDialog *error_dialog;
 	ConfirmationDialog *delete_confirm;
 
 	OptionButton *export_filter;
@@ -97,6 +99,8 @@ private:
 
 	Label *export_error;
 	HBoxContainer *export_templates_error;
+
+	String default_filename;
 
 	void _patch_selected(const String &p_path);
 	void _patch_deleted();

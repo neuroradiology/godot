@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,10 +27,11 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "os_javascript.h"
 
+#include "core/engine.h"
 #include "core/io/file_access_buffered_fa.h"
-#include "core/project_settings.h"
 #include "dom_keys.h"
 #include "drivers/gles3/rasterizer_gles3.h"
 #include "drivers/unix/dir_access_unix.h"
@@ -64,11 +65,6 @@ const char *OS_JavaScript::get_video_driver_name(int p_driver) const {
 	return "GLES3";
 }
 
-OS::VideoMode OS_JavaScript::get_default_video_mode() const {
-
-	return OS::VideoMode();
-}
-
 int OS_JavaScript::get_audio_driver_count() const {
 
 	return 1;
@@ -83,12 +79,6 @@ void OS_JavaScript::initialize_core() {
 
 	OS_Unix::initialize_core();
 	FileAccess::make_default<FileAccessBufferedFA<FileAccessUnix> >(FileAccess::ACCESS_RESOURCES);
-}
-
-void OS_JavaScript::set_opengl_extensions(const char *p_gl_extensions) {
-
-	ERR_FAIL_COND(!p_gl_extensions);
-	gl_extensions = p_gl_extensions;
 }
 
 static EM_BOOL _browser_resize_callback(int event_type, const EmscriptenUiEvent *ui_event, void *user_data) {
@@ -167,14 +157,15 @@ static EM_BOOL _mousebutton_callback(int event_type, const EmscriptenMouseEvent 
 	}
 
 	int mask = _input->get_mouse_button_mask();
+	int button_flag = 1 << (ev->get_button_index() - 1);
 	if (ev->is_pressed()) {
 		// since the event is consumed, focus manually
 		if (!is_canvas_focused()) {
 			focus_canvas();
 		}
-		mask |= ev->get_button_index();
-	} else if (mask & ev->get_button_index()) {
-		mask &= ~ev->get_button_index();
+		mask |= button_flag;
+	} else if (mask & button_flag) {
+		mask &= ~button_flag;
 	} else {
 		// release event, but press was outside the canvas, so ignore
 		return false;
@@ -205,7 +196,7 @@ static EM_BOOL _mousemove_callback(int event_type, const EmscriptenMouseEvent *m
 	ev->set_position(pos);
 	ev->set_global_position(ev->get_position());
 
-	ev->set_relative(_input->get_mouse_position() - ev->get_position());
+	ev->set_relative(ev->get_position() - _input->get_mouse_position());
 	_input->set_mouse_position(ev->get_position());
 	ev->set_speed(_input->get_last_mouse_speed());
 
@@ -340,7 +331,7 @@ static EM_BOOL _touchmove_callback(int event_type, const EmscriptenTouchEvent *t
 		ev_mouse->set_position(Point2(first_touch.canvasX, first_touch.canvasY));
 		ev_mouse->set_global_position(ev_mouse->get_position());
 
-		ev_mouse->set_relative(_input->get_mouse_position() - ev_mouse->get_position());
+		ev_mouse->set_relative(ev_mouse->get_position() - _input->get_mouse_position());
 		_input->set_mouse_position(ev_mouse->get_position());
 		ev_mouse->set_speed(_input->get_last_mouse_speed());
 
@@ -423,7 +414,7 @@ void send_notification(int notif) {
 }
 }
 
-void OS_JavaScript::initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver) {
+Error OS_JavaScript::initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver) {
 
 	print_line("Init OS");
 
@@ -433,30 +424,23 @@ void OS_JavaScript::initialize(const VideoMode &p_desired, int p_video_driver, i
 	attributes.antialias = false;
 	attributes.majorVersion = 2;
 	EMSCRIPTEN_WEBGL_CONTEXT_HANDLE ctx = emscripten_webgl_create_context(NULL, &attributes);
-	ERR_FAIL_COND(emscripten_webgl_make_context_current(ctx) != EMSCRIPTEN_RESULT_SUCCESS);
+	ERR_FAIL_COND_V(emscripten_webgl_make_context_current(ctx) != EMSCRIPTEN_RESULT_SUCCESS, ERR_UNAVAILABLE);
 
 	video_mode = p_desired;
 	// can't fulfil fullscreen request due to browser security
 	video_mode.fullscreen = false;
-	set_window_size(Size2(p_desired.width, p_desired.height));
+	/* clang-format off */
+	if (EM_ASM_INT_V({ return Module.resizeCanvasOnStart })) {
+		/* clang-format on */
+		set_window_size(Size2(video_mode.width, video_mode.height));
+	} else {
+		set_window_size(get_window_size());
+	}
 
-	// find locale, emscripten only sets "C"
 	char locale_ptr[16];
 	/* clang-format off */
-	EM_ASM_({
-		var locale = "";
-		if (Module.locale) {
-			// best case: server-side script reads Accept-Language early and
-			// defines the locale to be read here
-			locale = Module.locale;
-		} else {
-			// no luck, use what the JS engine can tell us
-			// if this turns out not compatible enough, add tests for
-			// browserLanguage, systemLanguage and userLanguage
-			locale = navigator.languages ? navigator.languages[0] : navigator.language;
-		}
-		locale = locale.split('.')[0];
-		stringToUTF8(locale, $0, 16);
+	EM_ASM_ARGS({
+		stringToUTF8(Module.locale, $0, 16);
 	}, locale_ptr);
 	/* clang-format on */
 	setenv("LANG", locale_ptr, true);
@@ -475,11 +459,6 @@ void OS_JavaScript::initialize(const VideoMode &p_desired, int p_video_driver, i
 	//	visual_server->cursor_set_visible(false, 0);
 
 	print_line("Init Physicsserver");
-
-	physics_server = memnew(PhysicsServerSW);
-	physics_server->init();
-	physics_2d_server = memnew(Physics2DServerSW);
-	physics_2d_server->init();
 
 	input = memnew(InputDefault);
 	_input = input;
@@ -517,12 +496,9 @@ void OS_JavaScript::initialize(const VideoMode &p_desired, int p_video_driver, i
 #undef SET_EM_CALLBACK
 #undef EM_CHECK
 
-#ifdef JAVASCRIPT_EVAL_ENABLED
-	javascript_eval = memnew(JavaScript);
-	ProjectSettings::get_singleton()->add_singleton(ProjectSettings::Singleton("JavaScript", javascript_eval));
-#endif
-
 	visual_server->init();
+
+	return OK;
 }
 
 void OS_JavaScript::set_main_loop(MainLoop *p_main_loop) {
@@ -579,7 +555,7 @@ void OS_JavaScript::set_css_cursor(const char *p_cursor) {
 
 	/* clang-format off */
 	EM_ASM_({
-		Module.canvas.style.cursor = Module.UTF8ToString($0);
+		Module.canvas.style.cursor = UTF8ToString($0);
 	}, p_cursor);
 	/* clang-format on */
 }
@@ -589,7 +565,7 @@ const char *OS_JavaScript::get_css_cursor() const {
 	char cursor[16];
 	/* clang-format off */
 	EM_ASM_INT({
-		Module.stringToUTF8(Module.canvas.style.cursor ? Module.canvas.style.cursor : 'auto', $0, 16);
+		stringToUTF8(Module.canvas.style.cursor ? Module.canvas.style.cursor : 'auto', $0, 16);
 	}, cursor);
 	/* clang-format on */
 	return cursor;
@@ -795,6 +771,9 @@ void OS_JavaScript::set_cursor_shape(CursorShape p_shape) {
 		set_css_cursor(godot2dom_cursor(cursor_shape));
 }
 
+void OS_JavaScript::set_custom_mouse_cursor(const RES &p_cursor, CursorShape p_shape, const Vector2 &p_hotspot) {
+}
+
 void OS_JavaScript::main_loop_begin() {
 
 	if (main_loop)
@@ -802,7 +781,7 @@ void OS_JavaScript::main_loop_begin() {
 
 	/* clang-format off */
 	EM_ASM_ARGS({
-		const send_notification = Module.cwrap('send_notification', null, ['number']);
+		const send_notification = cwrap('send_notification', null, ['number']);
 		const notifs = arguments;
 		(['mouseover', 'mouseleave', 'focus', 'blur']).forEach(function(event, i) {
 			Module.canvas.addEventListener(event, send_notification.bind(null, notifs[i]));
@@ -821,7 +800,7 @@ bool OS_JavaScript::main_loop_iterate() {
 	if (!main_loop)
 		return false;
 
-	if (time_to_save_sync >= 0) {
+	if (idbfs_available && time_to_save_sync >= 0) {
 		int64_t newtime = get_ticks_msec();
 		int64_t elapsed = newtime - last_sync_time;
 		last_sync_time = newtime;
@@ -894,14 +873,13 @@ String OS_JavaScript::get_resource_dir() const {
 	return "/"; //javascript has it's own filesystem for resources inside the APK
 }
 
-String OS_JavaScript::get_data_dir() const {
+String OS_JavaScript::get_user_data_dir() const {
 
 	/*
-	if (get_data_dir_func)
-		return get_data_dir_func();
+	if (get_user_data_dir_func)
+		return get_user_data_dir_func();
 	*/
 	return "/userfs";
-	//return ProjectSettings::get_singleton()->get_singleton_object("GodotOS")->call("get_data_dir");
 };
 
 String OS_JavaScript::get_executable_path() const {
@@ -911,10 +889,10 @@ String OS_JavaScript::get_executable_path() const {
 
 void OS_JavaScript::_close_notification_funcs(const String &p_file, int p_flags) {
 
-	print_line("close " + p_file + " flags " + itos(p_flags));
-	if (p_file.begins_with("/userfs") && p_flags & FileAccess::WRITE) {
-		static_cast<OS_JavaScript *>(get_singleton())->last_sync_time = OS::get_singleton()->get_ticks_msec();
-		static_cast<OS_JavaScript *>(get_singleton())->time_to_save_sync = 5000; //five seconds since last save
+	OS_JavaScript *os = static_cast<OS_JavaScript *>(get_singleton());
+	if (os->idbfs_available && p_file.begins_with("/userfs") && p_flags & FileAccess::WRITE) {
+		os->last_sync_time = OS::get_singleton()->get_ticks_msec();
+		os->time_to_save_sync = 5000; //five seconds since last save
 	}
 }
 
@@ -986,21 +964,54 @@ int OS_JavaScript::get_power_percent_left() {
 
 bool OS_JavaScript::_check_internal_feature_support(const String &p_feature) {
 
-	return p_feature == "web" || p_feature == "s3tc"; // TODO check for these features really being available
+	if (p_feature == "HTML5" || p_feature == "web")
+		return true;
+
+#ifdef JAVASCRIPT_EVAL_ENABLED
+	if (p_feature == "JavaScript")
+		return true;
+#endif
+
+	EMSCRIPTEN_WEBGL_CONTEXT_HANDLE ctx = emscripten_webgl_get_current_context();
+	// all extensions are already automatically enabled, this function allows
+	// checking WebGL extension support without inline JavaScript
+	if (p_feature == "s3tc" && emscripten_webgl_enable_extension(ctx, "WEBGL_compressed_texture_s3tc_srgb"))
+		return true;
+	if (p_feature == "etc" && emscripten_webgl_enable_extension(ctx, "WEBGL_compressed_texture_etc1"))
+		return true;
+	if (p_feature == "etc2" && emscripten_webgl_enable_extension(ctx, "WEBGL_compressed_texture_etc"))
+		return true;
+
+	return false;
 }
 
-OS_JavaScript::OS_JavaScript(const char *p_execpath, GetDataDirFunc p_get_data_dir_func) {
+void OS_JavaScript::set_idbfs_available(bool p_idbfs_available) {
+
+	idbfs_available = p_idbfs_available;
+}
+
+bool OS_JavaScript::is_userfs_persistent() const {
+
+	return idbfs_available;
+}
+
+OS_JavaScript::OS_JavaScript(const char *p_execpath, GetUserDataDirFunc p_get_user_data_dir_func) {
+
 	set_cmdline(p_execpath, get_cmdline_args());
 	main_loop = NULL;
-	gl_extensions = NULL;
 	window_maximized = false;
 	soft_fs_enabled = false;
 	canvas_size_adjustment_requested = false;
 
-	get_data_dir_func = p_get_data_dir_func;
+	get_user_data_dir_func = p_get_user_data_dir_func;
 	FileAccessUnix::close_notification_func = _close_notification_funcs;
 
+	idbfs_available = false;
 	time_to_save_sync = -1;
+
+	Vector<Logger *> loggers;
+	loggers.push_back(memnew(StdLogger));
+	_set_logger(memnew(CompositeLogger(loggers)));
 }
 
 OS_JavaScript::~OS_JavaScript() {

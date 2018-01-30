@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,10 +27,17 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "circle_shape_2d.h"
 
 #include "servers/physics_2d_server.h"
 #include "servers/visual_server.h"
+
+bool CircleShape2D::_edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const {
+
+	return p_point.length() < get_radius() + p_tolerance;
+}
+
 void CircleShape2D::_update_shape() {
 
 	Physics2DServer::get_singleton()->shape_set_data(get_rid(), radius);
@@ -76,8 +83,8 @@ void CircleShape2D::draw(const RID &p_to_rid, const Color &p_color) {
 	VisualServer::get_singleton()->canvas_item_add_polygon(p_to_rid, points, col);
 }
 
-CircleShape2D::CircleShape2D()
-	: Shape2D(Physics2DServer::get_singleton()->shape_create(Physics2DServer::SHAPE_CIRCLE)) {
+CircleShape2D::CircleShape2D() :
+		Shape2D(Physics2DServer::get_singleton()->circle_shape_create()) {
 
 	radius = 10;
 	_update_shape();

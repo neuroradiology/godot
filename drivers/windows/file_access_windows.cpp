@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,9 +27,11 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifdef WINDOWS_ENABLED
 
 #include "file_access_windows.h"
+#include "os/os.h"
 #include "shlwapi.h"
 #include <windows.h>
 
@@ -114,25 +116,35 @@ void FileAccessWindows::close() {
 		//_wunlink(save_path.c_str()); //unlink if exists
 		//int rename_error = _wrename((save_path+".tmp").c_str(),save_path.c_str());
 
-		bool rename_error;
+		bool rename_error = true;
+		int attempts = 4;
+		while (rename_error && attempts) {
+		// This workaround of trying multiple times is added to deal with paranoid Windows
+		// antiviruses that love reading just written files even if they are not executable, thus
+		// locking the file and preventing renaming from happening.
 
 #ifdef UWP_ENABLED
-		// UWP has no PathFileExists, so we check attributes instead
-		DWORD fileAttr;
+			// UWP has no PathFileExists, so we check attributes instead
+			DWORD fileAttr;
 
-		fileAttr = GetFileAttributesW(save_path.c_str());
-		if (INVALID_FILE_ATTRIBUTES == fileAttr) {
+			fileAttr = GetFileAttributesW(save_path.c_str());
+			if (INVALID_FILE_ATTRIBUTES == fileAttr) {
 #else
-		if (!PathFileExistsW(save_path.c_str())) {
+			if (!PathFileExistsW(save_path.c_str())) {
 #endif
-			//creating new file
-			rename_error = _wrename((save_path + ".tmp").c_str(), save_path.c_str()) != 0;
-		} else {
-			//atomic replace for existing file
-			rename_error = !ReplaceFileW(save_path.c_str(), (save_path + ".tmp").c_str(), NULL, 2 | 4, NULL, NULL);
-		}
-		if (rename_error && close_fail_notify) {
-			close_fail_notify(save_path);
+				//creating new file
+				rename_error = _wrename((save_path + ".tmp").c_str(), save_path.c_str()) != 0;
+			} else {
+				//atomic replace for existing file
+				rename_error = !ReplaceFileW(save_path.c_str(), (save_path + ".tmp").c_str(), NULL, 2 | 4, NULL, NULL);
+			}
+			if (rename_error && close_fail_notify) {
+				close_fail_notify(save_path);
+			}
+			if (rename_error) {
+				attempts--;
+				OS::get_singleton()->delay_usec(1000000); //wait 100msec and try again
+			}
 		}
 
 		save_path = "";
@@ -189,6 +201,7 @@ uint8_t FileAccessWindows::get_8() const {
 	uint8_t b;
 	if (fread(&b, 1, 1, f) == 0) {
 		check_errors();
+		b = '\0';
 	};
 
 	return b;
@@ -205,6 +218,12 @@ int FileAccessWindows::get_buffer(uint8_t *p_dst, int p_length) const {
 Error FileAccessWindows::get_error() const {
 
 	return last_error;
+}
+
+void FileAccessWindows::flush() {
+
+	ERR_FAIL_COND(!f);
+	fflush(f);
 }
 
 void FileAccessWindows::store_8(uint8_t p_dest) {

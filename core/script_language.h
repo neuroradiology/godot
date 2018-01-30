@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef SCRIPT_LANGUAGE_H
 #define SCRIPT_LANGUAGE_H
 
@@ -107,8 +108,6 @@ public:
 
 	virtual bool is_tool() const = 0;
 
-	virtual String get_node_type() const = 0;
-
 	virtual ScriptLanguage *get_language() const = 0;
 
 	virtual bool has_script_signal(const StringName &p_signal) const = 0;
@@ -122,6 +121,9 @@ public:
 
 	virtual int get_member_line(const StringName &p_member) const { return -1; }
 
+	virtual void get_constants(Map<StringName, Variant> *p_constants) {}
+	virtual void get_members(Set<StringName> *p_constants) {}
+
 	Script() {}
 };
 
@@ -132,6 +134,7 @@ public:
 	virtual void get_property_list(List<PropertyInfo> *p_properties) const = 0;
 	virtual Variant::Type get_property_type(const StringName &p_name, bool *r_is_valid = NULL) const = 0;
 
+	virtual Object *get_owner() { return NULL; }
 	virtual void get_property_state(List<Pair<StringName, Variant> > &state);
 
 	virtual void get_method_list(List<MethodInfo> *p_list) const = 0;
@@ -176,7 +179,7 @@ class ScriptCodeCompletionCache {
 public:
 	virtual RES get_cached_resource(const String &p_path) = 0;
 
-	static ScriptCodeCompletionCache *get_sigleton() { return singleton; }
+	static ScriptCodeCompletionCache *get_singleton() { return singleton; }
 
 	ScriptCodeCompletionCache();
 };
@@ -202,6 +205,7 @@ public:
 	virtual bool validate(const String &p_script, int &r_line_error, int &r_col_error, String &r_test_error, const String &p_path = "", List<String> *r_functions = NULL) const = 0;
 	virtual Script *create_script() const = 0;
 	virtual bool has_named_classes() const = 0;
+	virtual bool supports_builtin_mode() const = 0;
 	virtual bool can_inherit_from_file() { return false; }
 	virtual int find_function(const String &p_function, const String &p_code) const = 0;
 	virtual String make_function(const String &p_class, const String &p_name, const PoolStringArray &p_args) const = 0;
@@ -245,11 +249,13 @@ public:
 	virtual String debug_get_stack_level_source(int p_level) const = 0;
 	virtual void debug_get_stack_level_locals(int p_level, List<String> *p_locals, List<Variant> *p_values, int p_max_subitems = -1, int p_max_depth = -1) = 0;
 	virtual void debug_get_stack_level_members(int p_level, List<String> *p_members, List<Variant> *p_values, int p_max_subitems = -1, int p_max_depth = -1) = 0;
-	virtual void debug_get_globals(List<String> *p_locals, List<Variant> *p_values, int p_max_subitems = -1, int p_max_depth = -1) = 0;
+	virtual ScriptInstance *debug_get_stack_level_instance(int p_level) { return NULL; }
+	virtual void debug_get_globals(List<String> *p_globals, List<Variant> *p_values, int p_max_subitems = -1, int p_max_depth = -1) = 0;
 	virtual String debug_parse_stack_level_expression(int p_level, const String &p_expression, int p_max_subitems = -1, int p_max_depth = -1) = 0;
 
 	struct StackInfo {
-		Ref<Script> script;
+		String file;
+		String func;
 		int line;
 	};
 
@@ -386,6 +392,7 @@ public:
 	ScriptLanguage *get_break_language() const;
 
 	virtual void send_message(const String &p_message, const Array &p_args) = 0;
+	virtual void send_error(const String &p_func, const String &p_file, int p_line, const String &p_err, const String &p_descr, ErrorHandlerType p_type, const Vector<ScriptLanguage::StackInfo> &p_stack_info) = 0;
 
 	virtual bool is_remote() const { return false; }
 	virtual void request_quit() {}
@@ -397,7 +404,7 @@ public:
 	virtual void add_profiling_frame_data(const StringName &p_name, const Array &p_data) = 0;
 	virtual void profiling_start() = 0;
 	virtual void profiling_end() = 0;
-	virtual void profiling_set_frame_times(float p_frame_time, float p_idle_time, float p_fixed_time, float p_fixed_frame_time) = 0;
+	virtual void profiling_set_frame_times(float p_frame_time, float p_idle_time, float p_physics_time, float p_physics_frame_time) = 0;
 
 	ScriptDebugger();
 	virtual ~ScriptDebugger() { singleton = NULL; }

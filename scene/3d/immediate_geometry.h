@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef IMMEDIATE_GEOMETRY_H
 #define IMMEDIATE_GEOMETRY_H
 
@@ -38,11 +39,11 @@ class ImmediateGeometry : public GeometryInstance {
 	GDCLASS(ImmediateGeometry, GeometryInstance);
 
 	RID im;
-	//a list of texures drawn need to be kept, to avoid references
+	//a list of textures drawn need to be kept, to avoid references
 	// in VisualServer from becoming invalid if the texture is no longer used
 	List<Ref<Texture> > cached_textures;
 	bool empty;
-	Rect3 aabb;
+	AABB aabb;
 
 protected:
 	static void _bind_methods();
@@ -62,7 +63,7 @@ public:
 
 	void add_sphere(int p_lats, int p_lons, float p_radius, bool p_add_uv = true);
 
-	virtual Rect3 get_aabb() const;
+	virtual AABB get_aabb() const;
 	virtual PoolVector<Face3> get_faces(uint32_t p_usage_flags) const;
 
 	ImmediateGeometry();

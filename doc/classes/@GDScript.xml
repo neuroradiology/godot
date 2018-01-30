@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="@GDScript" category="Core" version="3.0.alpha.custom_build">
+<class name="@GDScript" category="Core" version="3.0-stable">
 	<brief_description>
 		Built-in GDScript functions.
 	</brief_description>
@@ -41,10 +41,12 @@
 			<argument index="1" name="alpha" type="float">
 			</argument>
 			<description>
-				Returns color [code]name[/code] with [code]alpha[/code] ranging from 0 to 1. Note: [code]name[/code] is defined in color_names.inc.
+				Returns a color according to the standardised [code]name[/code] with [code]alpha[/code] ranging from 0 to 1.
 				[codeblock]
-				red = ColorN('red')
+				red = ColorN("red", 1)
 				[/codeblock]
+				Supported color names:
+				"aliceblue", "antiquewhite", "aqua", "aquamarine", "azure", "beige", "bisque", "black", "blanchedalmond", "blue", "blueviolet", "brown", "burlywood", "cadetblue", "chartreuse", "chocolate", "coral", "cornflower", "cornsilk", "crimson", "cyan", "darkblue", "darkcyan", "darkgoldenrod", "darkgray", "darkgreen", "darkkhaki", "darkmagenta", "darkolivegreen", "darkorange", "darkorchid", "darkred", "darksalmon", "darkseagreen", "darkslateblue", "darkslategray", "darkturquoise", "darkviolet", "deeppink", "deepskyblue", "dimgray", "dodgerblue", "firebrick", "floralwhite", "forestgreen", "fuchsia", "gainsboro", "ghostwhite", "gold", "goldenrod", "gray", "webgray", "green", "webgreen", "greenyellow", "honeydew", "hotpink", "indianred", "indigo", "ivory", "khaki", "lavender", "lavenderblush", "lawngreen", "lemonchiffon", "lightblue", "lightcoral", "lightcyan", "lightgoldenrod", "lightgray", "lightgreen", "lightpink", "lightsalmon", "lightseagreen", "lightskyblue", "lightslategray", "lightsteelblue", "lightyellow", "lime", "limegreen", "linen", "magenta", "maroon", "webmaroon", "mediumaquamarine", "mediumblue", "mediumorchid", "mediumpurple", "mediumseagreen", "mediumslateblue", "mediumspringgreen", "mediumturquoise", "mediumvioletred", "midnightblue", "mintcream", "mistyrose", "moccasin", "navajowhite", "navyblue", "oldlace", "olive", "olivedrab", "orange", "orangered", "orchid", "palegoldenrod", "palegreen", "paleturquoise", "palevioletred", "papayawhip", "peachpuff", "peru", "pink", "plum", "powderblue", "purple", "webpurple", "rebeccapurple", "red", "rosybrown", "royalblue", "saddlebrown", "salmon", "sandybrown", "seagreen", "seashell", "sienna", "silver", "skyblue", "slateblue", "slategray", "snow", "springgreen", "steelblue", "tan", "teal", "thistle", "tomato", "turquoise", "violet", "wheat", "white", "whitesmoke", "yellow", "yellowgreen".
 			</description>
 		</method>
 		<method name="abs">
@@ -138,6 +140,17 @@
 				Decodes a byte array back to a value.
 			</description>
 		</method>
+		<method name="cartesian2polar">
+			<return type="Vector2">
+			</return>
+			<argument index="0" name="x" type="float">
+			</argument>
+			<argument index="1" name="y" type="float">
+			</argument>
+			<description>
+				Converts a 2D point expressed in the cartesian coordinate system (x and y axis) to the polar coordinate system (a distance from the origin and an angle).
+			</description>
+		</method>
 		<method name="ceil">
 			<return type="float">
 			</return>
@@ -169,14 +182,14 @@
 		<method name="clamp">
 			<return type="float">
 			</return>
-			<argument index="0" name="val" type="float">
+			<argument index="0" name="value" type="float">
 			</argument>
 			<argument index="1" name="min" type="float">
 			</argument>
 			<argument index="2" name="max" type="float">
 			</argument>
 			<description>
-				Clamps [code]val[/code] and returns a value not less than [code]min[/code] and not more than [code]max[/code].
+				Clamps [code]value[/code] and returns a value not less than [code]min[/code] and not more than [code]max[/code].
 				[codeblock]
 				speed = 1000
 				# a is 20
@@ -196,7 +209,7 @@
 			<argument index="1" name="type" type="int">
 			</argument>
 			<description>
-				Converts from a type to another in the best way possible. The [code]type[/code] parameter uses the enum TYPE_* in [@Global Scope].
+				Converts from a type to another in the best way possible. The [code]type[/code] parameter uses the enum TYPE_* in [@GlobalScope].
 				[codeblock]
 				a = Vector2(1, 0)
 				# prints 1
@@ -453,7 +466,7 @@
 			</argument>
 			<argument index="1" name="to" type="float">
 			</argument>
-			<argument index="2" name="value" type="float">
+			<argument index="2" name="weight" type="float">
 			</argument>
 			<description>
 				Returns a normalized value considering the given range.
@@ -524,7 +537,7 @@
 			<argument index="0" name="path" type="String">
 			</argument>
 			<description>
-				Loads a resource from the filesystem located at 'path'. Note: resource paths can be obtained by right clicking on a resource in the Assets Panel and choosing "Copy Path".
+				Loads a resource from the filesystem located at [code]path[/code]. Note: resource paths can be obtained by right clicking on a resource in the Assets Panel and choosing "Copy Path".
 				[codeblock]
 				# load a scene called main located in the root of the project directory
 				var main = load("res://main.tscn")
@@ -576,10 +589,10 @@
 		<method name="nearest_po2">
 			<return type="int">
 			</return>
-			<argument index="0" name="val" type="int">
+			<argument index="0" name="value" type="int">
 			</argument>
 			<description>
-				Returns the nearest larger power of 2 for integer [code]val[/code].
+				Returns the nearest larger power of 2 for integer [code]value[/code].
 				[codeblock]
 				nearest_po2(3) # returns 4
 				nearest_po2(4) # returns 4
@@ -602,6 +615,17 @@
 				else:
 				    print("unexpected results")
 				[/codeblock]
+			</description>
+		</method>
+		<method name="polar2cartesian">
+			<return type="Vector2">
+			</return>
+			<argument index="0" name="r" type="float">
+			</argument>
+			<argument index="1" name="th" type="float">
+			</argument>
+			<description>
+				Converts a 2D point expressed in the polar coordinate system (a distance from the origin [code]r[/code] and an angle [code]th[/code]) to the cartesian coordinate system (x and y axis).
 			</description>
 		</method>
 		<method name="pow">
@@ -844,9 +868,10 @@
 			<argument index="0" name="s" type="float">
 			</argument>
 			<description>
-				Returns sign of [code]s[/code] -1 or 1.
+				Returns the sign of [code]s[/code]: -1 or 1. Returns 0 if [code]s[/code] is 0.
 				[codeblock]
 				sign(-6) # returns -1
+				sign(0)  # returns 0
 				sign(6)  # returns 1
 				[/codeblock]
 			</description>
@@ -984,7 +1009,7 @@
 			<argument index="0" name="what" type="Variant">
 			</argument>
 			<description>
-				Returns the internal type of the given Variant object, using the TYPE_* enum in [@Global Scope].
+				Returns the internal type of the given Variant object, using the TYPE_* enum in [@GlobalScope].
 				[codeblock]
 				p = parse_json('["a", "b", "c"]')
 				if typeof(p) == TYPE_ARRAY:
@@ -1050,27 +1075,82 @@
 				A weak reference to an object is not enough to keep the object alive: when the only remaining references to a referent are weak references, garbage collection is free to destroy the referent and reuse its memory for something else. However, until the object is actually destroyed the weak reference may return the object even if there are no strong references to it.
 			</description>
 		</method>
+		<method name="wrapf">
+			<return type="float">
+			</return>
+			<argument index="0" name="value" type="float">
+			</argument>
+			<argument index="1" name="min" type="float">
+			</argument>
+			<argument index="2" name="max" type="float">
+			</argument>
+			<description>
+				Wraps float [code]value[/code] between [code]min[/code] and [code]max[/code].
+				Usable for creating loop-alike behavior or infinite surfaces.
+				[codeblock]
+				# a is 0.5
+				a = wrapf(10.5, 0.0, 10.0)
+				[/codeblock]
+				[codeblock]
+				# a is 9.5
+				a = wrapf(-0.5, 0.0, 10.0)
+				[/codeblock]
+				[codeblock]
+				# infinite loop between 0.0 and 0.99
+				f = wrapf(f + 0.1, 0.0, 1.0)
+				[/codeblock]
+			</description>
+		</method>
+		<method name="wrapi">
+			<return type="int">
+			</return>
+			<argument index="0" name="value" type="int">
+			</argument>
+			<argument index="1" name="min" type="int">
+			</argument>
+			<argument index="2" name="max" type="int">
+			</argument>
+			<description>
+				Wraps integer [code]value[/code] between [code]min[/code] and [code]max[/code].
+				Usable for creating loop-alike behavior or infinite surfaces.
+				[codeblock]
+				# a is 0
+				a = wrapi(10, 0, 10)
+				[/codeblock]
+				[codeblock]
+				# a is 9
+				a = wrapi(-1, 0, 10)
+				[/codeblock]
+				[codeblock]
+				# infinite loop between 0 and 9
+				frame = wrapi(frame + 1, 0, 10)
+				[/codeblock]
+			</description>
+		</method>
 		<method name="yield">
-			<return type="GDFunctionState">
+			<return type="GDScriptFunctionState">
 			</return>
 			<argument index="0" name="object" type="Object">
 			</argument>
 			<argument index="1" name="signal" type="String">
 			</argument>
 			<description>
-				Stops the function execution and returns the current state. Call [method GDFunctionState.resume] on the state to resume execution. This invalidates the state.
+				Stops the function execution and returns the current state. Call [method GDScriptFunctionState.resume] on the state to resume execution. This invalidates the state.
 				Returns anything that was passed to the resume function call. If passed an object and a signal, the execution is resumed when the object's signal is emitted.
 			</description>
 		</method>
 	</methods>
 	<constants>
-		<constant name="PI" value="3.141593" enum="">
-			Constant that represents how many times the diameter of a circumference fits around its perimeter.
+		<constant name="PI" value="3.141593">
+			Constant that represents how many times the diameter of a circle fits around its perimeter.
 		</constant>
-		<constant name="INF" value="inf" enum="">
+		<constant name="TAU" value="6.283185">
+			The circle constant, the circumference of the unit circle.
+		</constant>
+		<constant name="INF" value="inf">
 			A positive infinity. (For negative infinity, use -INF).
 		</constant>
-		<constant name="NAN" value="nan" enum="">
+		<constant name="NAN" value="nan">
 			Macro constant that expands to an expression of type float that represents a NaN.
 			The NaN values are used to identify undefined or non-representable values for floating-point elements, such as the square root of negative numbers or the result of 0/0.
 		</constant>

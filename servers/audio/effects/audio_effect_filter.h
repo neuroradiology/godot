@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef AUDIOEFFECTFILTER_H
 #define AUDIOEFFECTFILTER_H
 
@@ -96,50 +97,50 @@ VARIANT_ENUM_CAST(AudioEffectFilter::FilterDB)
 class AudioEffectLowPassFilter : public AudioEffectFilter {
 	GDCLASS(AudioEffectLowPassFilter, AudioEffectFilter)
 public:
-	AudioEffectLowPassFilter()
-		: AudioEffectFilter(AudioFilterSW::LOWPASS) {}
+	AudioEffectLowPassFilter() :
+			AudioEffectFilter(AudioFilterSW::LOWPASS) {}
 };
 
 class AudioEffectHighPassFilter : public AudioEffectFilter {
 	GDCLASS(AudioEffectHighPassFilter, AudioEffectFilter)
 public:
-	AudioEffectHighPassFilter()
-		: AudioEffectFilter(AudioFilterSW::HIGHPASS) {}
+	AudioEffectHighPassFilter() :
+			AudioEffectFilter(AudioFilterSW::HIGHPASS) {}
 };
 
 class AudioEffectBandPassFilter : public AudioEffectFilter {
 	GDCLASS(AudioEffectBandPassFilter, AudioEffectFilter)
 public:
-	AudioEffectBandPassFilter()
-		: AudioEffectFilter(AudioFilterSW::BANDPASS) {}
+	AudioEffectBandPassFilter() :
+			AudioEffectFilter(AudioFilterSW::BANDPASS) {}
 };
 
 class AudioEffectNotchFilter : public AudioEffectFilter {
 	GDCLASS(AudioEffectNotchFilter, AudioEffectFilter)
 public:
-	AudioEffectNotchFilter()
-		: AudioEffectFilter(AudioFilterSW::NOTCH) {}
+	AudioEffectNotchFilter() :
+			AudioEffectFilter(AudioFilterSW::NOTCH) {}
 };
 
 class AudioEffectBandLimitFilter : public AudioEffectFilter {
 	GDCLASS(AudioEffectBandLimitFilter, AudioEffectFilter)
 public:
-	AudioEffectBandLimitFilter()
-		: AudioEffectFilter(AudioFilterSW::BANDLIMIT) {}
+	AudioEffectBandLimitFilter() :
+			AudioEffectFilter(AudioFilterSW::BANDLIMIT) {}
 };
 
 class AudioEffectLowShelfFilter : public AudioEffectFilter {
 	GDCLASS(AudioEffectLowShelfFilter, AudioEffectFilter)
 public:
-	AudioEffectLowShelfFilter()
-		: AudioEffectFilter(AudioFilterSW::LOWSHELF) {}
+	AudioEffectLowShelfFilter() :
+			AudioEffectFilter(AudioFilterSW::LOWSHELF) {}
 };
 
 class AudioEffectHighShelfFilter : public AudioEffectFilter {
 	GDCLASS(AudioEffectHighShelfFilter, AudioEffectFilter)
 public:
-	AudioEffectHighShelfFilter()
-		: AudioEffectFilter(AudioFilterSW::HIGHSHELF) {}
+	AudioEffectHighShelfFilter() :
+			AudioEffectFilter(AudioFilterSW::HIGHSHELF) {}
 };
 
 #endif // AUDIOEFFECTFILTER_H

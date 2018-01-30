@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "graph_edit.h"
 
 #include "os/input.h"
@@ -284,7 +285,6 @@ void GraphEdit::_notification(int p_what) {
 		zoom_reset->set_icon(get_icon("reset"));
 		zoom_plus->set_icon(get_icon("more"));
 		snap_button->set_icon(get_icon("snap"));
-		//zoom_icon->set_texture( get_icon("Zoom", "EditorIcons"));
 	}
 	if (p_what == NOTIFICATION_DRAW) {
 
@@ -941,17 +941,17 @@ void GraphEdit::_gui_input(const Ref<InputEvent> &p_ev) {
 			//too difficult to get right
 			//set_zoom(zoom/ZOOM_SCALE);
 		}
-		if (b->get_button_index() == BUTTON_WHEEL_UP) {
-			h_scroll->set_value(h_scroll->get_value() - h_scroll->get_page() * b->get_factor() / 8);
+		if (b->get_button_index() == BUTTON_WHEEL_UP && !Input::get_singleton()->is_key_pressed(KEY_SHIFT)) {
+			v_scroll->set_value(v_scroll->get_value() - v_scroll->get_page() * b->get_factor() / 8);
 		}
-		if (b->get_button_index() == BUTTON_WHEEL_DOWN) {
-			h_scroll->set_value(h_scroll->get_value() + h_scroll->get_page() * b->get_factor() / 8);
-		}
-		if (b->get_button_index() == BUTTON_WHEEL_RIGHT) {
+		if (b->get_button_index() == BUTTON_WHEEL_DOWN && !Input::get_singleton()->is_key_pressed(KEY_SHIFT)) {
 			v_scroll->set_value(v_scroll->get_value() + v_scroll->get_page() * b->get_factor() / 8);
 		}
-		if (b->get_button_index() == BUTTON_WHEEL_LEFT) {
-			v_scroll->set_value(v_scroll->get_value() - v_scroll->get_page() * b->get_factor() / 8);
+		if (b->get_button_index() == BUTTON_WHEEL_RIGHT || (b->get_button_index() == BUTTON_WHEEL_DOWN && Input::get_singleton()->is_key_pressed(KEY_SHIFT))) {
+			h_scroll->set_value(h_scroll->get_value() + h_scroll->get_page() * b->get_factor() / 8);
+		}
+		if (b->get_button_index() == BUTTON_WHEEL_LEFT || (b->get_button_index() == BUTTON_WHEEL_UP && Input::get_singleton()->is_key_pressed(KEY_SHIFT))) {
+			h_scroll->set_value(h_scroll->get_value() - h_scroll->get_page() * b->get_factor() / 8);
 		}
 	}
 
@@ -965,6 +965,19 @@ void GraphEdit::_gui_input(const Ref<InputEvent> &p_ev) {
 		emit_signal("delete_nodes_request");
 		accept_event();
 	}
+
+	Ref<InputEventMagnifyGesture> magnify_gesture = p_ev;
+	if (magnify_gesture.is_valid()) {
+
+		set_zoom_custom(zoom * magnify_gesture->get_factor(), magnify_gesture->get_position());
+	}
+
+	Ref<InputEventPanGesture> pan_gesture = p_ev;
+	if (pan_gesture.is_valid()) {
+
+		h_scroll->set_value(h_scroll->get_value() + h_scroll->get_page() * pan_gesture->get_delta().x / 8);
+		v_scroll->set_value(v_scroll->get_value() + v_scroll->get_page() * pan_gesture->get_delta().y / 8);
+	}
 }
 
 void GraphEdit::clear_connections() {
@@ -976,6 +989,11 @@ void GraphEdit::clear_connections() {
 
 void GraphEdit::set_zoom(float p_zoom) {
 
+	set_zoom_custom(p_zoom, get_size() / 2);
+}
+
+void GraphEdit::set_zoom_custom(float p_zoom, const Vector2 &p_center) {
+
 	p_zoom = CLAMP(p_zoom, MIN_ZOOM, MAX_ZOOM);
 	if (zoom == p_zoom)
 		return;
@@ -983,7 +1001,7 @@ void GraphEdit::set_zoom(float p_zoom) {
 	zoom_minus->set_disabled(zoom == MIN_ZOOM);
 	zoom_plus->set_disabled(zoom == MAX_ZOOM);
 
-	Vector2 sbofs = (Vector2(h_scroll->get_value(), v_scroll->get_value()) + get_size() / 2) / zoom;
+	Vector2 sbofs = (Vector2(h_scroll->get_value(), v_scroll->get_value()) + p_center) / zoom;
 
 	zoom = p_zoom;
 	top_layer->update();
@@ -993,7 +1011,7 @@ void GraphEdit::set_zoom(float p_zoom) {
 
 	if (is_visible_in_tree()) {
 
-		Vector2 ofs = sbofs * zoom - get_size() / 2;
+		Vector2 ofs = sbofs * zoom - p_center;
 		h_scroll->set_value(ofs.x);
 		v_scroll->set_value(ofs.y);
 	}
@@ -1161,6 +1179,12 @@ void GraphEdit::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_connections_layer_draw"), &GraphEdit::_connections_layer_draw);
 
 	ClassDB::bind_method(D_METHOD("set_selected", "node"), &GraphEdit::set_selected);
+
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "right_disconnects"), "set_right_disconnects", "is_right_disconnects_enabled");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "scroll_offset"), "set_scroll_ofs", "get_scroll_ofs");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "snap_distance"), "set_snap", "get_snap");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_snap"), "set_use_snap", "is_using_snap");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "zoom"), "set_zoom", "get_zoom");
 
 	ADD_SIGNAL(MethodInfo("connection_request", PropertyInfo(Variant::STRING, "from"), PropertyInfo(Variant::INT, "from_slot"), PropertyInfo(Variant::STRING, "to"), PropertyInfo(Variant::INT, "to_slot")));
 	ADD_SIGNAL(MethodInfo("disconnection_request", PropertyInfo(Variant::STRING, "from"), PropertyInfo(Variant::INT, "from_slot"), PropertyInfo(Variant::STRING, "to"), PropertyInfo(Variant::INT, "to_slot")));

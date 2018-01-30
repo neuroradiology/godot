@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "collision_shape_2d.h"
 
 #include "collision_object_2d.h"
@@ -44,6 +45,15 @@ void CollisionShape2D::_shape_changed() {
 	update();
 }
 
+void CollisionShape2D::_update_in_shape_owner(bool p_xform_only) {
+
+	parent->shape_owner_set_transform(owner_id, get_transform());
+	if (p_xform_only)
+		return;
+	parent->shape_owner_set_disabled(owner_id, disabled);
+	parent->shape_owner_set_one_way_collision(owner_id, one_way_collision);
+}
+
 void CollisionShape2D::_notification(int p_what) {
 
 	switch (p_what) {
@@ -56,22 +66,27 @@ void CollisionShape2D::_notification(int p_what) {
 				if (shape.is_valid()) {
 					parent->shape_owner_add_shape(owner_id, shape);
 				}
-				parent->shape_owner_set_transform(owner_id, get_transform());
-				parent->shape_owner_set_disabled(owner_id, disabled);
-				parent->shape_owner_set_one_way_collision(owner_id, one_way_collision);
+				_update_in_shape_owner();
 			}
 
 			/*if (Engine::get_singleton()->is_editor_hint()) {
 				//display above all else
 				set_z_as_relative(false);
-				set_z(VS::CANVAS_ITEM_Z_MAX - 1);
+				set_z_index(VS::CANVAS_ITEM_Z_MAX - 1);
 			}*/
+
+		} break;
+		case NOTIFICATION_ENTER_TREE: {
+
+			if (parent) {
+				_update_in_shape_owner();
+			}
 
 		} break;
 		case NOTIFICATION_LOCAL_TRANSFORM_CHANGED: {
 
 			if (parent) {
-				parent->shape_owner_set_transform(owner_id, get_transform());
+				_update_in_shape_owner(true);
 			}
 
 		} break;
@@ -158,9 +173,17 @@ Ref<Shape2D> CollisionShape2D::get_shape() const {
 	return shape;
 }
 
-Rect2 CollisionShape2D::get_item_rect() const {
+Rect2 CollisionShape2D::_edit_get_rect() const {
 
 	return rect;
+}
+
+bool CollisionShape2D::_edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const {
+
+	if (!shape.is_valid())
+		return false;
+
+	return shape->_edit_is_selected_on_click(p_point, p_tolerance);
 }
 
 String CollisionShape2D::get_configuration_warning() const {

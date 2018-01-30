@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,18 +27,26 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef EXPORT_TEMPLATE_MANAGER_H
 #define EXPORT_TEMPLATE_MANAGER_H
 
 #include "editor/editor_settings.h"
 #include "scene/gui/dialogs.h"
 #include "scene/gui/file_dialog.h"
+#include "scene/gui/progress_bar.h"
 #include "scene/gui/scroll_container.h"
+#include "scene/main/http_request.h"
 
 class ExportTemplateVersion;
 
 class ExportTemplateManager : public ConfirmationDialog {
 	GDCLASS(ExportTemplateManager, ConfirmationDialog)
+
+	AcceptDialog *template_downloader;
+	VBoxContainer *template_list;
+	Label *template_list_state;
+	ProgressBar *template_download_progress;
 
 	ScrollContainer *installed_scroll;
 	VBoxContainer *installed_vb;
@@ -48,6 +56,13 @@ class ExportTemplateManager : public ConfirmationDialog {
 	ConfirmationDialog *remove_confirm;
 	String to_remove;
 
+	HTTPRequest *request_mirror;
+	HTTPRequest *download_templates;
+
+	Vector<uint8_t> download_data;
+
+	float update_countdown;
+
 	void _update_template_list();
 
 	void _download_template(const String &p_version);
@@ -55,9 +70,15 @@ class ExportTemplateManager : public ConfirmationDialog {
 	void _uninstall_template_confirm();
 
 	virtual void ok_pressed();
-	void _install_from_file(const String &p_file);
+	void _install_from_file(const String &p_file, bool p_use_progress = true);
+
+	void _http_download_mirror_completed(int p_status, int p_code, const PoolStringArray &headers, const PoolByteArray &p_data);
+	void _http_download_templates_completed(int p_status, int p_code, const PoolStringArray &headers, const PoolByteArray &p_data);
+
+	void _begin_template_download(const String &p_url);
 
 protected:
+	void _notification(int p_what);
 	static void _bind_methods();
 
 public:

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "gdnative/basis.h"
 
 #include "core/math/matrix3.h"
@@ -35,8 +36,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-void _basis_api_anchor() {}
 
 void GDAPI godot_basis_new_with_rows(godot_basis *r_dest, const godot_vector3 *p_x_axis, const godot_vector3 *p_y_axis, const godot_vector3 *p_z_axis) {
 	const Vector3 *x_axis = (const Vector3 *)p_x_axis;
@@ -172,7 +171,7 @@ void GDAPI godot_basis_new_with_euler_quat(godot_basis *r_dest, const godot_quat
 }
 
 // p_elements is a pointer to an array of 3 (!!) vector3
-void GDAPI godot_basis_get_elements(godot_basis *p_self, godot_vector3 *p_elements) {
+void GDAPI godot_basis_get_elements(const godot_basis *p_self, godot_vector3 *p_elements) {
 	const Basis *self = (const Basis *)p_self;
 	Vector3 *elements = (Vector3 *)p_elements;
 	elements[0] = self->elements[0];
@@ -223,7 +222,7 @@ godot_basis GDAPI godot_basis_operator_add(const godot_basis *p_self, const godo
 	return raw_dest;
 }
 
-godot_basis GDAPI godot_basis_operator_substract(const godot_basis *p_self, const godot_basis *p_b) {
+godot_basis GDAPI godot_basis_operator_subtract(const godot_basis *p_self, const godot_basis *p_b) {
 	godot_basis raw_dest;
 	Basis *dest = (Basis *)&raw_dest;
 	const Basis *self = (const Basis *)p_self;

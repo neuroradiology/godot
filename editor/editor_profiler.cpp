@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "editor_profiler.h"
 
 #include "editor_scale.h"
@@ -89,7 +90,7 @@ void EditorProfiler::clear() {
 	variables->clear();
 	//activate->set_pressed(false);
 	plot_sigs.clear();
-	plot_sigs.insert("fixed_frame_time");
+	plot_sigs.insert("physics_frame_time");
 	plot_sigs.insert("category_frame_time");
 
 	updating_frame = true;
@@ -120,9 +121,9 @@ String EditorProfiler::_get_time_as_text(Metric &m, float p_time, int p_calls) {
 			return rtos(p_time / p_calls);
 	} else if (dmode == DISPLAY_FRAME_PERCENT) {
 		return _get_percent_txt(p_time, m.frame_time);
-	} else if (dmode == DISPLAY_FIXED_FRAME_PERCENT) {
+	} else if (dmode == DISPLAY_PHYSICS_FRAME_PERCENT) {
 
-		return _get_percent_txt(p_time, m.fixed_frame_time);
+		return _get_percent_txt(p_time, m.physics_frame_time);
 	}
 
 	return "err";
@@ -221,7 +222,7 @@ void EditorProfiler::_update_plot() {
 		Vector<int> columnv;
 		columnv.resize(h * 4);
 
-		int *column = columnv.ptr();
+		int *column = columnv.ptrw();
 
 		Map<StringName, int> plot_prev;
 		//Map<StringName,int> plot_max;
@@ -634,7 +635,7 @@ EditorProfiler::EditorProfiler() {
 	display_mode->add_item(TTR("Frame Time (sec)"));
 	display_mode->add_item(TTR("Average Time (sec)"));
 	display_mode->add_item(TTR("Frame %"));
-	display_mode->add_item(TTR("Fixed Frame %"));
+	display_mode->add_item(TTR("Physics Frame %"));
 	display_mode->connect("item_selected", this, "_combo_changed");
 
 	hb->add_child(display_mode);
@@ -670,13 +671,13 @@ EditorProfiler::EditorProfiler() {
 	variables->set_hide_root(true);
 	variables->set_columns(3);
 	variables->set_column_titles_visible(true);
-	variables->set_column_title(0, "Name");
+	variables->set_column_title(0, TTR("Name"));
 	variables->set_column_expand(0, true);
 	variables->set_column_min_width(0, 60);
-	variables->set_column_title(1, "Time");
+	variables->set_column_title(1, TTR("Time"));
 	variables->set_column_expand(1, false);
 	variables->set_column_min_width(1, 60 * EDSCALE);
-	variables->set_column_title(2, "Calls");
+	variables->set_column_title(2, TTR("Calls"));
 	variables->set_column_expand(2, false);
 	variables->set_column_min_width(2, 60 * EDSCALE);
 	variables->connect("item_edited", this, "_item_edited");
@@ -714,7 +715,7 @@ EditorProfiler::EditorProfiler() {
 	add_child(plot_delay);
 	plot_delay->connect("timeout", this, "_update_plot");
 
-	plot_sigs.insert("fixed_frame_time");
+	plot_sigs.insert("physics_frame_time");
 	plot_sigs.insert("category_frame_time");
 
 	seeking = false;

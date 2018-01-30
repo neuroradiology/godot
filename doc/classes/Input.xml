@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="Input" inherits="Object" category="Core" version="3.0.alpha.custom_build">
+<class name="Input" inherits="Object" category="Core" version="3.0-stable">
 	<brief_description>
 		A Singleton that deals with inputs.
 	</brief_description>
 	<description>
-		A Singleton that deals with inputs. This includes key presses, mouse buttons and movement, joypads, and input actions.
+		A Singleton that deals with inputs. This includes key presses, mouse buttons and movement, joypads, and input actions. Actions and their events can be set in the Project Settings / Input Map tab. Or be set with [InputMap].
 	</description>
 	<tutorials>
 	</tutorials>
@@ -17,7 +17,7 @@
 			<argument index="0" name="action" type="String">
 			</argument>
 			<description>
-				This will simulate pressing the specificed action.
+				This will simulate pressing the specified action.
 			</description>
 		</method>
 		<method name="action_release">
@@ -75,7 +75,7 @@
 			<argument index="1" name="axis" type="int">
 			</argument>
 			<description>
-				Returns the current value of the joypad axis at given index (see JOY_* constants in [@Global Scope])
+				Returns the current value of the joypad axis at given index (see [code]JOY_*[/code] constants in [@GlobalScope])
 			</description>
 		</method>
 		<method name="get_joy_axis_index_from_string">
@@ -180,6 +180,7 @@
 			<argument index="0" name="action" type="String">
 			</argument>
 			<description>
+				Returns [code]true[/code] when you start pressing the action event.
 			</description>
 		</method>
 		<method name="is_action_just_released" qualifiers="const">
@@ -188,6 +189,7 @@
 			<argument index="0" name="action" type="String">
 			</argument>
 			<description>
+				Returns [code]true[/code] when you stop pressing the action event.
 			</description>
 		</method>
 		<method name="is_action_pressed" qualifiers="const">
@@ -196,7 +198,7 @@
 			<argument index="0" name="action" type="String">
 			</argument>
 			<description>
-				Returns true or false depending on whether the action event is pressed. Actions and their events can be set in the Project Settings / Input Map tab. Or be set with [InputMap].
+				Returns [code]true[/code] if you are pressing the action event.
 			</description>
 		</method>
 		<method name="is_joy_button_pressed" qualifiers="const">
@@ -207,7 +209,7 @@
 			<argument index="1" name="button" type="int">
 			</argument>
 			<description>
-				Returns if the joypad button at the given index is currently pressed. (see JOY_* constants in [@Global Scope])
+				Returns [code]true[/code] if you are pressing the joypad button. (see [code]JOY_*[/code] constants in [@GlobalScope])
 			</description>
 		</method>
 		<method name="is_joy_known">
@@ -216,7 +218,7 @@
 			<argument index="0" name="device" type="int">
 			</argument>
 			<description>
-				Returns if the specified device is known by the system. This means that it sets all button and axis indices exactly as defined in the JOY_* constants (see [@Global Scope]). Unknown joypads are not expected to match these constants, but you can still retrieve events from them.
+				Returns [code]true[/code] if the system knows the specified device. This means that it sets all button and axis indices exactly as defined in the [code]JOY_*[/code] constants (see [@GlobalScope]). Unknown joypads are not expected to match these constants, but you can still retrieve events from them.
 			</description>
 		</method>
 		<method name="is_key_pressed" qualifiers="const">
@@ -225,7 +227,7 @@
 			<argument index="0" name="scancode" type="int">
 			</argument>
 			<description>
-				Returns true or false depending on whether the key is pressed or not. You can pass KEY_*, which are pre-defined constants listed in [@Global Scope].
+				Returns [code]true[/code] if you are pressing the key. You can pass [code]KEY_*[/code], which are pre-defined constants listed in [@GlobalScope].
 			</description>
 		</method>
 		<method name="is_mouse_button_pressed" qualifiers="const">
@@ -234,7 +236,21 @@
 			<argument index="0" name="button" type="int">
 			</argument>
 			<description>
-				Returns true or false depending on whether mouse button is pressed or not. You can pass BUTTON_*, which are pre-defined constants listed in [@Global Scope].
+				Returns [code]true[/code] if you are pressing the mouse button. You can pass [code]BUTTON_*[/code], which are pre-defined constants listed in [@GlobalScope].
+			</description>
+		</method>
+		<method name="joy_connection_changed">
+			<return type="void">
+			</return>
+			<argument index="0" name="device" type="int">
+			</argument>
+			<argument index="1" name="connected" type="bool">
+			</argument>
+			<argument index="2" name="name" type="String">
+			</argument>
+			<argument index="3" name="guid" type="String">
+			</argument>
+			<description>
 			</description>
 		</method>
 		<method name="parse_input_event">
@@ -259,9 +275,12 @@
 			</return>
 			<argument index="0" name="image" type="Resource">
 			</argument>
-			<argument index="1" name="hotspot" type="Vector2" default="Vector2( 0, 0 )">
+			<argument index="1" name="shape" type="int" enum="Input.CursorShape" default="0">
+			</argument>
+			<argument index="2" name="hotspot" type="Vector2" default="Vector2( 0, 0 )">
 			</argument>
 			<description>
+				Set a custom mouse cursor image, which is only visible inside the game window. The hotspot can also be specified. See enum [code]CURSOR_*[/code] for the list of shapes.
 			</description>
 		</method>
 		<method name="set_mouse_mode">
@@ -320,16 +339,50 @@
 		</signal>
 	</signals>
 	<constants>
-		<constant name="MOUSE_MODE_VISIBLE" value="0">
+		<constant name="MOUSE_MODE_VISIBLE" value="0" enum="MouseMode">
 			Makes the mouse cursor visible if it is hidden.
 		</constant>
-		<constant name="MOUSE_MODE_HIDDEN" value="1">
+		<constant name="MOUSE_MODE_HIDDEN" value="1" enum="MouseMode">
 			Makes the mouse cursor hidden if it is visible.
 		</constant>
-		<constant name="MOUSE_MODE_CAPTURED" value="2">
+		<constant name="MOUSE_MODE_CAPTURED" value="2" enum="MouseMode">
 			Captures the mouse. The mouse will be hidden and unable to leave the game window. But it will still register movement and mouse button presses.
 		</constant>
-		<constant name="MOUSE_MODE_CONFINED" value="3">
+		<constant name="MOUSE_MODE_CONFINED" value="3" enum="MouseMode">
+		</constant>
+		<constant name="CURSOR_ARROW" value="0" enum="CursorShape">
+		</constant>
+		<constant name="CURSOR_IBEAM" value="1" enum="CursorShape">
+		</constant>
+		<constant name="CURSOR_POINTING_HAND" value="2" enum="CursorShape">
+		</constant>
+		<constant name="CURSOR_CROSS" value="3" enum="CursorShape">
+		</constant>
+		<constant name="CURSOR_WAIT" value="4" enum="CursorShape">
+		</constant>
+		<constant name="CURSOR_BUSY" value="5" enum="CursorShape">
+		</constant>
+		<constant name="CURSOR_DRAG" value="6" enum="CursorShape">
+		</constant>
+		<constant name="CURSOR_CAN_DROP" value="7" enum="CursorShape">
+		</constant>
+		<constant name="CURSOR_FORBIDDEN" value="8" enum="CursorShape">
+		</constant>
+		<constant name="CURSOR_VSIZE" value="9" enum="CursorShape">
+		</constant>
+		<constant name="CURSOR_HSIZE" value="10" enum="CursorShape">
+		</constant>
+		<constant name="CURSOR_BDIAGSIZE" value="11" enum="CursorShape">
+		</constant>
+		<constant name="CURSOR_FDIAGSIZE" value="12" enum="CursorShape">
+		</constant>
+		<constant name="CURSOR_MOVE" value="13" enum="CursorShape">
+		</constant>
+		<constant name="CURSOR_VSPLIT" value="14" enum="CursorShape">
+		</constant>
+		<constant name="CURSOR_HSPLIT" value="15" enum="CursorShape">
+		</constant>
+		<constant name="CURSOR_HELP" value="16" enum="CursorShape">
 		</constant>
 	</constants>
 </class>

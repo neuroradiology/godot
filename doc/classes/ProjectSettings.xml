@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="ProjectSettings" inherits="Object" category="Core" version="3.0.alpha.custom_build">
+<class name="ProjectSettings" inherits="Object" category="Core" version="3.0-stable">
 	<brief_description>
 		Contains global variables accessible from everywhere.
 	</brief_description>
 	<description>
-		Contains global variables accessible from everywhere. Use the normal [Object] API, such as "ProjectSettings.get(variable)", "ProjectSettings.set(variable,value)" or "ProjectSettings.has(variable)" to access them. Variables stored in project.godot are also loaded into ProjectSettings, making this object very useful for reading custom game configuration options.
+		Contains global variables accessible from everywhere. Use "ProjectSettings.get_setting(variable)", "ProjectSettings.set_setting(variable,value)" or "ProjectSettings.has_setting(variable)" to access them. Variables stored in project.godot are also loaded into ProjectSettings, making this object very useful for reading custom game configuration options.
 	</description>
 	<tutorials>
 	</tutorials>
@@ -17,7 +17,7 @@
 			<argument index="0" name="hint" type="Dictionary">
 			</argument>
 			<description>
-				Add a custom property info to a property. The dictionary must contain: name:[String](the name of the property) and type:[int](see TYPE_* in [@Global Scope]), and optionally hint:[int](see PROPERTY_HINT_* in [@Global Scope]), hint_string:[String].
+				Add a custom property info to a property. The dictionary must contain: name:[String](the name of the property) and type:[int](see TYPE_* in [@GlobalScope]), and optionally hint:[int](see PROPERTY_HINT_* in [@GlobalScope]), hint_string:[String].
 				Example:
 				[codeblock]
 				ProjectSettings.set("category/property_name", 0)
@@ -51,8 +51,8 @@
 				Return the order of a configuration value (influences when saved to the config file).
 			</description>
 		</method>
-		<method name="get_singleton" qualifiers="const">
-			<return type="Object">
+		<method name="get_setting" qualifiers="const">
+			<return type="Variant">
 			</return>
 			<argument index="0" name="name" type="String">
 			</argument>
@@ -68,21 +68,13 @@
 				Convert a localized path (res://) to a full native OS path.
 			</description>
 		</method>
-		<method name="has" qualifiers="const">
+		<method name="has_setting" qualifiers="const">
 			<return type="bool">
 			</return>
 			<argument index="0" name="name" type="String">
 			</argument>
 			<description>
 				Return true if a configuration value is present.
-			</description>
-		</method>
-		<method name="has_singleton" qualifiers="const">
-			<return type="bool">
-			</return>
-			<argument index="0" name="name" type="String">
-			</argument>
-			<description>
 			</description>
 		</method>
 		<method name="load_resource_pack">
@@ -151,6 +143,16 @@
 			</argument>
 			<description>
 				Set the order of a configuration value (influences when saved to the config file).
+			</description>
+		</method>
+		<method name="set_setting">
+			<return type="void">
+			</return>
+			<argument index="0" name="name" type="String">
+			</argument>
+			<argument index="1" name="value" type="Variant">
+			</argument>
+			<description>
 			</description>
 		</method>
 	</methods>

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef RICH_TEXT_LABEL_H
 #define RICH_TEXT_LABEL_H
 
@@ -221,8 +222,12 @@ private:
 
 	int tab_size;
 	bool underline_meta;
+	bool override_selected_font_color;
 
 	Align default_align;
+
+	ItemMeta *meta_hovering;
+	Variant current_meta;
 
 	void _invalidate_current_line(ItemFrame *p_frame);
 	void _validate_line_caches(ItemFrame *p_frame);
@@ -252,8 +257,8 @@ private:
 		Item *to;
 		int to_char;
 
-		bool active;
-		bool enabled;
+		bool active; // anything selected? i.e. from, to, etc. valid?
+		bool enabled; // allow selections?
 	};
 
 	Selection selection;
@@ -312,6 +317,9 @@ public:
 
 	void set_meta_underline(bool p_underline);
 	bool is_meta_underlined() const;
+
+	void set_override_selected_font_color(bool p_override_selected_font_color);
+	bool is_overriding_selected_font_color() const;
 
 	void set_scroll_active(bool p_active);
 	bool is_scroll_active() const;

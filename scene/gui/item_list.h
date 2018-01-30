@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef ITEMLIST_H
 #define ITEMLIST_H
 
@@ -107,6 +108,8 @@ private:
 
 	real_t icon_scale;
 
+	bool do_autoscroll_to_bottom;
+
 	Array _get_items() const;
 	void _set_items(const Array &p_items);
 
@@ -156,8 +159,10 @@ public:
 
 	void select(int p_idx, bool p_single = true);
 	void unselect(int p_idx);
+	void unselect_all();
 	bool is_selected(int p_idx) const;
 	Vector<int> get_selected_items();
+	bool is_anything_selected();
 
 	void set_current(int p_current);
 	int get_current() const;
@@ -209,6 +214,8 @@ public:
 	bool has_auto_height() const;
 
 	Size2 get_minimum_size() const;
+
+	void set_autoscroll_to_bottom(const bool p_enable);
 
 	VScrollBar *get_v_scroll() { return scroll_bar; }
 

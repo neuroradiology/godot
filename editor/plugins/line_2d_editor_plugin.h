@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,88 +27,38 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef LINE_2D_EDITOR_PLUGIN_H
 #define LINE_2D_EDITOR_PLUGIN_H
 
-#include "editor/editor_node.h"
-#include "editor/editor_plugin.h"
+#include "editor/plugins/abstract_polygon_2d_editor.h"
 #include "scene/2d/line_2d.h"
-#include "scene/2d/path_2d.h"
-#include "scene/gui/tool_button.h"
 
-class CanvasItemEditor;
+class Line2DEditor : public AbstractPolygon2DEditor {
 
-class Line2DEditor : public HBoxContainer {
-	GDCLASS(Line2DEditor, HBoxContainer)
+	GDCLASS(Line2DEditor, AbstractPolygon2DEditor);
 
-public:
-	bool forward_gui_input(const Ref<InputEvent> &p_event);
-	void edit(Node *p_line2d);
-	Line2DEditor(EditorNode *p_editor);
-
-protected:
-	void _node_removed(Node *p_node);
-	void _notification(int p_what);
-
-	Vector2 mouse_to_local_pos(Vector2 mpos);
-
-	static void _bind_methods();
-
-private:
-	void _mode_selected(int p_mode);
-	void _canvas_draw();
-	void _node_visibility_changed();
-
-	int get_point_index_at(Vector2 gpos);
-	Vector2 mouse_to_local_pos(Vector2 gpos, bool alt);
-
-	UndoRedo *undo_redo;
-
-	CanvasItemEditor *canvas_item_editor;
-	EditorNode *editor;
-	Panel *panel;
 	Line2D *node;
 
-	HBoxContainer *base_hb;
-	Separator *sep;
+protected:
+	virtual Node2D *_get_node() const;
+	virtual void _set_node(Node *p_line);
 
-	enum Mode {
-		MODE_CREATE = 0,
-		MODE_EDIT,
-		MODE_DELETE,
-		_MODE_COUNT
-	};
-
-	Mode mode;
-	ToolButton *toolbar_buttons[_MODE_COUNT];
-
-	bool _dragging;
-	int action_point;
-	Point2 moving_from;
-	Point2 moving_screen_from;
-};
-
-class Line2DEditorPlugin : public EditorPlugin {
-	GDCLASS(Line2DEditorPlugin, EditorPlugin)
+	virtual bool _is_line() const;
+	virtual Variant _get_polygon(int p_idx) const;
+	virtual void _set_polygon(int p_idx, const Variant &p_polygon) const;
+	virtual void _action_set_polygon(int p_idx, const Variant &p_previous, const Variant &p_polygon);
 
 public:
-	virtual bool forward_canvas_gui_input(
-			const Transform2D &p_canvas_xform,
-			const Ref<InputEvent> &p_event) {
-		return line2d_editor->forward_gui_input(p_event);
-	}
+	Line2DEditor(EditorNode *p_editor);
+};
 
-	virtual String get_name() const { return "Line2D"; }
-	bool has_main_screen() const { return false; }
-	virtual void edit(Object *p_object);
-	virtual bool handles(Object *p_object) const;
-	virtual void make_visible(bool p_visible);
+class Line2DEditorPlugin : public AbstractPolygon2DEditorPlugin {
 
+	GDCLASS(Line2DEditorPlugin, AbstractPolygon2DEditorPlugin);
+
+public:
 	Line2DEditorPlugin(EditorNode *p_node);
-
-private:
-	Line2DEditor *line2d_editor;
-	EditorNode *editor;
 };
 
 #endif // LINE_2D_EDITOR_PLUGIN_H

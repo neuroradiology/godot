@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #import "gl_view.h"
 
 #include "core/os/keyboard.h"
@@ -63,6 +64,7 @@ void _pause_video();
 void _focus_out_video();
 void _unpause_video();
 void _stop_video();
+CGFloat _points_to_pixels(CGFloat);
 
 void _show_keyboard(String p_existing) {
 	keyboard_text = p_existing;
@@ -172,6 +174,19 @@ void _stop_video() {
 	[_instance.avPlayerLayer removeFromSuperlayer];
 	_instance.avPlayer = nil;
 	video_playing = false;
+}
+
+CGFloat _points_to_pixels(CGFloat points) {
+	float pixelPerInch;
+	if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
+		pixelPerInch = 132;
+	} else if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone) {
+		pixelPerInch = 163;
+	} else {
+		pixelPerInch = 160;
+	}
+	CGFloat pointsPerInch = 72.0;
+	return (points / pointsPerInch * pixelPerInch);
 }
 
 @implementation GLView
@@ -537,6 +552,20 @@ static void clear_touches() {
 	[self resignFirstResponder];
 };
 
+- (void)keyboardOnScreen:(NSNotification *)notification {
+	NSDictionary *info = notification.userInfo;
+	NSValue *value = info[UIKeyboardFrameEndUserInfoKey];
+
+	CGRect rawFrame = [value CGRectValue];
+	CGRect keyboardFrame = [self convertRect:rawFrame fromView:nil];
+
+	OSIPhone::get_singleton()->set_virtual_keyboard_height(_points_to_pixels(keyboardFrame.size.height));
+}
+
+- (void)keyboardHidden:(NSNotification *)notification {
+	OSIPhone::get_singleton()->set_virtual_keyboard_height(0);
+}
+
 - (void)deleteBackward {
 	if (keyboard_text.length())
 		keyboard_text.erase(keyboard_text.length() - 1, 1);
@@ -604,6 +633,18 @@ static void clear_touches() {
 			addObserver:self
 			   selector:@selector(audioRouteChangeListenerCallback:)
 				   name:AVAudioSessionRouteChangeNotification
+				 object:nil];
+
+	printf("******** adding observer for keyboard show/hide\n");
+	[[NSNotificationCenter defaultCenter]
+			addObserver:self
+			   selector:@selector(keyboardOnScreen:)
+				   name:UIKeyboardDidShowNotification
+				 object:nil];
+	[[NSNotificationCenter defaultCenter]
+			addObserver:self
+			   selector:@selector(keyboardHidden:)
+				   name:UIKeyboardDidHideNotification
 				 object:nil];
 
 	//self.autoresizesSubviews = YES;

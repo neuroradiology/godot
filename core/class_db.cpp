@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "class_db.h"
 
 #include "os/mutex.h"
@@ -187,6 +188,25 @@ MethodDefinition D_METHOD(const char *p_name, const char *p_arg1, const char *p_
 	return md;
 }
 
+MethodDefinition D_METHOD(const char *p_name, const char *p_arg1, const char *p_arg2, const char *p_arg3, const char *p_arg4, const char *p_arg5, const char *p_arg6, const char *p_arg7, const char *p_arg8, const char *p_arg9, const char *p_arg10, const char *p_arg11) {
+
+	MethodDefinition md;
+	md.name = StaticCString::create(p_name);
+	md.args.resize(11);
+	md.args[0] = StaticCString::create(p_arg1);
+	md.args[1] = StaticCString::create(p_arg2);
+	md.args[2] = StaticCString::create(p_arg3);
+	md.args[3] = StaticCString::create(p_arg4);
+	md.args[4] = StaticCString::create(p_arg5);
+	md.args[5] = StaticCString::create(p_arg6);
+	md.args[6] = StaticCString::create(p_arg7);
+	md.args[7] = StaticCString::create(p_arg8);
+	md.args[8] = StaticCString::create(p_arg9);
+	md.args[9] = StaticCString::create(p_arg10);
+	md.args[10] = StaticCString::create(p_arg11);
+	return md;
+}
+
 #endif
 
 ClassDB::APIType ClassDB::current_api = API_CORE;
@@ -205,6 +225,7 @@ ClassDB::ClassInfo::ClassInfo() {
 	creation_func = NULL;
 	inherits_ptr = NULL;
 	disabled = false;
+	exposed = false;
 }
 ClassDB::ClassInfo::~ClassInfo() {
 }
@@ -328,10 +349,11 @@ uint64_t ClassDB::get_api_hash(APIType p_api) {
 				hash = hash_djb2_one_64(mb->get_argument_type(-1), hash); //return
 
 				for (int i = 0; i < mb->get_argument_count(); i++) {
-					hash = hash_djb2_one_64(mb->get_argument_info(i).type, hash);
-					hash = hash_djb2_one_64(mb->get_argument_info(i).name.hash(), hash);
-					hash = hash_djb2_one_64(mb->get_argument_info(i).hint, hash);
-					hash = hash_djb2_one_64(mb->get_argument_info(i).hint_string.hash(), hash);
+					const PropertyInfo info = mb->get_argument_info(i);
+					hash = hash_djb2_one_64(info.type, hash);
+					hash = hash_djb2_one_64(info.name.hash(), hash);
+					hash = hash_djb2_one_64(info.hint, hash);
+					hash = hash_djb2_one_64(info.hint_string.hash(), hash);
 				}
 
 				hash = hash_djb2_one_64(mb->get_default_argument_count(), hash);
@@ -1016,7 +1038,6 @@ bool ClassDB::get_property(Object *p_object, const StringName &p_property, Varia
 			r_value = *c;
 			return true;
 		}
-		//if (check->constant_map.fin)
 
 		check = check->inherits_ptr;
 	}
@@ -1137,24 +1158,6 @@ bool ClassDB::has_method(StringName p_class, StringName p_method, bool p_no_inhe
 			return true;
 		if (p_no_inheritance)
 			return false;
-		check = check->inherits_ptr;
-	}
-
-	return false;
-}
-
-bool ClassDB::get_setter_and_type_for_property(const StringName &p_class, const StringName &p_prop, StringName &r_class, StringName &r_setter) {
-
-	ClassInfo *type = classes.getptr(p_class);
-	ClassInfo *check = type;
-	while (check) {
-
-		if (check->property_setget.has(p_prop)) {
-			r_class = check->name;
-			r_setter = check->property_setget[p_prop].setter;
-			return true;
-		}
-
 		check = check->inherits_ptr;
 	}
 
@@ -1282,6 +1285,15 @@ bool ClassDB::is_class_enabled(StringName p_class) {
 
 	ERR_FAIL_COND_V(!ti, false);
 	return !ti->disabled;
+}
+
+bool ClassDB::is_class_exposed(StringName p_class) {
+
+	OBJTYPE_RLOCK;
+
+	ClassInfo *ti = classes.getptr(p_class);
+	ERR_FAIL_COND_V(!ti, false);
+	return ti->exposed;
 }
 
 StringName ClassDB::get_category(const StringName &p_node) {

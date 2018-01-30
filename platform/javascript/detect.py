@@ -13,13 +13,12 @@ def get_name():
 
 def can_build():
 
-    return ("EMSCRIPTEN_ROOT" in os.environ)
+    return ("EMSCRIPTEN_ROOT" in os.environ or "EMSCRIPTEN" in os.environ)
 
 
 def get_opts():
     from SCons.Variables import BoolVariable
     return [
-        BoolVariable('wasm', 'Compile to WebAssembly', False),
         BoolVariable('javascript_eval', 'Enable JavaScript eval interface', True),
     ]
 
@@ -29,6 +28,11 @@ def get_flags():
     return [
         ('tools', False),
         ('module_theora_enabled', False),
+        # Disabling the OpenSSL module noticeably reduces file size.
+        # The module has little use due to the limited networking functionality
+        # in this platform. For the available networking methods, the browser
+        # manages TLS.
+        ('module_openssl_enabled', False),
     ]
 
 
@@ -50,8 +54,14 @@ def configure(env):
     ## Build type
 
     if (env["target"] == "release"):
-        env.Append(CCFLAGS=['-O3'])
-        env.Append(LINKFLAGS=['-O3'])
+        # Use -Os to prioritize optimizing for reduced file size. This is
+        # particularly valuable for the web platform because it directly
+        # decreases download time.
+        # -Os reduces file size by around 5 MiB over -O3. -Oz only saves about
+        # 100 KiB over -Os, which does not justify the negative impact on
+        # run-time performance.
+        env.Append(CCFLAGS=['-Os'])
+        env.Append(LINKFLAGS=['-Os'])
 
     elif (env["target"] == "release_debug"):
         env.Append(CCFLAGS=['-O2', '-DDEBUG_ENABLED'])
@@ -66,7 +76,10 @@ def configure(env):
     ## Compiler configuration
 
     env['ENV'] = os.environ
-    env.PrependENVPath('PATH', os.environ['EMSCRIPTEN_ROOT'])
+    if ("EMSCRIPTEN_ROOT" in os.environ):
+        env.PrependENVPath('PATH', os.environ['EMSCRIPTEN_ROOT'])
+    elif ("EMSCRIPTEN" in os.environ):
+        env.PrependENVPath('PATH', os.environ['EMSCRIPTEN'])
     env['CC']      = 'emcc'
     env['CXX']     = 'em++'
     env['LINK']    = 'emcc'
@@ -100,20 +113,13 @@ def configure(env):
 
     ## Link flags
 
-    env.Append(LINKFLAGS=['-s', 'EXTRA_EXPORTED_RUNTIME_METHODS="[\'FS\']"'])
+    env.Append(LINKFLAGS=['-s', 'BINARYEN=1'])
+    env.Append(LINKFLAGS=['-s', 'ALLOW_MEMORY_GROWTH=1'])
     env.Append(LINKFLAGS=['-s', 'USE_WEBGL2=1'])
+    env.Append(LINKFLAGS=['-s', 'EXTRA_EXPORTED_RUNTIME_METHODS="[\'FS\']"'])
 
-    if env['wasm']:
-        env.Append(LINKFLAGS=['-s', 'BINARYEN=1'])
-        # In contrast to asm.js, enabling memory growth on WebAssembly has no
-        # major performance impact, and causes only a negligible increase in
-        # memory size.
-        env.Append(LINKFLAGS=['-s', 'ALLOW_MEMORY_GROWTH=1'])
-        env.extra_suffix = '.webassembly' + env.extra_suffix
-    else:
-        env.Append(LINKFLAGS=['-s', 'ASM_JS=1'])
-        env.Append(LINKFLAGS=['--separate-asm'])
-        env.Append(LINKFLAGS=['--memory-init-file', '1'])
+    env.Append(LINKFLAGS=['-s', 'INVOKE_RUN=0'])
+    env.Append(LINKFLAGS=['-s', 'NO_EXIT_RUNTIME=1'])
 
     # TODO: Move that to opus module's config
     if 'module_opus_enabled' in env and env['module_opus_enabled']:

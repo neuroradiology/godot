@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "reverb_sw.h"
 #include "print_string.h"
 #include "stdlib.h"
@@ -252,15 +253,13 @@ static ReverbParamsSW *reverb_param_modes[] = {
 
 bool ReverbSW::process(int *p_input, int *p_output, int p_frames, int p_stereo_stride) {
 
+	// p_input must point to a non-looping buffer.
+	// BOTH p_input and p_output must be touched (use ClearModuleBuffer).
+
 	if (!reverb_buffer)
 		return false;
 
-//
-// p_input must point to a non-looping buffer.
-// BOTH p_input and p_output must be touched (use ClearModuleBuffer).
-
 // LOCAL MACROS
-
 #undef LM_SETSRCOFFSET
 #define LM_SETSRCOFFSET(x)            \
 	(x) = current_params->x + Offset; \

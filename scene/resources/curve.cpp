@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "curve.h"
 
 #include "core_string_names.h"
@@ -485,17 +486,17 @@ void Curve::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("clear_points"), &Curve::clear_points);
 	ClassDB::bind_method(D_METHOD("get_point_position", "index"), &Curve::get_point_position);
 	ClassDB::bind_method(D_METHOD("set_point_value", "index", "y"), &Curve::set_point_value);
-	ClassDB::bind_method(D_METHOD("set_point_offset", "index", "offset"), &Curve::set_point_value);
+	ClassDB::bind_method(D_METHOD("set_point_offset", "index", "offset"), &Curve::set_point_offset);
 	ClassDB::bind_method(D_METHOD("interpolate", "offset"), &Curve::interpolate);
 	ClassDB::bind_method(D_METHOD("interpolate_baked", "offset"), &Curve::interpolate_baked);
 	ClassDB::bind_method(D_METHOD("get_point_left_tangent", "index"), &Curve::get_point_left_tangent);
-	ClassDB::bind_method(D_METHOD("get_point_right_tangent", "index"), &Curve::get_point_left_tangent);
+	ClassDB::bind_method(D_METHOD("get_point_right_tangent", "index"), &Curve::get_point_right_tangent);
 	ClassDB::bind_method(D_METHOD("get_point_left_mode", "index"), &Curve::get_point_left_mode);
-	ClassDB::bind_method(D_METHOD("get_point_right_mode", "index"), &Curve::get_point_left_mode);
+	ClassDB::bind_method(D_METHOD("get_point_right_mode", "index"), &Curve::get_point_right_mode);
 	ClassDB::bind_method(D_METHOD("set_point_left_tangent", "index", "tangent"), &Curve::set_point_left_tangent);
-	ClassDB::bind_method(D_METHOD("set_point_right_tangent", "index", "tangent"), &Curve::set_point_left_tangent);
+	ClassDB::bind_method(D_METHOD("set_point_right_tangent", "index", "tangent"), &Curve::set_point_right_tangent);
 	ClassDB::bind_method(D_METHOD("set_point_left_mode", "index", "mode"), &Curve::set_point_left_mode);
-	ClassDB::bind_method(D_METHOD("set_point_right_mode", "index", "mode"), &Curve::set_point_left_mode);
+	ClassDB::bind_method(D_METHOD("set_point_right_mode", "index", "mode"), &Curve::set_point_right_mode);
 	ClassDB::bind_method(D_METHOD("get_min_value"), &Curve::get_min_value);
 	ClassDB::bind_method(D_METHOD("set_min_value", "min"), &Curve::set_min_value);
 	ClassDB::bind_method(D_METHOD("get_max_value"), &Curve::get_max_value);
@@ -510,7 +511,7 @@ void Curve::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "min_value", PROPERTY_HINT_RANGE, "-1024,1024,0.01"), "set_min_value", "get_min_value");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "max_value", PROPERTY_HINT_RANGE, "-1024,1024,0.01"), "set_max_value", "get_max_value");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "bake_resolution", PROPERTY_HINT_RANGE, "1,1000,1"), "set_bake_resolution", "get_bake_resolution");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "_data", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "_set_data", "_get_data");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "_data", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR | PROPERTY_USAGE_INTERNAL), "_set_data", "_get_data");
 
 	ADD_SIGNAL(MethodInfo(SIGNAL_RANGE_CHANGED));
 
@@ -914,7 +915,7 @@ void Curve2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_set_data"), &Curve2D::_set_data);
 
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "bake_interval", PROPERTY_HINT_RANGE, "0.01,512,0.01"), "set_bake_interval", "get_bake_interval");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "_data", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "_set_data", "_get_data");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "_data", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR | PROPERTY_USAGE_INTERNAL), "_set_data", "_get_data");
 }
 
 Curve2D::Curve2D() {
@@ -1409,7 +1410,7 @@ void Curve3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_set_data"), &Curve3D::_set_data);
 
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "bake_interval", PROPERTY_HINT_RANGE, "0.01,512,0.01"), "set_bake_interval", "get_bake_interval");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "_data", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "_set_data", "_get_data");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "_data", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR | PROPERTY_USAGE_INTERNAL), "_set_data", "_get_data");
 }
 
 Curve3D::Curve3D() {

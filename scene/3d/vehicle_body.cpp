@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "vehicle_body.h"
 
 #define ROLLING_INFLUENCE_FIX
@@ -54,8 +55,8 @@ public:
 			const Vector3 &inertiaInvA,
 			const real_t massInvA,
 			const Vector3 &inertiaInvB,
-			const real_t massInvB)
-		: m_linearJointAxis(jointAxis) {
+			const real_t massInvB) :
+			m_linearJointAxis(jointAxis) {
 		m_aJ = world2A.xform(rel_pos1.cross(m_linearJointAxis));
 		m_bJ = world2B.xform(rel_pos2.cross(-m_linearJointAxis));
 		m_0MinvJt = inertiaInvA * m_aJ;
@@ -267,6 +268,8 @@ void VehicleWheel::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_roll_influence", "roll_influence"), &VehicleWheel::set_roll_influence);
 	ClassDB::bind_method(D_METHOD("get_roll_influence"), &VehicleWheel::get_roll_influence);
 
+	ClassDB::bind_method(D_METHOD("get_skidinfo"), &VehicleWheel::get_skidinfo);
+
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_as_traction"), "set_use_as_traction", "is_used_as_traction");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_as_steering"), "set_use_as_steering", "is_used_as_steering");
 	ADD_GROUP("Wheel", "wheel_");
@@ -301,6 +304,11 @@ void VehicleWheel::set_use_as_steering(bool p_enabled) {
 bool VehicleWheel::is_used_as_steering() const {
 
 	return steers;
+}
+
+float VehicleWheel::get_skidinfo() const {
+
+	return m_skidInfo;
 }
 
 VehicleWheel::VehicleWheel() {
@@ -367,7 +375,7 @@ void VehicleBody::_update_wheel(int p_idx, PhysicsDirectBodyState *s) {
 
 	Basis steeringMat(up, steering);
 
-	Basis rotatingMat(right, -wheel.m_rotation);
+	Basis rotatingMat(right, wheel.m_rotation);
 
 	/*
 	if (p_idx==1)
@@ -564,7 +572,7 @@ void VehicleBody::_resolve_single_bilateral(PhysicsDirectBodyState *s, const Vec
 			b2invmass);
 
 	// FIXME: rel_vel assignment here is overwritten by the following assignment.
-	// What seemes to be intented in the next next assignment is: rel_vel = normal.dot(rel_vel);
+	// What seemes to be intended in the next next assignment is: rel_vel = normal.dot(rel_vel);
 	// Investigate why.
 	real_t rel_vel = jac.getRelativeVelocity(
 			s->get_linear_velocity(),
@@ -586,12 +594,12 @@ void VehicleBody::_resolve_single_bilateral(PhysicsDirectBodyState *s, const Vec
 #endif
 }
 
-VehicleBody::btVehicleWheelContactPoint::btVehicleWheelContactPoint(PhysicsDirectBodyState *s, PhysicsBody *body1, const Vector3 &frictionPosWorld, const Vector3 &frictionDirectionWorld, real_t maxImpulse)
-	: m_s(s),
-	  m_body1(body1),
-	  m_frictionPositionWorld(frictionPosWorld),
-	  m_frictionDirectionWorld(frictionDirectionWorld),
-	  m_maxImpulse(maxImpulse) {
+VehicleBody::btVehicleWheelContactPoint::btVehicleWheelContactPoint(PhysicsDirectBodyState *s, PhysicsBody *body1, const Vector3 &frictionPosWorld, const Vector3 &frictionDirectionWorld, real_t maxImpulse) :
+		m_s(s),
+		m_body1(body1),
+		m_frictionPositionWorld(frictionPosWorld),
+		m_frictionDirectionWorld(frictionDirectionWorld),
+		m_maxImpulse(maxImpulse) {
 	float denom0 = 0;
 	float denom1 = 0;
 
@@ -808,26 +816,24 @@ void VehicleBody::_update_friction(PhysicsDirectBodyState *s) {
 
 void VehicleBody::_direct_state_changed(Object *p_state) {
 
-	PhysicsDirectBodyState *s = Object::cast_to<PhysicsDirectBodyState>(p_state);
+	RigidBody::_direct_state_changed(p_state);
 
-	set_ignore_transform_notification(true);
-	set_global_transform(s->get_transform());
-	set_ignore_transform_notification(false);
+	state = Object::cast_to<PhysicsDirectBodyState>(p_state);
 
-	float step = s->get_step();
+	float step = state->get_step();
 
 	for (int i = 0; i < wheels.size(); i++) {
 
-		_update_wheel(i, s);
+		_update_wheel(i, state);
 	}
 
 	for (int i = 0; i < wheels.size(); i++) {
 
-		_ray_cast(i, s);
-		wheels[i]->set_transform(s->get_transform().inverse() * wheels[i]->m_worldTransform);
+		_ray_cast(i, state);
+		wheels[i]->set_transform(state->get_transform().inverse() * wheels[i]->m_worldTransform);
 	}
 
-	_update_suspension(s);
+	_update_suspension(state);
 
 	for (int i = 0; i < wheels.size(); i++) {
 
@@ -840,21 +846,21 @@ void VehicleBody::_direct_state_changed(Object *p_state) {
 			suspensionForce = wheel.m_maxSuspensionForce;
 		}
 		Vector3 impulse = wheel.m_raycastInfo.m_contactNormalWS * suspensionForce * step;
-		Vector3 relpos = wheel.m_raycastInfo.m_contactPointWS - s->get_transform().origin;
+		Vector3 relpos = wheel.m_raycastInfo.m_contactPointWS - state->get_transform().origin;
 
-		s->apply_impulse(relpos, impulse);
+		state->apply_impulse(relpos, impulse);
 		//getRigidBody()->applyImpulse(impulse, relpos);
 	}
 
-	_update_friction(s);
+	_update_friction(state);
 
 	for (int i = 0; i < wheels.size(); i++) {
 		VehicleWheel &wheel = *wheels[i];
-		Vector3 relpos = wheel.m_raycastInfo.m_hardPointWS - s->get_transform().origin;
-		Vector3 vel = s->get_linear_velocity() + (s->get_angular_velocity()).cross(relpos); // * mPos);
+		Vector3 relpos = wheel.m_raycastInfo.m_hardPointWS - state->get_transform().origin;
+		Vector3 vel = state->get_linear_velocity() + (state->get_angular_velocity()).cross(relpos); // * mPos);
 
 		if (wheel.m_raycastInfo.m_isInContact) {
-			const Transform &chassisWorldTransform = s->get_transform();
+			const Transform &chassisWorldTransform = state->get_transform();
 
 			Vector3 fwd(
 					chassisWorldTransform.basis[0][Vector3::AXIS_Z],
@@ -875,29 +881,8 @@ void VehicleBody::_direct_state_changed(Object *p_state) {
 
 		wheel.m_deltaRotation *= real_t(0.99); //damping of rotation when not in contact
 	}
-	linear_velocity = s->get_linear_velocity();
-}
 
-void VehicleBody::set_mass(real_t p_mass) {
-
-	mass = p_mass;
-	PhysicsServer::get_singleton()->body_set_param(get_rid(), PhysicsServer::BODY_PARAM_MASS, mass);
-}
-
-real_t VehicleBody::get_mass() const {
-
-	return mass;
-}
-
-void VehicleBody::set_friction(real_t p_friction) {
-
-	friction = p_friction;
-	PhysicsServer::get_singleton()->body_set_param(get_rid(), PhysicsServer::BODY_PARAM_FRICTION, friction);
-}
-
-real_t VehicleBody::get_friction() const {
-
-	return friction;
+	state = NULL;
 }
 
 void VehicleBody::set_engine_force(float p_engine_force) {
@@ -928,17 +913,7 @@ float VehicleBody::get_steering() const {
 	return m_steeringValue;
 }
 
-Vector3 VehicleBody::get_linear_velocity() const {
-	return linear_velocity;
-}
-
 void VehicleBody::_bind_methods() {
-
-	ClassDB::bind_method(D_METHOD("set_mass", "mass"), &VehicleBody::set_mass);
-	ClassDB::bind_method(D_METHOD("get_mass"), &VehicleBody::get_mass);
-
-	ClassDB::bind_method(D_METHOD("set_friction", "friction"), &VehicleBody::set_friction);
-	ClassDB::bind_method(D_METHOD("get_friction"), &VehicleBody::get_friction);
 
 	ClassDB::bind_method(D_METHOD("set_engine_force", "engine_force"), &VehicleBody::set_engine_force);
 	ClassDB::bind_method(D_METHOD("get_engine_force"), &VehicleBody::get_engine_force);
@@ -949,21 +924,14 @@ void VehicleBody::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_steering", "steering"), &VehicleBody::set_steering);
 	ClassDB::bind_method(D_METHOD("get_steering"), &VehicleBody::get_steering);
 
-	ClassDB::bind_method(D_METHOD("get_linear_velocity"), &VehicleBody::get_linear_velocity);
-
-	ClassDB::bind_method(D_METHOD("_direct_state_changed"), &VehicleBody::_direct_state_changed);
-
 	ADD_GROUP("Motion", "");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "engine_force", PROPERTY_HINT_RANGE, "0.00,1024.0,0.01"), "set_engine_force", "get_engine_force");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "brake", PROPERTY_HINT_RANGE, "0.0,1.0,0.01"), "set_brake", "get_brake");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "steering", PROPERTY_HINT_RANGE, "-180,180.0,0.01"), "set_steering", "get_steering");
-	ADD_GROUP("Mass", "");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "mass", PROPERTY_HINT_RANGE, "0.01,65536,0.01"), "set_mass", "get_mass");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "friction", PROPERTY_HINT_RANGE, "0.01,1,0.01"), "set_friction", "get_friction");
 }
 
-VehicleBody::VehicleBody()
-	: PhysicsBody(PhysicsServer::BODY_MODE_RIGID) {
+VehicleBody::VehicleBody() :
+		RigidBody() {
 
 	m_pitchControl = 0;
 	m_currentVehicleSpeedKmHour = real_t(0.);
@@ -974,10 +942,11 @@ VehicleBody::VehicleBody()
 
 	friction = 1;
 
+	state = NULL;
 	ccd = false;
 
 	exclude.insert(get_rid());
-	PhysicsServer::get_singleton()->body_set_force_integration_callback(get_rid(), this, "_direct_state_changed");
+	//PhysicsServer::get_singleton()->body_set_force_integration_callback(get_rid(), this, "_direct_state_changed");
 
 	set_mass(40);
 }

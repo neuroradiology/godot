@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,18 +27,11 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "input_event.h"
 
 #include "input_map.h"
 #include "os/keyboard.h"
-
-void InputEvent::set_id(uint32_t p_id) {
-	id = p_id;
-}
-
-uint32_t InputEvent::get_id() const {
-	return id;
-}
 
 void InputEvent::set_device(int p_device) {
 	device = p_device;
@@ -99,9 +92,6 @@ bool InputEvent::is_action_type() const {
 
 void InputEvent::_bind_methods() {
 
-	ClassDB::bind_method(D_METHOD("set_id", "id"), &InputEvent::set_id);
-	ClassDB::bind_method(D_METHOD("get_id"), &InputEvent::get_id);
-
 	ClassDB::bind_method(D_METHOD("set_device", "device"), &InputEvent::set_device);
 	ClassDB::bind_method(D_METHOD("get_device"), &InputEvent::get_device);
 
@@ -125,7 +115,6 @@ void InputEvent::_bind_methods() {
 
 InputEvent::InputEvent() {
 
-	id = 0;
 	device = 0;
 }
 
@@ -175,6 +164,14 @@ void InputEventWithModifiers::set_command(bool p_enabled) {
 bool InputEventWithModifiers::get_command() const {
 
 	return command;
+}
+
+void InputEventWithModifiers::set_modifiers_from_event(const InputEventWithModifiers *event) {
+
+	set_alt(event->get_alt());
+	set_shift(event->get_shift());
+	set_control(event->get_control());
+	set_metakey(event->get_metakey());
 }
 
 void InputEventWithModifiers::_bind_methods() {
@@ -270,16 +267,16 @@ String InputEventKey::as_text() const {
 		return kc;
 
 	if (get_metakey()) {
-		kc = "Meta+" + kc;
+		kc = find_keycode_name(KEY_META) + ("+" + kc);
 	}
 	if (get_alt()) {
-		kc = "Alt+" + kc;
+		kc = find_keycode_name(KEY_ALT) + ("+" + kc);
 	}
 	if (get_shift()) {
-		kc = "Shift+" + kc;
+		kc = find_keycode_name(KEY_SHIFT) + ("+" + kc);
 	}
 	if (get_control()) {
-		kc = "Ctrl+" + kc;
+		kc = find_keycode_name(KEY_CONTROL) + ("+" + kc);
 	}
 	return kc;
 }
@@ -433,13 +430,9 @@ Ref<InputEvent> InputEventMouseButton::xformed_by(const Transform2D &p_xform, co
 	Ref<InputEventMouseButton> mb;
 	mb.instance();
 
-	mb->set_id(get_id());
 	mb->set_device(get_device());
 
-	mb->set_alt(get_alt());
-	mb->set_shift(get_shift());
-	mb->set_control(get_control());
-	mb->set_metakey(get_metakey());
+	mb->set_modifiers_from_event(this);
 
 	mb->set_position(l);
 	mb->set_global_position(g);
@@ -552,13 +545,9 @@ Ref<InputEvent> InputEventMouseMotion::xformed_by(const Transform2D &p_xform, co
 	Ref<InputEventMouseMotion> mm;
 	mm.instance();
 
-	mm->set_id(get_id());
 	mm->set_device(get_device());
 
-	mm->set_alt(get_alt());
-	mm->set_shift(get_shift());
-	mm->set_control(get_control());
-	mm->set_metakey(get_metakey());
+	mm->set_modifiers_from_event(this);
 
 	mm->set_position(l);
 	mm->set_global_position(g);
@@ -637,7 +626,7 @@ bool InputEventJoypadMotion::action_match(const Ref<InputEvent> &p_event) const 
 	if (jm.is_null())
 		return false;
 
-	return (axis == jm->axis && (axis_value < 0) == (jm->axis_value < 0));
+	return (axis == jm->axis && ((axis_value < 0) == (jm->axis_value < 0) || jm->axis_value == 0));
 }
 
 String InputEventJoypadMotion::as_text() const {
@@ -762,7 +751,6 @@ Ref<InputEvent> InputEventScreenTouch::xformed_by(const Transform2D &p_xform, co
 
 	Ref<InputEventScreenTouch> st;
 	st.instance();
-	st->set_id(get_id());
 	st->set_device(get_device());
 	st->set_index(index);
 	st->set_position(p_xform.xform(pos + p_local_ofs));
@@ -843,7 +831,6 @@ Ref<InputEvent> InputEventScreenDrag::xformed_by(const Transform2D &p_xform, con
 
 	sd.instance();
 
-	sd->set_id(get_id());
 	sd->set_device(get_device());
 
 	sd->set_index(index);
@@ -929,4 +916,98 @@ void InputEventAction::_bind_methods() {
 
 InputEventAction::InputEventAction() {
 	pressed = false;
+}
+/////////////////////////////
+
+void InputEventGesture::set_position(const Vector2 &p_pos) {
+
+	pos = p_pos;
+}
+
+void InputEventGesture::_bind_methods() {
+
+	ClassDB::bind_method(D_METHOD("set_position", "position"), &InputEventGesture::set_position);
+	ClassDB::bind_method(D_METHOD("get_position"), &InputEventGesture::get_position);
+
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "position"), "set_position", "get_position");
+}
+
+Vector2 InputEventGesture::get_position() const {
+
+	return pos;
+}
+/////////////////////////////
+
+void InputEventMagnifyGesture::set_factor(real_t p_factor) {
+
+	factor = p_factor;
+}
+
+real_t InputEventMagnifyGesture::get_factor() const {
+
+	return factor;
+}
+
+Ref<InputEvent> InputEventMagnifyGesture::xformed_by(const Transform2D &p_xform, const Vector2 &p_local_ofs) const {
+
+	Ref<InputEventMagnifyGesture> ev;
+	ev.instance();
+
+	ev->set_device(get_device());
+	ev->set_modifiers_from_event(this);
+
+	ev->set_position(p_xform.xform(get_position() + p_local_ofs));
+	ev->set_factor(get_factor());
+
+	return ev;
+}
+
+void InputEventMagnifyGesture::_bind_methods() {
+
+	ClassDB::bind_method(D_METHOD("set_factor", "factor"), &InputEventMagnifyGesture::set_factor);
+	ClassDB::bind_method(D_METHOD("get_factor"), &InputEventMagnifyGesture::get_factor);
+
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "factor"), "set_factor", "get_factor");
+}
+
+InputEventMagnifyGesture::InputEventMagnifyGesture() {
+
+	factor = 1.0;
+}
+/////////////////////////////
+
+void InputEventPanGesture::set_delta(const Vector2 &p_delta) {
+
+	delta = p_delta;
+}
+
+Vector2 InputEventPanGesture::get_delta() const {
+	return delta;
+}
+
+Ref<InputEvent> InputEventPanGesture::xformed_by(const Transform2D &p_xform, const Vector2 &p_local_ofs) const {
+
+	Ref<InputEventPanGesture> ev;
+	ev.instance();
+
+	ev->set_device(get_device());
+	ev->set_modifiers_from_event(this);
+
+	ev->set_position(p_xform.xform(get_position() + p_local_ofs));
+	ev->set_delta(get_delta());
+
+	return ev;
+}
+
+void InputEventPanGesture::_bind_methods() {
+
+	ClassDB::bind_method(D_METHOD("set_delta", "delta"), &InputEventPanGesture::set_delta);
+	ClassDB::bind_method(D_METHOD("get_delta"), &InputEventPanGesture::get_delta);
+
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "delta"), "set_delta", "get_delta");
+}
+
+InputEventPanGesture::InputEventPanGesture() {
+
+	delta = Vector2(0, 0);
 }

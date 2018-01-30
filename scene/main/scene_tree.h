@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef SCENE_MAIN_LOOP_H
 #define SCENE_MAIN_LOOP_H
 
@@ -105,11 +106,10 @@ private:
 	Viewport *root;
 
 	uint64_t tree_version;
-	float fixed_process_time;
+	float physics_process_time;
 	float idle_process_time;
 	bool accept_quit;
 	bool quit_on_go_back;
-	uint32_t last_id;
 
 #ifdef DEBUG_ENABLED
 	bool debug_collisions_hint;
@@ -122,11 +122,15 @@ private:
 	bool _quit;
 	bool initialized;
 	bool input_handled;
+
 	Size2 last_screen_size;
 	StringName tree_changed_name;
+	StringName node_added_name;
 	StringName node_removed_name;
 
+	bool use_font_oversampling;
 	int64_t current_frame;
+	int64_t current_event;
 	int node_count;
 
 #ifdef TOOLS_ENABLED
@@ -147,7 +151,7 @@ private:
 	StretchMode stretch_mode;
 	StretchAspect stretch_aspect;
 	Size2i stretch_min;
-	int stretch_shrink;
+	real_t stretch_shrink;
 
 	void _update_root_rect();
 
@@ -156,7 +160,6 @@ private:
 	Map<UGCall, Vector<Variant> > unique_group_calls;
 	bool ugc_locked;
 	void _flush_ugc();
-	void _flush_transform_notifications();
 
 	_FORCE_INLINE_ void _update_group_order(Group &g);
 	void _update_listener();
@@ -233,6 +236,7 @@ private:
 	void _rpc(Node *p_from, int p_to, bool p_unreliable, bool p_set, const StringName &p_name, const Variant **p_arg, int p_argcount);
 
 	void tree_changed();
+	void node_added(Node *p_node);
 	void node_removed(Node *p_node);
 
 	Group *add_to_group(const StringName &p_group, Node *p_node);
@@ -322,7 +326,7 @@ public:
 		NOTIFICATION_TRANSFORM_CHANGED = 29
 	};
 
-	enum CallGroupFlags {
+	enum GroupCallFlags {
 		GROUP_CALL_DEFAULT = 0,
 		GROUP_CALL_REVERSE = 1,
 		GROUP_CALL_REALTIME = 2,
@@ -332,8 +336,6 @@ public:
 
 	_FORCE_INLINE_ Viewport *get_root() const { return root; }
 
-	uint32_t get_last_event_id() const;
-
 	void call_group_flags(uint32_t p_call_flags, const StringName &p_group, const StringName &p_function, VARIANT_ARG_LIST);
 	void notify_group_flags(uint32_t p_call_flags, const StringName &p_group, int p_notification);
 	void set_group_flags(uint32_t p_call_flags, const StringName &p_group, const String &p_name, const Variant &p_value);
@@ -341,6 +343,8 @@ public:
 	void call_group(const StringName &p_group, const StringName &p_function, VARIANT_ARG_LIST);
 	void notify_group(const StringName &p_group, int p_notification);
 	void set_group(const StringName &p_group, const String &p_name, const Variant &p_value);
+
+	void flush_transform_notifications();
 
 	virtual void input_text(const String &p_text);
 	virtual void input_event(const Ref<InputEvent> &p_event);
@@ -358,7 +362,7 @@ public:
 
 	void set_input_as_handled();
 	bool is_input_handled();
-	_FORCE_INLINE_ float get_fixed_process_time() const { return fixed_process_time; }
+	_FORCE_INLINE_ float get_physics_process_time() const { return physics_process_time; }
 	_FORCE_INLINE_ float get_idle_process_time() const { return idle_process_time; }
 
 #ifdef TOOLS_ENABLED
@@ -407,6 +411,7 @@ public:
 	int get_collision_debug_contact_count() { return collision_debug_contacts; }
 
 	int64_t get_frame() const;
+	int64_t get_event_count() const;
 
 	int get_node_count() const;
 
@@ -415,10 +420,13 @@ public:
 	void get_nodes_in_group(const StringName &p_group, List<Node *> *p_list);
 	bool has_group(const StringName &p_identifier) const;
 
-	void set_screen_stretch(StretchMode p_mode, StretchAspect p_aspect, const Size2 p_minsize, int p_shrink = 1);
+	void set_screen_stretch(StretchMode p_mode, StretchAspect p_aspect, const Size2 p_minsize, real_t p_shrink = 1);
 
-//void change_scene(const String& p_path);
-//Node *get_loaded_scene();
+	void set_use_font_oversampling(bool p_oversampling);
+	bool is_using_font_oversampling() const;
+
+	//void change_scene(const String& p_path);
+	//Node *get_loaded_scene();
 
 #ifdef TOOLS_ENABLED
 	void set_edited_scene_root(Node *p_node);
@@ -443,6 +451,7 @@ public:
 	//network API
 
 	void set_network_peer(const Ref<NetworkedMultiplayerPeer> &p_network_peer);
+	Ref<NetworkedMultiplayerPeer> get_network_peer() const;
 	bool is_network_server() const;
 	bool has_network_peer() const;
 	int get_network_unique_id() const;
@@ -459,6 +468,6 @@ public:
 
 VARIANT_ENUM_CAST(SceneTree::StretchMode);
 VARIANT_ENUM_CAST(SceneTree::StretchAspect);
-VARIANT_ENUM_CAST(SceneTree::CallGroupFlags);
+VARIANT_ENUM_CAST(SceneTree::GroupCallFlags);
 
 #endif

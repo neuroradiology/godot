@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef PARALLAX_BACKGROUND_H
 #define PARALLAX_BACKGROUND_H
 
@@ -42,6 +43,7 @@ class ParallaxBackground : public CanvasLayer {
 	float scale;
 	Point2 base_offset;
 	Point2 base_scale;
+	Point2 screen_offset;
 	String group_name;
 	Point2 limit_begin;
 	Point2 limit_end;
@@ -51,7 +53,7 @@ class ParallaxBackground : public CanvasLayer {
 	void _update_scroll();
 
 protected:
-	void _camera_moved(const Transform2D &p_transform);
+	void _camera_moved(const Transform2D &p_transform, const Point2 &p_screen_offset);
 
 	void _notification(int p_what);
 	static void _bind_methods();

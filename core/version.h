@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,11 +27,12 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "version_generated.gen.h"
 
 #ifdef VERSION_PATCH
-#define VERSION_MKSTRING "" _MKSTR(VERSION_MAJOR) "." _MKSTR(VERSION_MINOR) "." _MKSTR(VERSION_PATCH) "." _MKSTR(VERSION_STATUS) "." _MKSTR(VERSION_REVISION)
+#define VERSION_MKSTRING "" _MKSTR(VERSION_MAJOR) "." _MKSTR(VERSION_MINOR) "." _MKSTR(VERSION_PATCH) "." VERSION_STATUS "." VERSION_BUILD VERSION_MODULE_CONFIG
 #else
-#define VERSION_MKSTRING "" _MKSTR(VERSION_MAJOR) "." _MKSTR(VERSION_MINOR) "." _MKSTR(VERSION_STATUS) "." _MKSTR(VERSION_REVISION)
+#define VERSION_MKSTRING "" _MKSTR(VERSION_MAJOR) "." _MKSTR(VERSION_MINOR) "." VERSION_STATUS "." VERSION_BUILD VERSION_MODULE_CONFIG
 #endif // VERSION_PATCH
-#define VERSION_FULL_NAME "" _MKSTR(VERSION_NAME) " v" VERSION_MKSTRING
+#define VERSION_FULL_NAME "" VERSION_NAME " v" VERSION_MKSTRING

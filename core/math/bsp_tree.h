@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,14 +27,15 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef BSP_TREE_H
 #define BSP_TREE_H
 
+#include "aabb.h"
 #include "dvector.h"
 #include "face3.h"
 #include "method_ptrcall.h"
 #include "plane.h"
-#include "rect3.h"
 #include "variant.h"
 #include "vector.h"
 /**
@@ -64,7 +65,7 @@ private:
 
 	Vector<Node> nodes;
 	Vector<Plane> planes;
-	Rect3 aabb;
+	AABB aabb;
 	real_t error_radius;
 
 	int _get_points_inside(int p_node, const Vector3 *p_points, int *p_indices, const Vector3 &p_center, const Vector3 &p_half_extents, int p_indices_count) const;
@@ -76,7 +77,7 @@ public:
 	bool is_empty() const { return nodes.size() == 0; }
 	Vector<Node> get_nodes() const;
 	Vector<Plane> get_planes() const;
-	Rect3 get_aabb() const;
+	AABB get_aabb() const;
 
 	bool point_is_inside(const Vector3 &p_point) const;
 	int get_points_inside(const Vector3 *p_points, int p_point_count) const;
@@ -85,12 +86,12 @@ public:
 
 	operator Variant() const;
 
-	void from_aabb(const Rect3 &p_aabb);
+	void from_aabb(const AABB &p_aabb);
 
 	BSP_Tree();
 	BSP_Tree(const Variant &p_variant);
 	BSP_Tree(const PoolVector<Face3> &p_faces, real_t p_error_radius = 0);
-	BSP_Tree(const Vector<Node> &p_nodes, const Vector<Plane> &p_planes, const Rect3 &p_aabb, real_t p_error_radius = 0);
+	BSP_Tree(const Vector<Node> &p_nodes, const Vector<Plane> &p_planes, const AABB &p_aabb, real_t p_error_radius = 0);
 	~BSP_Tree();
 };
 

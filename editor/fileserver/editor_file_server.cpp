@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,10 +27,10 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "editor_file_server.h"
 
 #include "../editor_settings.h"
-#include "io/marshalls.h"
 #include "io/marshalls.h"
 
 //#define DEBUG_PRINT(m_p) print_line(m_p)
@@ -240,7 +240,7 @@ void EditorFileServer::_subthread_start(void *s) {
 				cd->files[id]->seek(offset);
 				Vector<uint8_t> buf;
 				buf.resize(blocklen);
-				int read = cd->files[id]->get_buffer(buf.ptr(), blocklen);
+				int read = cd->files[id]->get_buffer(buf.ptrw(), blocklen);
 				ERR_CONTINUE(read < 0);
 
 				print_line("GET BLOCK - offset: " + itos(offset) + ", blocklen: " + itos(blocklen));

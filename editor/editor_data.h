@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef EDITOR_DATA_H
 #define EDITOR_DATA_H
 
@@ -69,11 +70,11 @@ class EditorHistory {
 		Variant value;
 	};
 
-	void _cleanup_history();
-
 	void _add_object(ObjectID p_object, const String &p_property, int p_level_change);
 
 public:
+	void cleanup_history();
+
 	bool is_at_beginning() const;
 	bool is_at_end() const;
 
@@ -185,6 +186,7 @@ public:
 	String get_scene_title(int p_idx) const;
 	String get_scene_path(int p_idx) const;
 	String get_scene_type(int p_idx) const;
+	void set_scene_path(int p_idx, const String &p_path);
 	Ref<Script> get_scene_root_script(int p_idx) const;
 	void set_edited_scene_version(uint64_t version, int p_scene_idx = -1);
 	uint64_t get_edited_scene_version() const;
@@ -209,9 +211,10 @@ class EditorSelection : public Object {
 
 	GDCLASS(EditorSelection, Object);
 
-public:
+private:
 	Map<Node *, Object *> selection;
 
+	bool emitted;
 	bool changed;
 	bool nl_changed;
 
@@ -223,6 +226,7 @@ public:
 	void _update_nl();
 	Array _get_selected_nodes();
 	Array _get_transformable_selected_nodes();
+	void _emit_change();
 
 protected:
 	static void _bind_methods();

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef FILE_ACCESS_BUFFERED_FA_H
 #define FILE_ACCESS_BUFFERED_FA_H
 
@@ -55,10 +56,10 @@ class FileAccessBufferedFA : public FileAccessBuffered {
 
 			// on dvector
 			//PoolVector<uint8_t>::Write write = cache.buffer.write();
-			//f.get_buffer(write.ptr(), p_size);
+			//f.get_buffer(write.ptrw(), p_size);
 
 			// on vector
-			f.get_buffer(cache.buffer.ptr(), p_size);
+			f.get_buffer(cache.buffer.ptrw(), p_size);
 
 			return p_size;
 		};
@@ -76,6 +77,11 @@ protected:
 	};
 
 public:
+	void flush() {
+
+		f.flush();
+	};
+
 	void store_8(uint8_t p_dest) {
 
 		f.store_8(p_dest);

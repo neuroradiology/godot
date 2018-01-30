@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "tab_container.h"
 
 #include "message_queue.h"
@@ -90,19 +91,28 @@ void TabContainer::_gui_input(const Ref<InputEvent> &p_event) {
 			return;
 		}
 
+		// Do not activate tabs when tabs is empty
+		if (get_tab_count() == 0)
+			return;
+
 		Vector<Control *> tabs = _get_tabs();
 
 		// Handle navigation buttons.
 		if (buttons_visible_cache) {
+			int popup_ofs = 0;
+			if (popup) {
+				popup_ofs = menu->get_width();
+			}
+
 			Ref<Texture> increment = get_icon("increment");
 			Ref<Texture> decrement = get_icon("decrement");
-			if (pos.x > size.width - increment->get_width()) {
+			if (pos.x > size.width - increment->get_width() - popup_ofs) {
 				if (last_tab_cache < tabs.size() - 1) {
 					first_tab_cache += 1;
 					update();
 				}
 				return;
-			} else if (pos.x > size.width - increment->get_width() - decrement->get_width()) {
+			} else if (pos.x > size.width - increment->get_width() - decrement->get_width() - popup_ofs) {
 				if (first_tab_cache > 0) {
 					first_tab_cache -= 1;
 					update();
@@ -264,9 +274,9 @@ void TabContainer::_notification(int p_what) {
 			if (popup) {
 				x -= menu->get_width();
 				if (mouse_x_cache > x)
-					menu_hl->draw(get_canvas_item(), Size2(x, 0));
+					menu_hl->draw(get_canvas_item(), Size2(x, (header_height - menu_hl->get_height()) / 2));
 				else
-					menu->draw(get_canvas_item(), Size2(x, 0));
+					menu->draw(get_canvas_item(), Size2(x, (header_height - menu->get_height()) / 2));
 			}
 
 			// Draw the navigation buttons.
@@ -285,14 +295,20 @@ void TabContainer::_notification(int p_what) {
 			}
 		} break;
 		case NOTIFICATION_THEME_CHANGED: {
-			if (get_tab_count() > 0) {
-				call_deferred("set_current_tab", get_current_tab()); //wait until all changed theme
-			}
+			call_deferred("_on_theme_changed"); //wait until all changed theme
 		} break;
 	}
 }
 
+void TabContainer::_on_theme_changed() {
+	if (get_tab_count() > 0) {
+		set_current_tab(get_current_tab());
+	}
+}
+
 int TabContainer::_get_tab_width(int p_index) const {
+
+	ERR_FAIL_INDEX_V(p_index, get_tab_count(), 0);
 	Control *control = Object::cast_to<Control>(_get_tabs()[p_index]);
 	if (!control || control->is_set_as_toplevel())
 		return 0;
@@ -647,6 +663,7 @@ void TabContainer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_popup"), &TabContainer::get_popup);
 
 	ClassDB::bind_method(D_METHOD("_child_renamed_callback"), &TabContainer::_child_renamed_callback);
+	ClassDB::bind_method(D_METHOD("_on_theme_changed"), &TabContainer::_on_theme_changed);
 
 	ADD_SIGNAL(MethodInfo("tab_changed", PropertyInfo(Variant::INT, "tab")));
 	ADD_SIGNAL(MethodInfo("tab_selected", PropertyInfo(Variant::INT, "tab")));
@@ -664,6 +681,7 @@ void TabContainer::_bind_methods() {
 TabContainer::TabContainer() {
 
 	first_tab_cache = 0;
+	last_tab_cache = 0;
 	buttons_visible_cache = false;
 	tabs_ofs_cache = 0;
 	current = 0;

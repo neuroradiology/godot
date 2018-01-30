@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "resource_preloader_editor_plugin.h"
 
 #include "editor/editor_settings.h"
@@ -38,12 +39,12 @@ void ResourcePreloaderEditor::_gui_input(Ref<InputEvent> p_event) {
 
 void ResourcePreloaderEditor::_notification(int p_what) {
 
-	if (p_what == NOTIFICATION_FIXED_PROCESS) {
+	if (p_what == NOTIFICATION_PHYSICS_PROCESS) {
 	}
 
 	if (p_what == NOTIFICATION_ENTER_TREE) {
 		load->set_icon(get_icon("Folder", "EditorIcons"));
-		_delete->set_icon(get_icon("Del", "EditorIcons"));
+		_delete->set_icon(get_icon("Remove", "EditorIcons"));
 	}
 
 	if (p_what == NOTIFICATION_READY) {
@@ -248,7 +249,7 @@ void ResourcePreloaderEditor::edit(ResourcePreloader *p_preloader) {
 	} else {
 
 		hide();
-		set_fixed_process(false);
+		set_physics_process(false);
 	}
 }
 
@@ -444,7 +445,7 @@ ResourcePreloaderEditorPlugin::ResourcePreloaderEditorPlugin(EditorNode *p_node)
 	preloader_editor = memnew(ResourcePreloaderEditor);
 	preloader_editor->set_custom_minimum_size(Size2(0, 250));
 
-	button = editor->add_bottom_panel_item("ResourcePreloader", preloader_editor);
+	button = editor->add_bottom_panel_item(TTR("ResourcePreloader"), preloader_editor);
 	button->hide();
 
 	//preloader_editor->set_anchor( MARGIN_TOP, Control::ANCHOR_END);

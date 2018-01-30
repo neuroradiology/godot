@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,10 +27,12 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef EDITOR_PLUGIN_H
 #define EDITOR_PLUGIN_H
 
 #include "editor/import/editor_import_plugin.h"
+#include "editor/import/resource_importer_scene.h"
 #include "io/config_file.h"
 #include "scene/gui/tool_button.h"
 #include "scene/main/node.h"
@@ -75,6 +77,9 @@ public:
 	Array get_open_scenes() const;
 	ScriptEditor *get_script_editor();
 
+	void select_file(const String &p_file);
+	String get_selected_path() const;
+
 	void inspect_object(Object *p_obj, const String &p_for_property = String());
 
 	EditorSelection *get_selection();
@@ -102,6 +107,7 @@ class EditorPlugin : public Node {
 	UndoRedo *_get_undo_redo() { return undo_redo; }
 
 	bool input_event_forwarding_always_enabled;
+	bool force_draw_over_forwarding_enabled;
 
 	String last_main_screen_name;
 
@@ -151,15 +157,20 @@ public:
 	void set_input_event_forwarding_always_enabled();
 	bool is_input_event_forwarding_always_enabled() { return input_event_forwarding_always_enabled; }
 
+	void set_force_draw_over_forwarding_enabled();
+	bool is_force_draw_over_forwarding_enabled() { return force_draw_over_forwarding_enabled; }
+
 	void notify_main_screen_changed(const String &screen_name);
 	void notify_scene_changed(const Node *scn_root);
 	void notify_scene_closed(const String &scene_filepath);
 
 	virtual Ref<SpatialEditorGizmo> create_spatial_gizmo(Spatial *p_spatial);
-	virtual bool forward_canvas_gui_input(const Transform2D &p_canvas_xform, const Ref<InputEvent> &p_event);
-	virtual void forward_draw_over_canvas(const Transform2D &p_canvas_xform, Control *p_canvas);
+	virtual bool forward_canvas_gui_input(const Ref<InputEvent> &p_event);
+	virtual void forward_draw_over_viewport(Control *p_overlay);
+	virtual void forward_force_draw_over_viewport(Control *p_overlay);
 	virtual bool forward_spatial_gui_input(Camera *p_camera, const Ref<InputEvent> &p_event);
 	virtual String get_name() const;
+	virtual const Ref<Texture> get_icon() const;
 	virtual bool has_main_screen() const;
 	virtual void make_visible(bool p_visible);
 	virtual void selected_notify() {} //notify that it was raised by the user, not the editor
@@ -167,7 +178,7 @@ public:
 	virtual bool handles(Object *p_object) const;
 	virtual Dictionary get_state() const; //save editor state so it can't be reloaded when reloading scene
 	virtual void set_state(const Dictionary &p_state); //restore editor state (likely was saved with the scene)
-	virtual void clear(); // clear any temporary data in te editor, reset it (likely new scene or load another scene)
+	virtual void clear(); // clear any temporary data in the editor, reset it (likely new scene or load another scene)
 	virtual void save_external_data(); // if editor references external resources/scenes, save them
 	virtual void apply_changes(); // if changes are pending in editor, apply them
 	virtual void get_breakpoints(List<String> *p_breakpoints);
@@ -178,7 +189,7 @@ public:
 
 	EditorInterface *get_editor_interface();
 
-	void update_canvas();
+	int update_overlays() const;
 
 	void queue_save_layout() const;
 
@@ -193,6 +204,9 @@ public:
 
 	void add_export_plugin(const Ref<EditorExportPlugin> &p_exporter);
 	void remove_export_plugin(const Ref<EditorExportPlugin> &p_exporter);
+
+	void add_scene_import_plugin(const Ref<EditorSceneImporter> &p_importer);
+	void remove_scene_import_plugin(const Ref<EditorSceneImporter> &p_importer);
 
 	EditorPlugin();
 	virtual ~EditorPlugin();

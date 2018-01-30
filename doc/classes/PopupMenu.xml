@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="PopupMenu" inherits="Popup" category="Core" version="3.0.alpha.custom_build">
+<class name="PopupMenu" inherits="Popup" category="Core" version="3.0-stable">
 	<brief_description>
 		PopupMenu displays a list of options.
 	</brief_description>
@@ -233,20 +233,6 @@
 			<description>
 			</description>
 		</method>
-		<method name="is_hide_on_checkable_item_selection">
-			<return type="bool">
-			</return>
-			<description>
-				Returns a boolean that indicates whether or not the PopupMenu will hide on checkable item selection.
-			</description>
-		</method>
-		<method name="is_hide_on_item_selection">
-			<return type="bool">
-			</return>
-			<description>
-				Returns a boolean that indicates whether or not the PopupMenu will hide on item selection.
-			</description>
-		</method>
 		<method name="is_item_checkable" qualifiers="const">
 			<return type="bool">
 			</return>
@@ -280,7 +266,7 @@
 			<argument index="0" name="idx" type="int">
 			</argument>
 			<description>
-				Return whether the item is a seperator. If it is, it would be displayed as a line.
+				Return whether the item is a separator. If it is, it would be displayed as a line.
 			</description>
 		</method>
 		<method name="remove_item">
@@ -290,24 +276,6 @@
 			</argument>
 			<description>
 				Removes the item at index "idx" from the menu. Note that the indexes of items after the removed item are going to be shifted by one.
-			</description>
-		</method>
-		<method name="set_hide_on_checkable_item_selection">
-			<return type="void">
-			</return>
-			<argument index="0" name="enable" type="bool">
-			</argument>
-			<description>
-				Sets whether or not the PopupMenu will hide on checkable item selection.
-			</description>
-		</method>
-		<method name="set_hide_on_item_selection">
-			<return type="void">
-			</return>
-			<argument index="0" name="enable" type="bool">
-			</argument>
-			<description>
-				Sets whether or not the PopupMenu will hide on item selection.
 			</description>
 		</method>
 		<method name="set_item_accelerator">
@@ -340,7 +308,7 @@
 			<argument index="1" name="enable" type="bool">
 			</argument>
 			<description>
-				Mark the item at index "idx" as a seperator, which means that it would be displayed as a mere line.
+				Mark the item at index "idx" as a separator, which means that it would be displayed as a mere line.
 			</description>
 		</method>
 		<method name="set_item_checked">
@@ -397,6 +365,16 @@
 				Sets the metadata of an item, which might be of any type. You can later get it with [method get_item_metadata], which provides a simple way of assigning context data to items.
 			</description>
 		</method>
+		<method name="set_item_multistate">
+			<return type="void">
+			</return>
+			<argument index="0" name="idx" type="int">
+			</argument>
+			<argument index="1" name="state" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
 		<method name="set_item_shortcut">
 			<return type="void">
 			</return>
@@ -449,13 +427,21 @@
 			<description>
 			</description>
 		</method>
+		<method name="toggle_item_multistate">
+			<return type="void">
+			</return>
+			<argument index="0" name="idx" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
 	</methods>
 	<members>
 		<member name="hide_on_checkable_item_selection" type="bool" setter="set_hide_on_checkable_item_selection" getter="is_hide_on_checkable_item_selection">
 		</member>
 		<member name="hide_on_item_selection" type="bool" setter="set_hide_on_item_selection" getter="is_hide_on_item_selection">
 		</member>
-		<member name="items" type="Array" setter="_set_items" getter="_get_items">
+		<member name="hide_on_state_item_selection" type="bool" setter="set_hide_on_state_item_selection" getter="is_hide_on_state_item_selection">
 		</member>
 	</members>
 	<signals>

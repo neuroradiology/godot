@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -57,7 +57,7 @@
 			return m_val;                                                                   \
 	}
 
-_ALWAYS_INLINE_ uint32_t _atomic_conditional_increment_impl(register uint32_t *pw) {
+_ALWAYS_INLINE_ uint32_t _atomic_conditional_increment_impl(register uint32_t *pw){
 
 	ATOMIC_CONDITIONAL_INCREMENT_BODY(pw, LONG, InterlockedCompareExchange, uint32_t)
 }
@@ -82,12 +82,12 @@ _ALWAYS_INLINE_ uint32_t _atomic_add_impl(register uint32_t *pw, register uint32
 	return InterlockedAdd((LONG volatile *)pw, val);
 }
 
-_ALWAYS_INLINE_ uint32_t _atomic_exchange_if_greater_impl(register uint32_t *pw, register uint32_t val) {
+_ALWAYS_INLINE_ uint32_t _atomic_exchange_if_greater_impl(register uint32_t *pw, register uint32_t val){
 
 	ATOMIC_EXCHANGE_IF_GREATER_BODY(pw, val, LONG, InterlockedCompareExchange, uint32_t)
 }
 
-_ALWAYS_INLINE_ uint64_t _atomic_conditional_increment_impl(register uint64_t *pw) {
+_ALWAYS_INLINE_ uint64_t _atomic_conditional_increment_impl(register uint64_t *pw){
 
 	ATOMIC_CONDITIONAL_INCREMENT_BODY(pw, LONGLONG, InterlockedCompareExchange64, uint64_t)
 }
@@ -112,7 +112,7 @@ _ALWAYS_INLINE_ uint64_t _atomic_add_impl(register uint64_t *pw, register uint64
 	return InterlockedAdd64((LONGLONG volatile *)pw, val);
 }
 
-_ALWAYS_INLINE_ uint64_t _atomic_exchange_if_greater_impl(register uint64_t *pw, register uint64_t val) {
+_ALWAYS_INLINE_ uint64_t _atomic_exchange_if_greater_impl(register uint64_t *pw, register uint64_t val){
 
 	ATOMIC_EXCHANGE_IF_GREATER_BODY(pw, val, LONGLONG, InterlockedCompareExchange64, uint64_t)
 }

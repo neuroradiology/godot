@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef ANIMATION_PLAYER_H
 #define ANIMATION_PLAYER_H
 
@@ -38,13 +39,31 @@
 	@author Juan Linietsky <reduzio@gmail.com>
 */
 
+#ifdef TOOLS_ENABLED
+// To save/restore animated values
+class AnimatedValuesBackup {
+	struct Entry {
+		Object *object;
+		Vector<StringName> subpath; // Unused if bone
+		int bone_idx; // -1 if not a bone
+		Variant value;
+	};
+	Vector<Entry> entries;
+
+	friend class AnimationPlayer;
+
+public:
+	void update_skeletons();
+};
+#endif
+
 class AnimationPlayer : public Node {
 	GDCLASS(AnimationPlayer, Node);
 	OBJ_CATEGORY("Animation Nodes");
 
 public:
 	enum AnimationProcessMode {
-		ANIMATION_PROCESS_FIXED,
+		ANIMATION_PROCESS_PHYSICS,
 		ANIMATION_PROCESS_IDLE,
 	};
 
@@ -83,7 +102,7 @@ private:
 
 			TrackNodeCache *owner;
 			SpecialProperty special; //small optimization
-			StringName prop;
+			Vector<StringName> subpath;
 			Object *object;
 			Variant value_accum;
 			uint64_t accum_pass;
@@ -187,6 +206,7 @@ private:
 
 	List<StringName> queued;
 
+	bool end_reached;
 	bool end_notify;
 
 	String autoplay;
@@ -198,7 +218,7 @@ private:
 
 	void _animation_process_animation(AnimationData *p_anim, float p_time, float p_delta, float p_interp, bool p_allow_discrete = true);
 
-	void _generate_node_caches(AnimationData *p_anim);
+	void _ensure_node_caches(AnimationData *p_anim);
 	void _animation_process_data(PlaybackData &cd, float p_delta, float p_blend);
 	void _animation_process2(float p_delta);
 	void _animation_update_transforms();
@@ -231,6 +251,7 @@ private:
 protected:
 	bool _set(const StringName &p_name, const Variant &p_value);
 	bool _get(const StringName &p_name, Variant &r_ret) const;
+	virtual void _validate_property(PropertyInfo &property) const;
 	void _get_property_list(List<PropertyInfo> *p_list) const;
 	void _notification(int p_what);
 
@@ -263,6 +284,8 @@ public:
 	bool is_playing() const;
 	String get_current_animation() const;
 	void set_current_animation(const String &p_anim);
+	String get_assigned_animation() const;
+	void set_assigned_animation(const String &p_anim);
 	void stop_all();
 	void set_active(bool p_active);
 	bool is_active() const;
@@ -290,6 +313,12 @@ public:
 	void clear_caches(); ///< must be called by hand if an animation was modified after added
 
 	void get_argument_options(const StringName &p_function, int p_idx, List<String> *r_options) const;
+
+#ifdef TOOLS_ENABLED
+	// These may be interesting for games, but are too dangerous for general use
+	AnimatedValuesBackup backup_animated_values();
+	void restore_animated_values(const AnimatedValuesBackup &p_backup);
+#endif
 
 	AnimationPlayer();
 	~AnimationPlayer();

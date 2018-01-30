@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "gdnative/dictionary.h"
 
 #include "core/variant.h"
@@ -37,8 +38,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-void _dictionary_api_anchor() {}
 
 void GDAPI godot_dictionary_new(godot_dictionary *r_dest) {
 	Dictionary *dest = (Dictionary *)r_dest;
@@ -128,6 +127,12 @@ godot_variant GDAPI *godot_dictionary_operator_index(godot_dictionary *p_self, c
 	Dictionary *self = (Dictionary *)p_self;
 	const Variant *key = (const Variant *)p_key;
 	return (godot_variant *)&self->operator[](*key);
+}
+
+const godot_variant GDAPI *godot_dictionary_operator_index_const(const godot_dictionary *p_self, const godot_variant *p_key) {
+	const Dictionary *self = (const Dictionary *)p_self;
+	const Variant *key = (const Variant *)p_key;
+	return (const godot_variant *)&self->operator[](*key);
 }
 
 godot_variant GDAPI *godot_dictionary_next(const godot_dictionary *p_self, const godot_variant *p_key) {

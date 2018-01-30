@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef OSUWP_H
 #define OSUWP_H
 
@@ -40,8 +41,6 @@
 #include "os/os.h"
 #include "power_uwp.h"
 #include "servers/audio_server.h"
-#include "servers/physics/physics_server_sw.h"
-#include "servers/physics_2d/physics_2d_server_sw.h"
 #include "servers/visual/rasterizer.h"
 #include "servers/visual_server.h"
 
@@ -94,8 +93,6 @@ private:
 	int old_x, old_y;
 	Point2i center;
 	VisualServer *visual_server;
-	PhysicsServer *physics_server;
-	Physics2DServer *physics_2d_server;
 	int pressrc;
 
 	ContextEGL *gl_context;
@@ -158,13 +155,11 @@ protected:
 	virtual int get_video_driver_count() const;
 	virtual const char *get_video_driver_name(int p_driver) const;
 
-	virtual VideoMode get_default_video_mode() const;
-
 	virtual int get_audio_driver_count() const;
 	virtual const char *get_audio_driver_name(int p_driver) const;
 
 	virtual void initialize_core();
-	virtual void initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver);
+	virtual Error initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver);
 
 	virtual void set_main_loop(MainLoop *p_main_loop);
 	virtual void delete_main_loop();
@@ -180,9 +175,6 @@ public:
 	// Event to send to the app wrapper
 	HANDLE mouse_mode_changed;
 
-	void print_error(const char *p_function, const char *p_file, int p_line, const char *p_code, const char *p_rationale, ErrorType p_type);
-
-	virtual void vprint(const char *p_format, va_list p_list, bool p_stderr = false);
 	virtual void alert(const String &p_alert, const String &p_title = "ALERT!");
 	String get_stdin_string(bool p_block);
 
@@ -217,7 +209,7 @@ public:
 	virtual void delay_usec(uint32_t p_usec) const;
 	virtual uint64_t get_ticks_usec() const;
 
-	virtual Error execute(const String &p_path, const List<String> &p_arguments, bool p_blocking, ProcessID *r_child_id = NULL, String *r_pipe = NULL, int *r_exitcode = NULL);
+	virtual Error execute(const String &p_path, const List<String> &p_arguments, bool p_blocking, ProcessID *r_child_id = NULL, String *r_pipe = NULL, int *r_exitcode = NULL, bool read_stderr = false);
 	virtual Error kill(const ProcessID &p_pid);
 
 	virtual bool has_environment(const String &p_var) const;
@@ -227,6 +219,7 @@ public:
 	virtual String get_clipboard() const;
 
 	void set_cursor_shape(CursorShape p_shape);
+	virtual void set_custom_mouse_cursor(const RES &p_cursor, CursorShape p_shape, const Vector2 &p_hotspot);
 	void set_icon(const Ref<Image> &p_icon);
 
 	virtual String get_executable_path() const;
@@ -234,7 +227,7 @@ public:
 	virtual String get_locale() const;
 
 	virtual void move_window_to_foreground();
-	virtual String get_data_dir() const;
+	virtual String get_user_data_dir() const;
 
 	virtual bool _check_internal_feature_support(const String &p_feature);
 
@@ -250,6 +243,10 @@ public:
 	virtual bool has_virtual_keyboard() const;
 	virtual void show_virtual_keyboard(const String &p_existing_text, const Rect2 &p_screen_rect = Rect2());
 	virtual void hide_virtual_keyboard();
+
+	virtual Error open_dynamic_library(const String p_path, void *&p_library_handle, bool p_also_set_library_path = false);
+	virtual Error close_dynamic_library(void *p_library_handle);
+	virtual Error get_dynamic_library_symbol_handle(void *p_library_handle, const String p_name, void *&p_symbol_handle, bool p_optional = false);
 
 	virtual Error shell_open(String p_uri);
 

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef SKELETON_H
 #define SKELETON_H
 
@@ -57,6 +58,8 @@ class Skeleton : public Spatial {
 		bool custom_pose_enable;
 		Transform custom_pose;
 
+		Transform transform_final;
+
 		List<uint32_t> nodes_bound;
 
 		Bone() {
@@ -80,12 +83,12 @@ class Skeleton : public Spatial {
 	Array _get_bound_child_nodes_to_bone(int p_bone) const {
 
 		Array bound;
-		List<Node *> childs;
-		get_bound_child_nodes_to_bone(p_bone, &childs);
+		List<Node *> children;
+		get_bound_child_nodes_to_bone(p_bone, &children);
 
-		for (int i = 0; i < childs.size(); i++) {
+		for (int i = 0; i < children.size(); i++) {
 
-			bound.push_back(childs[i]);
+			bound.push_back(children[i]);
 		}
 		return bound;
 	}

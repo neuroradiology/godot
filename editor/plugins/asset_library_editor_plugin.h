@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef ASSET_LIBRARY_EDITOR_PLUGIN_H
 #define ASSET_LIBRARY_EDITOR_PLUGIN_H
 
@@ -284,6 +285,7 @@ class EditorAssetLibrary : public PanelContainer {
 
 	void _search(int p_page = 0);
 	void _rerun_search(int p_ignore);
+	void _search_text_entered(const String &p_text = "");
 	void _api_request(const String &p_request, RequestType p_request_type, const String &p_arguments = "");
 	void _http_request_completed(int p_status, int p_code, const PoolStringArray &headers, const PoolByteArray &p_data);
 	void _http_download_completed(int p_status, int p_code, const PoolStringArray &headers, const PoolByteArray &p_data);
@@ -301,6 +303,8 @@ protected:
 	void _notification(int p_what);
 
 public:
+	void disable_community_support();
+
 	EditorAssetLibrary(bool p_templates_only = false);
 };
 

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="OptionButton" inherits="Button" category="Core" version="3.0.alpha.custom_build">
+<class name="OptionButton" inherits="Button" category="Core" version="3.0-stable">
 	<brief_description>
 		Button control that provides selectable options when pressed.
 	</brief_description>
@@ -46,7 +46,7 @@
 			<return type="void">
 			</return>
 			<description>
-				Clear all the items in the [OptionButton].
+				Clear all the items in the [code]OptionButton[/code].
 			</description>
 		</method>
 		<method name="get_item_count" qualifiers="const">
@@ -91,11 +91,11 @@
 				Return the text of the item at index "idx".
 			</description>
 		</method>
-		<method name="get_selected" qualifiers="const">
-			<return type="int">
+		<method name="get_popup" qualifiers="const">
+			<return type="PopupMenu">
 			</return>
 			<description>
-				Return the current item index
+				Return the [PopupMenu] contained in this button.
 			</description>
 		</method>
 		<method name="get_selected_id" qualifiers="const">
@@ -190,8 +190,6 @@
 		</method>
 	</methods>
 	<members>
-		<member name="items" type="Array" setter="_set_items" getter="_get_items">
-		</member>
 		<member name="selected" type="int" setter="_select_int" getter="get_selected">
 		</member>
 	</members>

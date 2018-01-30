@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="LargeTexture" inherits="Texture" category="Core" version="3.0.alpha.custom_build">
+<class name="LargeTexture" inherits="Texture" category="Core" version="3.0-stable">
 	<brief_description>
 		A Texture capable of storing many smaller Textures with offsets.
 	</brief_description>
 	<description>
 		A Texture capable of storing many smaller Textures with offsets.
-		You can dynamically add pieces(Textures) to this fLargeTexture] using different offsets.
+		You can dynamically add pieces([Texture]) to this [code]LargeTexture[/code] using different offsets.
 	</description>
 	<tutorials>
 	</tutorials>
@@ -20,21 +20,21 @@
 			<argument index="1" name="texture" type="Texture">
 			</argument>
 			<description>
-				Add another [Texture] to this [LargeTexture], starting on offset "ofs".
+				Add another [Texture] to this [code]LargeTexture[/code], starting on offset "ofs".
 			</description>
 		</method>
 		<method name="clear">
 			<return type="void">
 			</return>
 			<description>
-				Clear the [LargeTexture].
+				Clears the [code]LargeTexture[/code].
 			</description>
 		</method>
 		<method name="get_piece_count" qualifiers="const">
 			<return type="int">
 			</return>
 			<description>
-				Return the number of pieces currently in this [LargeTexture].
+				Returns the number of pieces currently in this [code]LargeTexture[/code].
 			</description>
 		</method>
 		<method name="get_piece_offset" qualifiers="const">
@@ -43,7 +43,7 @@
 			<argument index="0" name="idx" type="int">
 			</argument>
 			<description>
-				Return the offset of the piece with index "idx".
+				Returns the offset of the piece with index "idx".
 			</description>
 		</method>
 		<method name="get_piece_texture" qualifiers="const">
@@ -52,7 +52,7 @@
 			<argument index="0" name="idx" type="int">
 			</argument>
 			<description>
-				Return the [Texture] of the piece with index "idx".
+				Returns the [Texture] of the piece with index "idx".
 			</description>
 		</method>
 		<method name="set_piece_offset">
@@ -63,7 +63,7 @@
 			<argument index="1" name="ofs" type="Vector2">
 			</argument>
 			<description>
-				Set the offset of the piece with index "idx" to "ofs".
+				Sets the offset of the piece with index "idx" to "ofs".
 			</description>
 		</method>
 		<method name="set_piece_texture">
@@ -74,7 +74,7 @@
 			<argument index="1" name="texture" type="Texture">
 			</argument>
 			<description>
-				Set the [Texture] of the piece with index "idx" to  "ofs".
+				Sets the [Texture] of the piece with index "idx" to  "ofs".
 			</description>
 		</method>
 		<method name="set_size">
@@ -83,14 +83,10 @@
 			<argument index="0" name="size" type="Vector2">
 			</argument>
 			<description>
-				Set the size of this [LargeTexture].
+				Sets the size of this [code]LargeTexture[/code].
 			</description>
 		</method>
 	</methods>
-	<members>
-		<member name="_data" type="Array" setter="_set_data" getter="_get_data">
-		</member>
-	</members>
 	<constants>
 	</constants>
 </class>

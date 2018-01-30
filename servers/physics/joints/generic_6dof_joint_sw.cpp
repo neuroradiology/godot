@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -209,9 +209,11 @@ real_t G6DOFTranslationalLimitMotorSW::solveLinearAxis(
 
 //////////////////////////// G6DOFTranslationalLimitMotorSW ////////////////////////////////////
 
-Generic6DOFJointSW::Generic6DOFJointSW(BodySW *rbA, BodySW *rbB, const Transform &frameInA, const Transform &frameInB, bool useLinearReferenceFrameA)
-	: JointSW(_arr, 2), m_frameInA(frameInA), m_frameInB(frameInB),
-	  m_useLinearReferenceFrameA(useLinearReferenceFrameA) {
+Generic6DOFJointSW::Generic6DOFJointSW(BodySW *rbA, BodySW *rbB, const Transform &frameInA, const Transform &frameInB, bool useLinearReferenceFrameA) :
+		JointSW(_arr, 2),
+		m_frameInA(frameInA),
+		m_frameInB(frameInB),
+		m_useLinearReferenceFrameA(useLinearReferenceFrameA) {
 	A = rbA;
 	B = rbB;
 	A->add_constraint(this, 0);
@@ -219,9 +221,9 @@ Generic6DOFJointSW::Generic6DOFJointSW(BodySW *rbA, BodySW *rbB, const Transform
 }
 
 void Generic6DOFJointSW::calculateAngleInfo() {
-	Basis relative_frame = m_calculatedTransformA.basis.inverse() * m_calculatedTransformB.basis;
+	Basis relative_frame = m_calculatedTransformB.basis.inverse() * m_calculatedTransformA.basis;
 
-	m_calculatedAxisAngleDiff = relative_frame.get_euler();
+	m_calculatedAxisAngleDiff = relative_frame.get_euler_xyz();
 
 	// in euler angle mode we do not actually constrain the angular velocity
 	// along the axes axis[0] and axis[2] (although we do use axis[1]) :

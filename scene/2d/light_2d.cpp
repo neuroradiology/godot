@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,26 +27,27 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "light_2d.h"
 
 #include "engine.h"
 #include "servers/visual_server.h"
 
-void Light2D::edit_set_pivot(const Point2 &p_pivot) {
+void Light2D::_edit_set_pivot(const Point2 &p_pivot) {
 
 	set_texture_offset(p_pivot);
 }
 
-Point2 Light2D::edit_get_pivot() const {
+Point2 Light2D::_edit_get_pivot() const {
 
 	return get_texture_offset();
 }
-bool Light2D::edit_has_pivot() const {
+bool Light2D::_edit_use_pivot() const {
 
 	return true;
 }
 
-Rect2 Light2D::get_item_rect() const {
+Rect2 Light2D::_edit_get_rect() const {
 
 	if (texture.is_null())
 		return Rect2(0, 0, 1, 1);

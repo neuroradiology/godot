@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "translation.h"
 
 #include "io/resource_loader.h"
@@ -333,6 +334,7 @@ static const char *locale_list[] = {
 	"sq_KV", //  Albanian (Kosovo)
 	"sq_MK", //  Albanian (Macedonia)
 	"sr", //  Serbian
+	"sr_Cyrl", //  Serbian (Cyrillic)
 	"sr_ME", //  Serbian (Montenegro)
 	"sr_RS", //  Serbian (Serbia)
 	"ss_ZA", //  Swati (South Africa)
@@ -693,6 +695,7 @@ static const char *locale_names[] = {
 	"Albanian (Kosovo)",
 	"Albanian (Macedonia)",
 	"Serbian",
+	"Serbian (Cyrillic)",
 	"Serbian (Montenegro)",
 	"Serbian (Serbia)",
 	"Swati (South Africa)",
@@ -753,65 +756,17 @@ static const char *locale_names[] = {
 	0
 };
 
-bool TranslationServer::is_locale_valid(const String &p_locale) {
-
-	const char **ptr = locale_list;
-
-	while (*ptr) {
-
-		if (*ptr == p_locale)
-			return true;
-		ptr++;
-	}
-
-	return false;
-}
-
-Vector<String> TranslationServer::get_all_locales() {
-
-	Vector<String> locales;
-
-	const char **ptr = locale_list;
-
-	while (*ptr) {
-		locales.push_back(*ptr);
-		ptr++;
-	}
-
-	return locales;
-}
-
-Vector<String> TranslationServer::get_all_locale_names() {
-
-	Vector<String> locales;
-
-	const char **ptr = locale_names;
-
-	while (*ptr) {
-		locales.push_back(*ptr);
-		ptr++;
-	}
-
-	return locales;
-}
+static const char *locale_renames[][2] = {
+	{ "no", "nb" },
+	{ NULL, NULL }
+};
 
 static String get_trimmed_locale(const String &p_locale) {
 
 	return p_locale.substr(0, 2);
 }
 
-static bool is_valid_locale(const String &p_locale) {
-
-	const char **ptr = locale_list;
-
-	while (*ptr) {
-		if (p_locale == *ptr)
-			return true;
-		ptr++;
-	}
-
-	return false;
-}
+///////////////////////////////////////////////
 
 PoolVector<String> Translation::_get_messages() const {
 
@@ -857,14 +812,13 @@ void Translation::_set_messages(const PoolVector<String> &p_messages) {
 
 void Translation::set_locale(const String &p_locale) {
 
-	// replaces '-' with '_' for macOS Sierra-style locales
-	String univ_locale = p_locale.replace("-", "_");
+	String univ_locale = TranslationServer::standardize_locale(p_locale);
 
-	if (!is_valid_locale(univ_locale)) {
+	if (!TranslationServer::is_locale_valid(univ_locale)) {
 		String trimmed_locale = get_trimmed_locale(univ_locale);
 
-		ERR_EXPLAIN("Invalid Locale: " + trimmed_locale);
-		ERR_FAIL_COND(!is_valid_locale(trimmed_locale));
+		ERR_EXPLAIN("Invalid locale: " + trimmed_locale);
+		ERR_FAIL_COND(!TranslationServer::is_locale_valid(trimmed_locale));
 
 		locale = trimmed_locale;
 	} else {
@@ -919,26 +873,57 @@ void Translation::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_set_messages"), &Translation::_set_messages);
 	ClassDB::bind_method(D_METHOD("_get_messages"), &Translation::_get_messages);
 
-	ADD_PROPERTY(PropertyInfo(Variant::POOL_STRING_ARRAY, "messages", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "_set_messages", "_get_messages");
+	ADD_PROPERTY(PropertyInfo(Variant::POOL_STRING_ARRAY, "messages", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR | PROPERTY_USAGE_INTERNAL), "_set_messages", "_get_messages");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "locale"), "set_locale", "get_locale");
 }
 
-Translation::Translation()
-	: locale("en") {
+Translation::Translation() :
+		locale("en") {
 }
 
 ///////////////////////////////////////////////
 
-void TranslationServer::set_locale(const String &p_locale) {
+bool TranslationServer::is_locale_valid(const String &p_locale) {
 
-	// replaces '-' with '_' for macOS Sierra-style locales
+	const char **ptr = locale_list;
+
+	while (*ptr) {
+
+		if (*ptr == p_locale)
+			return true;
+		ptr++;
+	}
+
+	return false;
+}
+
+String TranslationServer::standardize_locale(const String &p_locale) {
+
+	// Replaces '-' with '_' for macOS Sierra-style locales
 	String univ_locale = p_locale.replace("-", "_");
 
-	if (!is_valid_locale(univ_locale)) {
+	// Handles known non-ISO locale names used e.g. on Windows
+	int idx = 0;
+	while (locale_renames[idx][0] != NULL) {
+		if (locale_renames[idx][0] == univ_locale) {
+			univ_locale = locale_renames[idx][1];
+			break;
+		}
+		idx++;
+	}
+
+	return univ_locale;
+}
+
+void TranslationServer::set_locale(const String &p_locale) {
+
+	String univ_locale = standardize_locale(p_locale);
+
+	if (!is_locale_valid(univ_locale)) {
 		String trimmed_locale = get_trimmed_locale(univ_locale);
 
-		ERR_EXPLAIN("Invalid Locale: " + trimmed_locale);
-		ERR_FAIL_COND(!is_valid_locale(trimmed_locale));
+		ERR_EXPLAIN("Invalid locale: " + trimmed_locale);
+		ERR_FAIL_COND(!is_locale_valid(trimmed_locale));
 
 		locale = trimmed_locale;
 	} else {
@@ -955,6 +940,40 @@ void TranslationServer::set_locale(const String &p_locale) {
 String TranslationServer::get_locale() const {
 
 	return locale;
+}
+
+String TranslationServer::get_locale_name(const String &p_locale) const {
+
+	if (!locale_name_map.has(p_locale)) return String();
+	return locale_name_map[p_locale];
+}
+
+Vector<String> TranslationServer::get_all_locales() {
+
+	Vector<String> locales;
+
+	const char **ptr = locale_list;
+
+	while (*ptr) {
+		locales.push_back(*ptr);
+		ptr++;
+	}
+
+	return locales;
+}
+
+Vector<String> TranslationServer::get_all_locale_names() {
+
+	Vector<String> locales;
+
+	const char **ptr = locale_names;
+
+	while (*ptr) {
+		locales.push_back(String::utf8(*ptr));
+		ptr++;
+	}
+
+	return locales;
 }
 
 void TranslationServer::add_translation(const Ref<Translation> &p_translation) {
@@ -1052,7 +1071,7 @@ TranslationServer *TranslationServer::singleton = NULL;
 
 bool TranslationServer::_load_translations(const String &p_from) {
 
-	if (ProjectSettings::get_singleton()->has(p_from)) {
+	if (ProjectSettings::get_singleton()->has_setting(p_from)) {
 		PoolVector<String> translations = ProjectSettings::get_singleton()->get(p_from);
 
 		int tcount = translations.size();
@@ -1122,6 +1141,8 @@ void TranslationServer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_locale", "locale"), &TranslationServer::set_locale);
 	ClassDB::bind_method(D_METHOD("get_locale"), &TranslationServer::get_locale);
 
+	ClassDB::bind_method(D_METHOD("get_locale_name", "locale"), &TranslationServer::get_locale_name);
+
 	ClassDB::bind_method(D_METHOD("translate", "message"), &TranslationServer::translate);
 
 	ClassDB::bind_method(D_METHOD("add_translation", "translation"), &TranslationServer::add_translation);
@@ -1143,8 +1164,13 @@ void TranslationServer::load_translations() {
 	}
 }
 
-TranslationServer::TranslationServer()
-	: locale("en"),
-	  enabled(true) {
+TranslationServer::TranslationServer() :
+		locale("en"),
+		enabled(true) {
 	singleton = this;
+
+	for (int i = 0; locale_list[i]; ++i) {
+
+		locale_name_map.insert(locale_list[i], String::utf8(locale_names[i]));
+	}
 }

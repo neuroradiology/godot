@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef EDITOR_FILE_SYSTEM_H
 #define EDITOR_FILE_SYSTEM_H
 
@@ -109,7 +110,7 @@ class EditorFileSystem : public Node {
 			ACTION_DIR_REMOVE,
 			ACTION_FILE_ADD,
 			ACTION_FILE_REMOVE,
-			ACTION_FILE_REIMPORT
+			ACTION_FILE_TEST_REIMPORT
 		};
 
 		Action action;
@@ -200,7 +201,7 @@ class EditorFileSystem : public Node {
 
 	void _reimport_file(const String &p_file);
 
-	bool _check_missing_imported_files(const String &p_path);
+	bool _test_for_reimport(const String &p_path, bool p_only_imported_files);
 
 	bool reimport_on_missing_imported_files;
 

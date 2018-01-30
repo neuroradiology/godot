@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "project_export.h"
 #include "compressed_translation.h"
 #include "editor_data.h"
@@ -71,7 +72,7 @@ void ProjectExportDialog::popup_export() {
 	_update_presets();
 
 	// Restore valid window bounds or pop up at default size.
-	if (EditorSettings::get_singleton()->has("interface/dialogs/export_bounds")) {
+	if (EditorSettings::get_singleton()->has_setting("interface/dialogs/export_bounds")) {
 		popup(EditorSettings::get_singleton()->get("interface/dialogs/export_bounds"));
 	} else {
 		popup_centered_ratio();
@@ -308,7 +309,7 @@ void ProjectExportDialog::_patch_button_pressed(Object *p_item, int p_column, in
 	if (p_id == 0) {
 		Vector<String> patches = current->get_patches();
 		ERR_FAIL_INDEX(patch_index, patches.size());
-		patch_erase->set_text(vformat(TTR("Delete patch '" + patches[patch_index].get_file() + "' from list?")));
+		patch_erase->set_text(vformat(TTR("Delete patch '%s' from list?"), patches[patch_index].get_file()));
 		patch_erase->popup_centered_minsize();
 	} else {
 		patch_dialog->popup_centered_ratio();
@@ -717,15 +718,22 @@ void ProjectExportDialog::_export_project() {
 
 	export_project->set_access(FileDialog::ACCESS_FILESYSTEM);
 	export_project->clear_filters();
-	String extension = platform->get_binary_extension();
+	export_project->set_current_file(default_filename);
+
+	String extension = platform->get_binary_extension(current);
+
 	if (extension != String()) {
 		export_project->add_filter("*." + extension + " ; " + platform->get_name() + " Export");
 	}
 
+	export_project->set_mode(FileDialog::MODE_SAVE_FILE);
 	export_project->popup_centered_ratio();
 }
 
 void ProjectExportDialog::_export_project_to_path(const String &p_path) {
+	// Save this name for use in future exports (but drop the file extension)
+	default_filename = p_path.get_basename().get_file();
+	EditorSettings::get_singleton()->set_project_metadata("export_options", "default_filename", default_filename);
 
 	Ref<EditorExportPreset> current = EditorExport::get_singleton()->get_export_preset(presets->get_current());
 	ERR_FAIL_COND(current.is_null());
@@ -733,8 +741,12 @@ void ProjectExportDialog::_export_project_to_path(const String &p_path) {
 	ERR_FAIL_COND(platform.is_null());
 
 	Error err = platform->export_project(current, export_debug->is_pressed(), p_path, 0);
-	if (err != OK)
+	if (err != OK) {
+		error_dialog->set_text(TTR("Export templates for this platform are missing/corrupted: ") + platform->get_name());
+		error_dialog->show();
+		error_dialog->popup_centered_minsize(Size2(300, 80));
 		ERR_PRINT("Failed to export project");
+	}
 }
 
 void ProjectExportDialog::_bind_methods() {
@@ -915,6 +927,7 @@ ProjectExportDialog::ProjectExportDialog() {
 
 	updating = false;
 
+	get_cancel()->set_text(TTR("Close"));
 	get_ok()->set_text(TTR("Export PCK/Zip"));
 	export_button = add_button(TTR("Export Project"), !OS::get_singleton()->get_swap_ok_cancel(), "export");
 
@@ -940,6 +953,12 @@ ProjectExportDialog::ProjectExportDialog() {
 	export_error2->add_color_override("font_color", get_color("error_color", "Editor"));
 	export_error2->set_text(" - " + TTR("Export templates for this platform are missing:") + " ");
 
+	error_dialog = memnew(AcceptDialog);
+	error_dialog->set_title("Error");
+	error_dialog->set_text(TTR("Export templates for this platform are missing/corrupted:") + " ");
+	main_vb->add_child(error_dialog);
+	error_dialog->hide();
+
 	LinkButton *download_templates = memnew(LinkButton);
 	download_templates->set_text(TTR("Manage Export Templates"));
 	export_templates_error->add_child(download_templates);
@@ -959,6 +978,8 @@ ProjectExportDialog::ProjectExportDialog() {
 	set_hide_on_ok(false);
 
 	editor_icons = "EditorIcons";
+
+	default_filename = EditorSettings::get_singleton()->get_project_metadata("export_options", "default_filename", String());
 }
 
 ProjectExportDialog::~ProjectExportDialog() {

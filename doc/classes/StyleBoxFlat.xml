@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="StyleBoxFlat" inherits="StyleBox" category="Core" version="3.0.alpha.custom_build">
+<class name="StyleBoxFlat" inherits="StyleBox" category="Core" version="3.0-stable">
 	<brief_description>
 		Customizable Stylebox with a given set of parameters. (no texture required)
 	</brief_description>
@@ -14,12 +14,12 @@
 			[codeblock]
 			height = 30
 			corner_radius_top_left = 50
-			corner_raidus_bottom_left = 100
+			corner_radius_bottom_left = 100
 			[/codeblock]
 			The relative system now would take the 1:2 ratio of the two left corners to calculate the actual corner width. Both corners added will [b]never[/b] be more than the height. Result:
 			[codeblock]
 			corner_radius_top_left: 10
-			corner_raidus_bottom_left: 20
+			corner_radius_bottom_left: 20
 			[/codeblock]
 	</description>
 	<tutorials>
@@ -27,137 +27,9 @@
 	<demos>
 	</demos>
 	<methods>
-		<method name="get_aa_size" qualifiers="const">
-			<return type="int">
-			</return>
-			<description>
-			</description>
-		</method>
-		<method name="get_bg_color" qualifiers="const">
-			<return type="Color">
-			</return>
-			<description>
-			</description>
-		</method>
-		<method name="get_border_blend" qualifiers="const">
-			<return type="bool">
-			</return>
-			<description>
-			</description>
-		</method>
-		<method name="get_border_color" qualifiers="const">
-			<return type="Color">
-			</return>
-			<description>
-			</description>
-		</method>
-		<method name="get_border_width" qualifiers="const">
-			<return type="int">
-			</return>
-			<argument index="0" name="margin" type="int" enum="Margin">
-			</argument>
-			<description>
-			</description>
-		</method>
 		<method name="get_border_width_min" qualifiers="const">
 			<return type="int">
 			</return>
-			<description>
-			</description>
-		</method>
-		<method name="get_corner_detail" qualifiers="const">
-			<return type="int">
-			</return>
-			<description>
-			</description>
-		</method>
-		<method name="get_corner_radius" qualifiers="const">
-			<return type="int">
-			</return>
-			<argument index="0" name="corner" type="int" enum="Corner">
-			</argument>
-			<description>
-			</description>
-		</method>
-		<method name="get_expand_margin" qualifiers="const">
-			<return type="float">
-			</return>
-			<argument index="0" name="margin" type="int" enum="Margin">
-			</argument>
-			<description>
-			</description>
-		</method>
-		<method name="get_shadow_color" qualifiers="const">
-			<return type="Color">
-			</return>
-			<description>
-			</description>
-		</method>
-		<method name="get_shadow_size" qualifiers="const">
-			<return type="int">
-			</return>
-			<description>
-			</description>
-		</method>
-		<method name="is_anti_aliased" qualifiers="const">
-			<return type="bool">
-			</return>
-			<description>
-			</description>
-		</method>
-		<method name="is_draw_center_enabled" qualifiers="const">
-			<return type="bool">
-			</return>
-			<description>
-			</description>
-		</method>
-		<method name="set_aa_size">
-			<return type="void">
-			</return>
-			<argument index="0" name="size" type="int">
-			</argument>
-			<description>
-			</description>
-		</method>
-		<method name="set_anti_aliased">
-			<return type="void">
-			</return>
-			<argument index="0" name="anti_aliased" type="bool">
-			</argument>
-			<description>
-			</description>
-		</method>
-		<method name="set_bg_color">
-			<return type="void">
-			</return>
-			<argument index="0" name="color" type="Color">
-			</argument>
-			<description>
-			</description>
-		</method>
-		<method name="set_border_blend">
-			<return type="void">
-			</return>
-			<argument index="0" name="blend" type="bool">
-			</argument>
-			<description>
-			</description>
-		</method>
-		<method name="set_border_color">
-			<return type="void">
-			</return>
-			<argument index="0" name="color" type="Color">
-			</argument>
-			<description>
-			</description>
-		</method>
-		<method name="set_border_width">
-			<return type="void">
-			</return>
-			<argument index="0" name="margin" type="int" enum="Margin">
-			</argument>
-			<argument index="1" name="width" type="int">
-			</argument>
 			<description>
 			</description>
 		</method>
@@ -165,24 +37,6 @@
 			<return type="void">
 			</return>
 			<argument index="0" name="width" type="int">
-			</argument>
-			<description>
-			</description>
-		</method>
-		<method name="set_corner_detail">
-			<return type="void">
-			</return>
-			<argument index="0" name="detail" type="int">
-			</argument>
-			<description>
-			</description>
-		</method>
-		<method name="set_corner_radius">
-			<return type="void">
-			</return>
-			<argument index="0" name="corner" type="int" enum="Corner">
-			</argument>
-			<argument index="1" name="radius" type="int">
 			</argument>
 			<description>
 			</description>
@@ -202,27 +56,9 @@
 			</argument>
 			<argument index="1" name="radius_top_right" type="int">
 			</argument>
-			<argument index="2" name="radius_botton_right" type="int">
+			<argument index="2" name="radius_bottom_right" type="int">
 			</argument>
 			<argument index="3" name="radius_bottom_left" type="int">
-			</argument>
-			<description>
-			</description>
-		</method>
-		<method name="set_draw_center">
-			<return type="void">
-			</return>
-			<argument index="0" name="draw_center" type="bool">
-			</argument>
-			<description>
-			</description>
-		</method>
-		<method name="set_expand_margin">
-			<return type="void">
-			</return>
-			<argument index="0" name="margin" type="int" enum="Margin">
-			</argument>
-			<argument index="1" name="size" type="float">
 			</argument>
 			<description>
 			</description>
@@ -249,26 +85,10 @@
 			<description>
 			</description>
 		</method>
-		<method name="set_shadow_color">
-			<return type="void">
-			</return>
-			<argument index="0" name="color" type="Color">
-			</argument>
-			<description>
-			</description>
-		</method>
-		<method name="set_shadow_size">
-			<return type="void">
-			</return>
-			<argument index="0" name="size" type="int">
-			</argument>
-			<description>
-			</description>
-		</method>
 	</methods>
 	<members>
 		<member name="anti_aliasing" type="bool" setter="set_anti_aliased" getter="is_anti_aliased">
-			Anti Aliasing draws a small ring around edges. This ring fades to transparent. As a result edges look much smoother. This is only noticable when using rounded corners.
+			Anti Aliasing draws a small ring around edges. This ring fades to transparent. As a result edges look much smoother. This is only noticeable when using rounded corners.
 		</member>
 		<member name="anti_aliasing_size" type="int" setter="set_aa_size" getter="get_aa_size">
 			This changes the size of the faded ring. Higher values can be used to achieve a "blurry" effect.

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "editor_autoload_settings.h"
 
 #include "editor_node.h"
@@ -117,7 +118,7 @@ void EditorAutoloadSettings::_autoload_add() {
 	undo_redo->create_action(TTR("Add AutoLoad"));
 	undo_redo->add_do_property(ProjectSettings::get_singleton(), name, "*" + path);
 
-	if (ProjectSettings::get_singleton()->has(name)) {
+	if (ProjectSettings::get_singleton()->has_setting(name)) {
 		undo_redo->add_undo_property(ProjectSettings::get_singleton(), name, ProjectSettings::get_singleton()->get(name));
 	} else {
 		undo_redo->add_undo_property(ProjectSettings::get_singleton(), name, Variant());
@@ -169,7 +170,7 @@ void EditorAutoloadSettings::_autoload_edited() {
 			return;
 		}
 
-		if (ProjectSettings::get_singleton()->has("autoload/" + name)) {
+		if (ProjectSettings::get_singleton()->has_setting("autoload/" + name)) {
 			ti->set_text(0, old_name);
 			EditorNode::get_singleton()->show_warning(vformat(TTR("Autoload '%s' already exists!"), name));
 			return;
@@ -548,34 +549,28 @@ EditorAutoloadSettings::EditorAutoloadSettings() {
 	HBoxContainer *hbc = memnew(HBoxContainer);
 	add_child(hbc);
 
-	VBoxContainer *vbc_path = memnew(VBoxContainer);
-	vbc_path->set_h_size_flags(SIZE_EXPAND_FILL);
+	Label *l = memnew(Label);
+	l->set_text(TTR("Path:"));
+	hbc->add_child(l);
 
 	autoload_add_path = memnew(EditorLineEditFileChooser);
 	autoload_add_path->set_h_size_flags(SIZE_EXPAND_FILL);
-
 	autoload_add_path->get_file_dialog()->set_mode(EditorFileDialog::MODE_OPEN_FILE);
 	autoload_add_path->get_file_dialog()->connect("file_selected", this, "_autoload_file_callback");
+	hbc->add_child(autoload_add_path);
 
-	vbc_path->add_margin_child(TTR("Path:"), autoload_add_path);
-	hbc->add_child(vbc_path);
-
-	VBoxContainer *vbc_name = memnew(VBoxContainer);
-	vbc_name->set_h_size_flags(SIZE_EXPAND_FILL);
-
-	HBoxContainer *hbc_name = memnew(HBoxContainer);
+	l = memnew(Label);
+	l->set_text(TTR("Node Name:"));
+	hbc->add_child(l);
 
 	autoload_add_name = memnew(LineEdit);
 	autoload_add_name->set_h_size_flags(SIZE_EXPAND_FILL);
-	hbc_name->add_child(autoload_add_name);
+	hbc->add_child(autoload_add_name);
 
 	Button *add_autoload = memnew(Button);
 	add_autoload->set_text(TTR("Add"));
-	hbc_name->add_child(add_autoload);
 	add_autoload->connect("pressed", this, "_autoload_add");
-
-	vbc_name->add_margin_child(TTR("Node Name:"), hbc_name);
-	hbc->add_child(vbc_name);
+	hbc->add_child(add_autoload);
 
 	tree = memnew(Tree);
 	tree->set_hide_root(true);
@@ -606,5 +601,7 @@ EditorAutoloadSettings::EditorAutoloadSettings() {
 	tree->connect("item_edited", this, "_autoload_edited");
 	tree->connect("button_pressed", this, "_autoload_button_pressed");
 
-	add_margin_child(TTR("List:"), tree, true);
+	tree->set_v_size_flags(SIZE_EXPAND_FILL);
+
+	add_child(tree, true);
 }

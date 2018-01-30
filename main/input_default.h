@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef INPUT_DEFAULT_H
 #define INPUT_DEFAULT_H
 
@@ -51,7 +52,7 @@ class InputDefault : public Input {
 	MainLoop *main_loop;
 
 	struct Action {
-		uint64_t fixed_frame;
+		uint64_t physics_frame;
 		uint64_t idle_frame;
 		bool pressed;
 	};
@@ -225,7 +226,7 @@ public:
 	void set_emulate_touch(bool p_emulate);
 	virtual bool is_emulating_touchscreen() const;
 
-	virtual void set_custom_mouse_cursor(const RES &p_cursor, const Vector2 &p_hotspot = Vector2());
+	virtual void set_custom_mouse_cursor(const RES &p_cursor, CursorShape p_shape = Input::CURSOR_ARROW, const Vector2 &p_hotspot = Vector2());
 	virtual void set_mouse_in_window(bool p_in_window);
 
 	void parse_mapping(String p_mapping);

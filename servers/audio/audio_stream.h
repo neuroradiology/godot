@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef AUDIO_STREAM_H
 #define AUDIO_STREAM_H
 
@@ -48,9 +49,7 @@ public:
 	virtual float get_playback_position() const = 0;
 	virtual void seek(float p_time) = 0;
 
-	virtual void mix(AudioFrame *p_bufer, float p_rate_scale, int p_frames) = 0;
-
-	virtual float get_length() const = 0; //if supported, otherwise return 0
+	virtual void mix(AudioFrame *p_buffer, float p_rate_scale, int p_frames) = 0;
 };
 
 class AudioStreamPlaybackResampled : public AudioStreamPlayback {
@@ -70,7 +69,7 @@ class AudioStreamPlaybackResampled : public AudioStreamPlayback {
 
 protected:
 	void _begin_resample();
-	virtual void _mix_internal(AudioFrame *p_bufer, int p_frames) = 0;
+	virtual void _mix_internal(AudioFrame *p_buffer, int p_frames) = 0;
 	virtual float get_stream_sampling_rate() = 0;
 
 public:
@@ -84,9 +83,14 @@ class AudioStream : public Resource {
 	GDCLASS(AudioStream, Resource)
 	OBJ_SAVE_TYPE(AudioStream) //children are all saved as AudioStream, so they can be exchanged
 
+protected:
+	static void _bind_methods();
+
 public:
 	virtual Ref<AudioStreamPlayback> instance_playback() = 0;
 	virtual String get_stream_name() const = 0;
+
+	virtual float get_length() const = 0; //if supported, otherwise return 0
 };
 
 class AudioStreamPlaybackRandomPitch;
@@ -113,6 +117,8 @@ public:
 	virtual Ref<AudioStreamPlayback> instance_playback();
 	virtual String get_stream_name() const;
 
+	virtual float get_length() const; //if supported, otherwise return 0
+
 	AudioStreamRandomPitch();
 };
 
@@ -136,9 +142,7 @@ public:
 	virtual float get_playback_position() const;
 	virtual void seek(float p_time);
 
-	virtual void mix(AudioFrame *p_bufer, float p_rate_scale, int p_frames);
-
-	virtual float get_length() const; //if supported, otherwise return 0
+	virtual void mix(AudioFrame *p_buffer, float p_rate_scale, int p_frames);
 
 	~AudioStreamPlaybackRandomPitch();
 };

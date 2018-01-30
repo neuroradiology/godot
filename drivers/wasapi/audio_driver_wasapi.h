@@ -3,10 +3,10 @@
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
-/*                    http://www.godotengine.org                         */
+/*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef AUDIO_DRIVER_WASAPI_H
 #define AUDIO_DRIVER_WASAPI_H
 
@@ -55,6 +56,7 @@ class AudioDriverWASAPI : public AudioDriver {
 
 	unsigned int buffer_size;
 	unsigned int channels;
+	unsigned int wasapi_channels;
 	int mix_rate;
 	int buffer_frames;
 
@@ -62,9 +64,10 @@ class AudioDriverWASAPI : public AudioDriver {
 	mutable bool exit_thread;
 	bool active;
 
+	_FORCE_INLINE_ void write_sample(AudioDriverWASAPI *ad, BYTE *buffer, int i, int32_t sample);
 	static void thread_func(void *p_udata);
 
-	Error init_device();
+	Error init_device(bool reinit = false);
 	Error finish_device();
 	Error reopen();
 

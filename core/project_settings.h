@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef GLOBAL_CONFIG_H
 #define GLOBAL_CONFIG_H
 
@@ -45,14 +46,6 @@ class ProjectSettings : public Object {
 public:
 	typedef Map<String, Variant> CustomMap;
 
-	struct Singleton {
-		StringName name;
-		Object *ptr;
-		Singleton(const StringName &p_name = StringName(), Object *p_ptr = NULL)
-			: name(p_name),
-			  ptr(p_ptr) {
-		}
-	};
 	enum {
 		//properties that are not for built in values begin from this value, so builtin ones are displayed first
 		NO_BUILTIN_ORDER_BASE = 1 << 16
@@ -65,19 +58,19 @@ protected:
 		Variant variant;
 		Variant initial;
 		bool hide_from_editor;
-		bool overrided;
-		VariantContainer()
-			: order(0),
-			  persist(false),
-			  hide_from_editor(false),
-			  overrided(false) {
+		bool overridden;
+		VariantContainer() :
+				order(0),
+				persist(false),
+				hide_from_editor(false),
+				overridden(false) {
 		}
-		VariantContainer(const Variant &p_variant, int p_order, bool p_persist = false)
-			: order(p_order),
-			  persist(p_persist),
-			  variant(p_variant),
-			  hide_from_editor(false),
-			  overrided(false) {
+		VariantContainer(const Variant &p_variant, int p_order, bool p_persist = false) :
+				order(p_order),
+				persist(p_persist),
+				variant(p_variant),
+				hide_from_editor(false),
+				overridden(false) {
 		}
 	};
 
@@ -106,9 +99,6 @@ protected:
 	Error _save_settings_text(const String &p_file, const Map<String, List<String> > &props, const CustomMap &p_custom = CustomMap(), const String &p_custom_features = String());
 	Error _save_settings_binary(const String &p_file, const Map<String, List<String> > &props, const CustomMap &p_custom = CustomMap(), const String &p_custom_features = String());
 
-	List<Singleton> singletons;
-	Map<StringName, Object *> singleton_ptrs;
-
 	Error _save_custom_bnd(const String &p_file);
 
 	bool _load_resource_pack(const String &p_pack);
@@ -119,7 +109,10 @@ protected:
 	static void _bind_methods();
 
 public:
-	bool has(String p_var) const;
+	void set_setting(const String &p_setting, const Variant &p_value);
+	Variant get_setting(const String &p_setting) const;
+
+	bool has_setting(String p_var) const;
 	String localize_path(const String &p_path) const;
 	String globalize_path(const String &p_path) const;
 
@@ -136,23 +129,17 @@ public:
 	void set_order(const String &p_name, int p_order);
 	void set_builtin_order(const String &p_name);
 
-	Error setup(const String &p_path, const String &p_main_pack);
+	Error setup(const String &p_path, const String &p_main_pack, bool p_upwards = false);
 
 	Error save_custom(const String &p_path = "", const CustomMap &p_custom = CustomMap(), const Vector<String> &p_custom_features = Vector<String>(), bool p_merge_with_current = true);
 	Error save();
 	void set_custom_property_info(const String &p_prop, const PropertyInfo &p_info);
-
-	void add_singleton(const Singleton &p_singleton);
-	void get_singletons(List<Singleton> *p_singletons);
-
-	bool has_singleton(const String &p_name) const;
 
 	Vector<String> get_optimizer_presets() const;
 
 	List<String> get_input_presets() const { return input_presets; }
 
 	void set_disable_feature_overrides(bool p_disable);
-	Object *get_singleton_object(const String &p_name) const;
 
 	void register_global_defaults();
 

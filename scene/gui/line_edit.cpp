@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "line_edit.h"
 #include "label.h"
 #include "os/keyboard.h"
@@ -48,7 +49,7 @@ void LineEdit::_gui_input(Ref<InputEvent> p_event) {
 
 	if (b.is_valid()) {
 
-		if (b->is_pressed() && b->get_button_index() == BUTTON_RIGHT) {
+		if (b->is_pressed() && b->get_button_index() == BUTTON_RIGHT && context_menu_enabled) {
 			menu->set_position(get_global_transform().xform(get_local_mouse_position()));
 			menu->set_size(Vector2(1, 1));
 			menu->popup();
@@ -85,7 +86,7 @@ void LineEdit::_gui_input(Ref<InputEvent> p_event) {
 
 				if ((cursor_pos < selection.begin) || (cursor_pos > selection.end) || !selection.enabled) {
 
-					selection_clear();
+					deselect();
 					selection.cursor_start = cursor_pos;
 					selection.creating = true;
 				} else if (selection.enabled) {
@@ -99,7 +100,7 @@ void LineEdit::_gui_input(Ref<InputEvent> p_event) {
 		} else {
 
 			if ((!selection.creating) && (!selection.doubleclick)) {
-				selection_clear();
+				deselect();
 			}
 			selection.creating = false;
 			selection.doubleclick = false;
@@ -161,21 +162,21 @@ void LineEdit::_gui_input(Ref<InputEvent> p_event) {
 
 				} break;
 
-				case (KEY_Z): { // Simple One level undo
-
+				case (KEY_Z): { // undo / redo
 					if (editable) {
-
-						undo();
+						if (k->get_shift()) {
+							redo();
+						} else {
+							undo();
+						}
 					}
-
 				} break;
 
 				case (KEY_U): { // Delete from start to cursor
 
 					if (editable) {
 
-						selection_clear();
-						undo_text = text;
+						deselect();
 						text = text.substr(cursor_pos, text.length() - cursor_pos);
 
 						Ref<Font> font = get_font("font");
@@ -204,8 +205,7 @@ void LineEdit::_gui_input(Ref<InputEvent> p_event) {
 
 					if (editable) {
 
-						selection_clear();
-						undo_text = text;
+						deselect();
 						text = text.substr(0, cursor_pos);
 						_text_changed();
 					}
@@ -245,7 +245,6 @@ void LineEdit::_gui_input(Ref<InputEvent> p_event) {
 						break;
 
 					if (selection.enabled) {
-						undo_text = text;
 						selection_delete();
 						break;
 					}
@@ -276,7 +275,6 @@ void LineEdit::_gui_input(Ref<InputEvent> p_event) {
 						set_cursor_position(cc);
 
 					} else {
-						undo_text = text;
 						delete_char();
 					}
 
@@ -371,6 +369,18 @@ void LineEdit::_gui_input(Ref<InputEvent> p_event) {
 					shift_selection_check_post(k->get_shift());
 
 				} break;
+				case KEY_UP: {
+
+					shift_selection_check_pre(k->get_shift());
+					set_cursor_position(0);
+					shift_selection_check_post(k->get_shift());
+				} break;
+				case KEY_DOWN: {
+
+					shift_selection_check_pre(k->get_shift());
+					set_cursor_position(text.length());
+					shift_selection_check_post(k->get_shift());
+				} break;
 				case KEY_DELETE: {
 
 					if (!editable)
@@ -382,7 +392,6 @@ void LineEdit::_gui_input(Ref<InputEvent> p_event) {
 					}
 
 					if (selection.enabled) {
-						undo_text = text;
 						selection_delete();
 						break;
 					}
@@ -417,7 +426,6 @@ void LineEdit::_gui_input(Ref<InputEvent> p_event) {
 						delete_text(cursor_pos, cc);
 
 					} else {
-						undo_text = text;
 						set_cursor_position(cursor_pos + 1);
 						delete_char();
 					}
@@ -601,7 +609,10 @@ void LineEdit::_notification(int p_what) {
 				} break;
 				case ALIGN_CENTER: {
 
-					x_ofs = int(size.width - (cached_width)) / 2;
+					if (window_pos != 0)
+						x_ofs = style->get_offset().x;
+					else
+						x_ofs = int(size.width - (cached_width)) / 2;
 				} break;
 				case ALIGN_RIGHT: {
 
@@ -775,7 +786,6 @@ void LineEdit::copy_text() {
 void LineEdit::cut_text() {
 
 	if (selection.enabled) {
-		undo_text = text;
 		OS::get_singleton()->set_clipboard(text.substr(selection.begin, selection.end - selection.begin));
 		selection_delete();
 	}
@@ -795,23 +805,33 @@ void LineEdit::paste_text() {
 }
 
 void LineEdit::undo() {
-
-	int old_cursor_pos = cursor_pos;
-	text = undo_text;
-
-	Ref<Font> font = get_font("font");
-
-	cached_width = 0;
-	for (int i = 0; i < text.length(); i++)
-		cached_width += font->get_char_size(text[i]).width;
-
-	if (old_cursor_pos > text.length()) {
-		set_cursor_position(text.length());
-	} else {
-		set_cursor_position(old_cursor_pos);
+	if (undo_stack_pos == NULL) {
+		if (undo_stack.size() <= 1) {
+			return;
+		}
+		undo_stack_pos = undo_stack.back();
+	} else if (undo_stack_pos == undo_stack.front()) {
+		return;
 	}
+	undo_stack_pos = undo_stack_pos->prev();
+	TextOperation op = undo_stack_pos->get();
+	text = op.text;
+	set_cursor_position(op.cursor_pos);
+	_emit_text_change();
+}
 
-	_text_changed();
+void LineEdit::redo() {
+	if (undo_stack_pos == NULL) {
+		return;
+	}
+	if (undo_stack_pos == undo_stack.back()) {
+		return;
+	}
+	undo_stack_pos = undo_stack_pos->next();
+	TextOperation op = undo_stack_pos->get();
+	text = op.text;
+	set_cursor_position(op.cursor_pos);
+	_emit_text_change();
 }
 
 void LineEdit::shift_selection_check_pre(bool p_shift) {
@@ -820,7 +840,7 @@ void LineEdit::shift_selection_check_pre(bool p_shift) {
 		selection.cursor_start = cursor_pos;
 	}
 	if (!p_shift)
-		selection_clear();
+		deselect();
 }
 
 void LineEdit::shift_selection_check_post(bool p_shift) {
@@ -846,7 +866,10 @@ void LineEdit::set_cursor_at_pixel_pos(int p_x) {
 		} break;
 		case ALIGN_CENTER: {
 
-			pixel_ofs = int(size.width - (cached_width)) / 2;
+			if (window_pos != 0)
+				pixel_ofs = int(style->get_offset().x);
+			else
+				pixel_ofs = int(size.width - (cached_width)) / 2;
 		} break;
 		case ALIGN_RIGHT: {
 
@@ -870,13 +893,6 @@ void LineEdit::set_cursor_at_pixel_pos(int p_x) {
 	}
 
 	set_cursor_position(ofs);
-
-	/*
-	int new_cursor_pos=p_x;
-	int charwidth=draw_area->get_font_char_width(' ',0);
-	new_cursor_pos=( ( (new_cursor_pos-2)+ (charwidth/2) ) /charwidth );
-	if (new_cursor_pos>(int)text.length()) new_cursor_pos=text.length();
-	set_cursor_position(window_pos+new_cursor_pos); */
 }
 
 bool LineEdit::cursor_get_blink_enabled() const {
@@ -931,17 +947,10 @@ void LineEdit::delete_char() {
 
 	set_cursor_position(get_cursor_position() - 1);
 
-	if (cursor_pos == window_pos) {
-
-		//set_window_pos(cursor_pos-get_window_length());
-	}
-
 	_text_changed();
 }
 
 void LineEdit::delete_text(int p_from_column, int p_to_column) {
-
-	undo_text = text;
 
 	if (text.size() > 0) {
 		Ref<Font> font = get_font("font");
@@ -1030,12 +1039,18 @@ void LineEdit::set_cursor_position(int p_pos) {
 	Ref<StyleBox> style = get_stylebox("normal");
 	Ref<Font> font = get_font("font");
 
-	if (cursor_pos < window_pos) {
+	if (cursor_pos <= window_pos) {
 		/* Adjust window if cursor goes too much to the left */
-		set_window_pos(cursor_pos);
+		if (window_pos > 0)
+			set_window_pos(window_pos - 1);
+
 	} else if (cursor_pos > window_pos) {
 		/* Adjust window if cursor goes too much to the right */
 		int window_width = get_size().width - style->get_minimum_size().width;
+		if (has_icon("right_icon")) {
+			Ref<Texture> r_icon = Control::get_icon("right_icon");
+			window_width -= r_icon->get_width();
+		}
 
 		if (window_width < 0)
 			return;
@@ -1080,8 +1095,6 @@ void LineEdit::append_at_cursor(String p_text) {
 
 	if ((max_length <= 0) || (text.length() + p_text.length() <= max_length)) {
 
-		undo_text = text;
-
 		Ref<Font> font = get_font("font");
 		if (font != NULL) {
 			for (int i = 0; i < p_text.length(); i++)
@@ -1099,6 +1112,7 @@ void LineEdit::append_at_cursor(String p_text) {
 
 void LineEdit::clear_internal() {
 
+	_clear_undo_stack();
 	cached_width = 0;
 	cursor_pos = 0;
 	window_pos = 0;
@@ -1130,7 +1144,7 @@ Size2 LineEdit::get_minimum_size() const {
 
 /* selection */
 
-void LineEdit::selection_clear() {
+void LineEdit::deselect() {
 
 	selection.begin = 0;
 	selection.end = 0;
@@ -1146,7 +1160,7 @@ void LineEdit::selection_delete() {
 	if (selection.enabled)
 		delete_text(selection.begin, selection.end);
 
-	selection_clear();
+	deselect();
 }
 
 void LineEdit::set_max_length(int p_max_length) {
@@ -1211,7 +1225,7 @@ bool LineEdit::is_secret() const {
 void LineEdit::select(int p_from, int p_to) {
 
 	if (p_from == 0 && p_to == 0) {
-		selection_clear();
+		deselect();
 		return;
 	}
 
@@ -1269,7 +1283,20 @@ void LineEdit::menu_option(int p_option) {
 				undo();
 			}
 		} break;
+		case MENU_REDO: {
+			if (editable) {
+				redo();
+			}
+		}
 	}
+}
+
+void LineEdit::set_context_menu_enabled(bool p_enable) {
+	context_menu_enabled = p_enable;
+}
+
+bool LineEdit::is_context_menu_enabled() {
+	return context_menu_enabled;
 }
 
 PopupMenu *LineEdit::get_menu() const {
@@ -1287,6 +1314,7 @@ void LineEdit::set_expand_to_text_length(bool p_enabled) {
 
 	expand_to_text_length = p_enabled;
 	minimum_size_changed();
+	set_window_pos(0);
 }
 
 bool LineEdit::get_expand_to_text_length() const {
@@ -1306,8 +1334,41 @@ void LineEdit::_text_changed() {
 	if (expand_to_text_length)
 		minimum_size_changed();
 
+	_emit_text_change();
+	_clear_redo();
+}
+
+void LineEdit::_emit_text_change() {
 	emit_signal("text_changed", text);
 	_change_notify("text");
+}
+
+void LineEdit::_clear_redo() {
+	_create_undo_state();
+	if (undo_stack_pos == NULL) {
+		return;
+	}
+
+	undo_stack_pos = undo_stack_pos->next();
+	while (undo_stack_pos) {
+		List<TextOperation>::Element *elem = undo_stack_pos;
+		undo_stack_pos = undo_stack_pos->next();
+		undo_stack.erase(elem);
+	}
+	_create_undo_state();
+}
+
+void LineEdit::_clear_undo_stack() {
+	undo_stack.clear();
+	undo_stack_pos = NULL;
+	_create_undo_state();
+}
+
+void LineEdit::_create_undo_state() {
+	TextOperation op;
+	op.text = text;
+	op.cursor_pos = cursor_pos;
+	undo_stack.push_back(op);
 }
 
 void LineEdit::_bind_methods() {
@@ -1323,7 +1384,9 @@ void LineEdit::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("_gui_input"), &LineEdit::_gui_input);
 	ClassDB::bind_method(D_METHOD("clear"), &LineEdit::clear);
+	ClassDB::bind_method(D_METHOD("select", "from", "to"), &LineEdit::select, DEFVAL(0), DEFVAL(-1));
 	ClassDB::bind_method(D_METHOD("select_all"), &LineEdit::select_all);
+	ClassDB::bind_method(D_METHOD("deselect"), &LineEdit::deselect);
 	ClassDB::bind_method(D_METHOD("set_text", "text"), &LineEdit::set_text);
 	ClassDB::bind_method(D_METHOD("get_text"), &LineEdit::get_text);
 	ClassDB::bind_method(D_METHOD("set_placeholder", "text"), &LineEdit::set_placeholder);
@@ -1345,12 +1408,13 @@ void LineEdit::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_editable"), &LineEdit::is_editable);
 	ClassDB::bind_method(D_METHOD("set_secret", "enabled"), &LineEdit::set_secret);
 	ClassDB::bind_method(D_METHOD("is_secret"), &LineEdit::is_secret);
-	ClassDB::bind_method(D_METHOD("select", "from", "to"), &LineEdit::select, DEFVAL(0), DEFVAL(-1));
 	ClassDB::bind_method(D_METHOD("menu_option", "option"), &LineEdit::menu_option);
 	ClassDB::bind_method(D_METHOD("get_menu"), &LineEdit::get_menu);
+	ClassDB::bind_method(D_METHOD("set_context_menu_enabled", "enable"), &LineEdit::set_context_menu_enabled);
+	ClassDB::bind_method(D_METHOD("is_context_menu_enabled"), &LineEdit::is_context_menu_enabled);
 
-	ADD_SIGNAL(MethodInfo("text_changed", PropertyInfo(Variant::STRING, "text")));
-	ADD_SIGNAL(MethodInfo("text_entered", PropertyInfo(Variant::STRING, "text")));
+	ADD_SIGNAL(MethodInfo("text_changed", PropertyInfo(Variant::STRING, "new_text")));
+	ADD_SIGNAL(MethodInfo("text_entered", PropertyInfo(Variant::STRING, "new_text")));
 
 	BIND_ENUM_CONSTANT(ALIGN_LEFT);
 	BIND_ENUM_CONSTANT(ALIGN_CENTER);
@@ -1363,6 +1427,7 @@ void LineEdit::_bind_methods() {
 	BIND_ENUM_CONSTANT(MENU_CLEAR);
 	BIND_ENUM_CONSTANT(MENU_SELECT_ALL);
 	BIND_ENUM_CONSTANT(MENU_UNDO);
+	BIND_ENUM_CONSTANT(MENU_REDO);
 	BIND_ENUM_CONSTANT(MENU_MAX);
 
 	ADD_PROPERTYNZ(PropertyInfo(Variant::STRING, "text"), "set_text", "get_text");
@@ -1370,18 +1435,22 @@ void LineEdit::_bind_methods() {
 	ADD_PROPERTYNZ(PropertyInfo(Variant::INT, "max_length"), "set_max_length", "get_max_length");
 	ADD_PROPERTYNO(PropertyInfo(Variant::BOOL, "editable"), "set_editable", "is_editable");
 	ADD_PROPERTYNZ(PropertyInfo(Variant::BOOL, "secret"), "set_secret", "is_secret");
-	ADD_PROPERTYNO(PropertyInfo(Variant::BOOL, "expand_to_len"), "set_expand_to_text_length", "get_expand_to_text_length");
+	ADD_PROPERTYNZ(PropertyInfo(Variant::BOOL, "expand_to_text_length"), "set_expand_to_text_length", "get_expand_to_text_length");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "focus_mode", PROPERTY_HINT_ENUM, "None,Click,All"), "set_focus_mode", "get_focus_mode");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "context_menu_enabled"), "set_context_menu_enabled", "is_context_menu_enabled");
 	ADD_GROUP("Placeholder", "placeholder_");
 	ADD_PROPERTYNZ(PropertyInfo(Variant::STRING, "placeholder_text"), "set_placeholder", "get_placeholder");
 	ADD_PROPERTYNZ(PropertyInfo(Variant::REAL, "placeholder_alpha", PROPERTY_HINT_RANGE, "0,1,0.001"), "set_placeholder_alpha", "get_placeholder_alpha");
 	ADD_GROUP("Caret", "caret_");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "caret_blink"), "cursor_set_blink_enabled", "cursor_get_blink_enabled");
 	ADD_PROPERTYNZ(PropertyInfo(Variant::REAL, "caret_blink_speed", PROPERTY_HINT_RANGE, "0.1,10,0.1"), "cursor_set_blink_speed", "cursor_get_blink_speed");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "caret_position"), "set_cursor_position", "get_cursor_position");
 }
 
 LineEdit::LineEdit() {
 
+	undo_stack_pos = NULL;
+	_create_undo_state();
 	align = ALIGN_LEFT;
 	cached_width = 0;
 	cursor_pos = 0;
@@ -1391,7 +1460,7 @@ LineEdit::LineEdit() {
 	pass = false;
 	placeholder_alpha = 0.6;
 
-	selection_clear();
+	deselect();
 	set_focus_mode(FOCUS_ALL);
 	editable = true;
 	set_default_cursor_shape(CURSOR_IBEAM);
@@ -1405,6 +1474,7 @@ LineEdit::LineEdit() {
 	caret_blink_timer->connect("timeout", this, "_toggle_draw_caret");
 	cursor_set_blink_enabled(false);
 
+	context_menu_enabled = true;
 	menu = memnew(PopupMenu);
 	add_child(menu);
 	menu->add_item(TTR("Cut"), MENU_CUT, KEY_MASK_CMD | KEY_X);
@@ -1415,6 +1485,7 @@ LineEdit::LineEdit() {
 	menu->add_item(TTR("Clear"), MENU_CLEAR);
 	menu->add_separator();
 	menu->add_item(TTR("Undo"), MENU_UNDO, KEY_MASK_CMD | KEY_Z);
+	menu->add_item(TTR("Redo"), MENU_REDO, KEY_MASK_CMD | KEY_MASK_SHIFT | KEY_Z);
 	menu->connect("id_pressed", this, "menu_option");
 	expand_to_text_length = false;
 }

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef RSTRING_H
 #define RSTRING_H
 
@@ -93,8 +94,8 @@ public:
 	bool operator!=(const CharType *p_str) const;
 	bool operator<(const CharType *p_str) const;
 	bool operator<(const char *p_str) const;
-	bool operator<(String p_str) const;
-	bool operator<=(String p_str) const;
+	bool operator<(const String &p_str) const;
+	bool operator<=(const String &p_str) const;
 
 	signed char casecmp_to(const String &p_str) const;
 	signed char nocasecmp_to(const String &p_str) const;
@@ -103,35 +104,44 @@ public:
 	const CharType *c_str() const;
 	/* standard size stuff */
 
-	int length() const;
+	_FORCE_INLINE_ int length() const {
+		int s = size();
+		return s ? (s - 1) : 0; // length does not include zero
+	}
 
 	/* complex helpers */
 	String substr(int p_from, int p_chars) const;
-	int find(String p_str, int p_from = 0) const; ///< return <0 if failed
-	int find_last(String p_str) const; ///< return <0 if failed
-	int findn(String p_str, int p_from = 0) const; ///< return <0 if failed, case insensitive
-	int rfind(String p_str, int p_from = -1) const; ///< return <0 if failed
-	int rfindn(String p_str, int p_from = -1) const; ///< return <0 if failed, case insensitive
+	int find(const String &p_str, int p_from = 0) const; ///< return <0 if failed
+	int find(const char *p_str, int p_from) const; ///< return <0 if failed
+	int find_last(const String &p_str) const; ///< return <0 if failed
+	int findn(const String &p_str, int p_from = 0) const; ///< return <0 if failed, case insensitive
+	int rfind(const String &p_str, int p_from = -1) const; ///< return <0 if failed
+	int rfindn(const String &p_str, int p_from = -1) const; ///< return <0 if failed, case insensitive
 	int findmk(const Vector<String> &p_keys, int p_from = 0, int *r_key = NULL) const; ///< return <0 if failed
 	bool match(const String &p_wildcard) const;
 	bool matchn(const String &p_wildcard) const;
 	bool begins_with(const String &p_string) const;
 	bool begins_with(const char *p_string) const;
 	bool ends_with(const String &p_string) const;
+	bool is_enclosed_in(const String &p_string) const;
 	bool is_subsequence_of(const String &p_string) const;
 	bool is_subsequence_ofi(const String &p_string) const;
+	bool is_quoted() const;
 	Vector<String> bigrams() const;
 	float similarity(const String &p_string) const;
 	String format(const Variant &values, String placeholder = "{_}") const;
-	String replace_first(String p_key, String p_with) const;
-	String replace(String p_key, String p_with) const;
-	String replacen(String p_key, String p_with) const;
-	String insert(int p_at_pos, String p_string) const;
+	String replace_first(const String &p_key, const String &p_with) const;
+	String replace(const String &p_key, const String &p_with) const;
+	String replace(const char *p_key, const char *p_with) const;
+	String replacen(const String &p_key, const String &p_with) const;
+	String insert(int p_at_pos, const String &p_string) const;
 	String pad_decimals(int p_digits) const;
 	String pad_zeros(int p_digits) const;
 	String lpad(int min_length, const String &character = " ") const;
 	String rpad(int min_length, const String &character = " ") const;
 	String sprintf(const Array &values, bool *error) const;
+	String quote(String quotechar = "\"") const;
+	String unquote() const;
 	static String num(double p_num, int p_decimals = -1);
 	static String num_scientific(double p_num);
 	static String num_real(double p_num);
@@ -158,12 +168,14 @@ public:
 	String get_slice(String p_splitter, int p_slice) const;
 	String get_slicec(CharType p_splitter, int p_slice) const;
 
-	Vector<String> split(const String &p_splitter, bool p_allow_empty = true) const;
+	Vector<String> split(const String &p_splitter, bool p_allow_empty = true, int p_maxsplit = 0) const;
 	Vector<String> split_spaces() const;
 	Vector<float> split_floats(const String &p_splitter, bool p_allow_empty = true) const;
 	Vector<float> split_floats_mk(const Vector<String> &p_splitters, bool p_allow_empty = true) const;
 	Vector<int> split_ints(const String &p_splitter, bool p_allow_empty = true) const;
 	Vector<int> split_ints_mk(const Vector<String> &p_splitters, bool p_allow_empty = true) const;
+
+	String join(Vector<String> parts);
 
 	static CharType char_uppercase(CharType p_char);
 	static CharType char_lowercase(CharType p_char);
@@ -172,6 +184,7 @@ public:
 
 	String left(int p_pos) const;
 	String right(int p_pos) const;
+	String dedent() const;
 	String strip_edges(bool left = true, bool right = true) const;
 	String strip_escapes() const;
 	String get_extension() const;
@@ -197,7 +210,7 @@ public:
 	Vector<uint8_t> md5_buffer() const;
 	Vector<uint8_t> sha256_buffer() const;
 
-	inline bool empty() const { return length() == 0; }
+	_FORCE_INLINE_ bool empty() const { return length() == 0; }
 
 	// path functions
 	bool is_abs_path() const;
@@ -235,6 +248,8 @@ public:
 	 */
 	/*	String(CharType p_char);*/
 	inline String() {}
+	inline String(const String &p_str) :
+			Vector(p_str) {}
 	String(const char *p_str);
 	String(const CharType *p_str, int p_clip_to_len = -1);
 	String(const StrRange &p_range);
@@ -265,6 +280,29 @@ struct NaturalNoCaseComparator {
 	}
 };
 
+template <typename L, typename R>
+_FORCE_INLINE_ bool is_str_less(const L *l_ptr, const R *r_ptr) {
+
+	while (true) {
+
+		if (*l_ptr == 0 && *r_ptr == 0)
+			return false;
+		else if (*l_ptr == 0)
+			return true;
+		else if (*r_ptr == 0)
+			return false;
+		else if (*l_ptr < *r_ptr)
+			return true;
+		else if (*l_ptr > *r_ptr)
+			return false;
+
+		l_ptr++;
+		r_ptr++;
+	}
+
+	CRASH_COND(true); // unreachable
+}
+
 /* end of namespace */
 
 //tool translate
@@ -280,5 +318,8 @@ String TTR(const String &);
 
 //tool or regular translate
 String RTR(const String &);
+
+bool is_symbol(CharType c);
+bool select_word(const String &p_s, int p_col, int &r_beg, int &r_end);
 
 #endif

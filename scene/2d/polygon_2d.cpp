@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,9 +27,11 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
-#include "polygon_2d.h"
 
-Rect2 Polygon2D::get_item_rect() const {
+#include "polygon_2d.h"
+#include "core/math/geometry.h"
+
+Rect2 Polygon2D::_edit_get_rect() const {
 
 	if (rect_cache_dirty) {
 		int l = polygon.size();
@@ -42,23 +44,27 @@ Rect2 Polygon2D::get_item_rect() const {
 			else
 				item_rect.expand_to(pos);
 		}
-		item_rect = item_rect.grow(20);
 		rect_cache_dirty = false;
 	}
 
 	return item_rect;
 }
 
-void Polygon2D::edit_set_pivot(const Point2 &p_pivot) {
+bool Polygon2D::_edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const {
+
+	return Geometry::is_point_in_polygon(p_point, Variant(polygon));
+}
+
+void Polygon2D::_edit_set_pivot(const Point2 &p_pivot) {
 
 	set_offset(p_pivot);
 }
 
-Point2 Polygon2D::edit_get_pivot() const {
+Point2 Polygon2D::_edit_get_pivot() const {
 
 	return get_offset();
 }
-bool Polygon2D::edit_has_pivot() const {
+bool Polygon2D::_edit_use_pivot() const {
 
 	return true;
 }
@@ -264,11 +270,11 @@ float Polygon2D::get_texture_rotation() const {
 	return tex_rot;
 }
 
-void Polygon2D::_set_texture_rotationd(float p_rot) {
+void Polygon2D::set_texture_rotation_degrees(float p_rot) {
 
 	set_texture_rotation(Math::deg2rad(p_rot));
 }
-float Polygon2D::_get_texture_rotationd() const {
+float Polygon2D::get_texture_rotation_degrees() const {
 
 	return Math::rad2deg(get_texture_rotation());
 }
@@ -348,8 +354,8 @@ void Polygon2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_texture_rotation", "texture_rotation"), &Polygon2D::set_texture_rotation);
 	ClassDB::bind_method(D_METHOD("get_texture_rotation"), &Polygon2D::get_texture_rotation);
 
-	ClassDB::bind_method(D_METHOD("_set_texture_rotationd", "texture_rotation"), &Polygon2D::_set_texture_rotationd);
-	ClassDB::bind_method(D_METHOD("_get_texture_rotationd"), &Polygon2D::_get_texture_rotationd);
+	ClassDB::bind_method(D_METHOD("set_texture_rotation_degrees", "texture_rotation"), &Polygon2D::set_texture_rotation_degrees);
+	ClassDB::bind_method(D_METHOD("get_texture_rotation_degrees"), &Polygon2D::get_texture_rotation_degrees);
 
 	ClassDB::bind_method(D_METHOD("set_texture_scale", "texture_scale"), &Polygon2D::set_texture_scale);
 	ClassDB::bind_method(D_METHOD("get_texture_scale"), &Polygon2D::get_texture_scale);
@@ -377,7 +383,8 @@ void Polygon2D::_bind_methods() {
 	ADD_GROUP("Texture", "texture_");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "texture_offset"), "set_texture_offset", "get_texture_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "texture_scale"), "set_texture_scale", "get_texture_scale");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "texture_rotation", PROPERTY_HINT_RANGE, "-1440,1440,0.1"), "_set_texture_rotationd", "_get_texture_rotationd");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "texture_rotation_degrees", PROPERTY_HINT_RANGE, "-1440,1440,0.1"), "set_texture_rotation_degrees", "get_texture_rotation_degrees");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "texture_rotation", PROPERTY_HINT_NONE, "", 0), "set_texture_rotation", "get_texture_rotation");
 
 	ADD_GROUP("Invert", "invert_");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "invert_enable"), "set_invert", "get_invert");

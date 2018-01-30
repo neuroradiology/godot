@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "test_physics.h"
 
 #include "map.h"
@@ -299,7 +300,7 @@ public:
 		VisualServer *vs = VisualServer::get_singleton();
 
 		/* LIGHT */
-		RID lightaux = vs->light_create(VisualServer::LIGHT_DIRECTIONAL);
+		RID lightaux = vs->directional_light_create();
 		scenario = vs->scenario_create();
 		vs->light_set_shadow(lightaux, true);
 		light = vs->instance_create2(lightaux, scenario);
@@ -435,4 +436,4 @@ MainLoop *test() {
 
 	return memnew(TestPhysicsMainLoop);
 }
-}
+} // namespace TestPhysics

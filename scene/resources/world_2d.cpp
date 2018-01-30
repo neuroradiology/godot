@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "world_2d.h"
 #include "servers/physics_2d_server.h"
 #include "servers/visual_server.h"
@@ -372,6 +373,10 @@ void World2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_space"), &World2D::get_space);
 
 	ClassDB::bind_method(D_METHOD("get_direct_space_state"), &World2D::get_direct_space_state);
+
+	ADD_PROPERTY(PropertyInfo(Variant::_RID, "canvas", PROPERTY_HINT_NONE, "", 0), "", "get_canvas");
+	ADD_PROPERTY(PropertyInfo(Variant::_RID, "space", PROPERTY_HINT_NONE, "", 0), "", "get_space");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "direct_space_state", PROPERTY_HINT_RESOURCE_TYPE, "Physics2DDirectSpaceState", 0), "", "get_direct_space_state");
 }
 
 Physics2DDirectSpaceState *World2D::get_direct_space_state() {

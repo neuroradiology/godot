@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,10 +27,11 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef OS_WINDOWS_H
 #define OS_WINDOWS_H
-
 #include "context_gl_win.h"
+#include "core/project_settings.h"
 #include "crash_handler_win.h"
 #include "drivers/rtaudio/audio_driver_rtaudio.h"
 #include "drivers/wasapi/audio_driver_wasapi.h"
@@ -38,7 +39,6 @@
 #include "os/os.h"
 #include "power_windows.h"
 #include "servers/audio_server.h"
-#include "servers/physics/physics_server_sw.h"
 #include "servers/visual/rasterizer.h"
 #include "servers/visual_server.h"
 #ifdef XAUDIO2_ENABLED
@@ -47,8 +47,6 @@
 #include "drivers/unix/ip_unix.h"
 #include "key_mapping_win.h"
 #include "main/input_default.h"
-#include "servers/physics_2d/physics_2d_server_sw.h"
-#include "servers/physics_2d/physics_2d_server_wrap_mt.h"
 
 #include <fcntl.h>
 #include <io.h>
@@ -90,8 +88,6 @@ class OS_Windows : public OS {
 	ContextGL_Win *gl_context;
 #endif
 	VisualServer *visual_server;
-	PhysicsServer *physics_server;
-	Physics2DServer *physics_2d_server;
 	int pressrc;
 	HDC hDC; // Private GDI Device Context
 	HINSTANCE hInstance; // Holds The Instance Of The Application
@@ -118,10 +114,12 @@ class OS_Windows : public OS {
 	bool window_has_focus;
 	uint32_t last_button_state;
 
+	HCURSOR cursors[CURSOR_MAX] = { NULL };
 	CursorShape cursor_shape;
 
 	InputDefault *input;
 	JoypadWindows *joypad;
+	Map<int, Vector2> touch_state;
 
 	PowerWindows *power_manager;
 
@@ -137,8 +135,8 @@ class OS_Windows : public OS {
 
 	CrashHandler crash_handler;
 
-	void _drag_event(int p_x, int p_y, int idx);
-	void _touch_event(bool p_pressed, int p_x, int p_y, int idx);
+	void _drag_event(float p_x, float p_y, int idx);
+	void _touch_event(bool p_pressed, float p_x, float p_y, int idx);
 
 	void _update_window_style(bool repaint = true);
 
@@ -147,13 +145,11 @@ protected:
 	virtual int get_video_driver_count() const;
 	virtual const char *get_video_driver_name(int p_driver) const;
 
-	virtual VideoMode get_default_video_mode() const;
-
 	virtual int get_audio_driver_count() const;
 	virtual const char *get_audio_driver_name(int p_driver) const;
 
 	virtual void initialize_core();
-	virtual void initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver);
+	virtual Error initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver);
 
 	virtual void set_main_loop(MainLoop *p_main_loop);
 	virtual void delete_main_loop();
@@ -180,9 +176,6 @@ protected:
 public:
 	LRESULT WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
-	void print_error(const char *p_function, const char *p_file, int p_line, const char *p_code, const char *p_rationale, ErrorType p_type);
-
-	virtual void vprint(const char *p_format, va_list p_list, bool p_stderr = false);
 	virtual void alert(const String &p_alert, const String &p_title = "ALERT!");
 	String get_stdin_string(bool p_block);
 
@@ -219,10 +212,10 @@ public:
 	virtual bool is_window_maximized() const;
 	virtual void request_attention();
 
-	virtual void set_borderless_window(int p_borderless);
+	virtual void set_borderless_window(bool p_borderless);
 	virtual bool get_borderless_window();
 
-	virtual Error open_dynamic_library(const String p_path, void *&p_library_handle);
+	virtual Error open_dynamic_library(const String p_path, void *&p_library_handle, bool p_also_set_library_path = false);
 	virtual Error close_dynamic_library(void *p_library_handle);
 	virtual Error get_dynamic_library_symbol_handle(void *p_library_handle, const String p_name, void *&p_symbol_handle, bool p_optional = false);
 
@@ -242,7 +235,7 @@ public:
 	virtual void delay_usec(uint32_t p_usec) const;
 	virtual uint64_t get_ticks_usec() const;
 
-	virtual Error execute(const String &p_path, const List<String> &p_arguments, bool p_blocking, ProcessID *r_child_id = NULL, String *r_pipe = NULL, int *r_exitcode = NULL);
+	virtual Error execute(const String &p_path, const List<String> &p_arguments, bool p_blocking, ProcessID *r_child_id = NULL, String *r_pipe = NULL, int *r_exitcode = NULL, bool read_stderr = false);
 	virtual Error kill(const ProcessID &p_pid);
 	virtual int get_process_id() const;
 
@@ -253,17 +246,28 @@ public:
 	virtual String get_clipboard() const;
 
 	void set_cursor_shape(CursorShape p_shape);
+	virtual void set_custom_mouse_cursor(const RES &p_cursor, CursorShape p_shape, const Vector2 &p_hotspot);
+	void GetMaskBitmaps(HBITMAP hSourceBitmap, COLORREF clrTransparent, OUT HBITMAP &hAndMaskBitmap, OUT HBITMAP &hXorMaskBitmap);
 	void set_icon(const Ref<Image> &p_icon);
 
 	virtual String get_executable_path() const;
 
 	virtual String get_locale() const;
+
+	virtual int get_processor_count() const;
+
 	virtual LatinKeyboardVariant get_latin_keyboard_variant() const;
 
 	virtual void enable_for_stealing_focus(ProcessID pid);
 	virtual void move_window_to_foreground();
-	virtual String get_data_dir() const;
+
+	virtual String get_config_path() const;
+	virtual String get_data_path() const;
+	virtual String get_cache_path() const;
+	virtual String get_godot_dir_name() const;
+
 	virtual String get_system_dir(SystemDir p_dir) const;
+	virtual String get_user_data_dir() const;
 
 	virtual void release_rendering_thread();
 	virtual void make_rendering_thread();
@@ -278,8 +282,8 @@ public:
 	virtual bool is_joy_known(int p_device);
 	virtual String get_joy_guid(int p_device) const;
 
-	virtual void set_use_vsync(bool p_enable);
-	virtual bool is_vsync_enabled() const;
+	virtual void _set_use_vsync(bool p_enable);
+	//virtual bool is_vsync_enabled() const;
 
 	virtual OS::PowerState get_power_state();
 	virtual int get_power_seconds_left();
@@ -289,6 +293,10 @@ public:
 
 	void disable_crash_handler();
 	bool is_disable_crash_handler() const;
+
+	void force_process_input();
+
+	virtual Error move_to_trash(const String &p_path);
 
 	OS_Windows(HINSTANCE _hInstance);
 	~OS_Windows();

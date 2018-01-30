@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,28 +27,24 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef OS_OSX_H
 #define OS_OSX_H
 
 #include "crash_handler_osx.h"
-#include "drivers/alsa/audio_driver_alsa.h"
-#include "drivers/rtaudio/audio_driver_rtaudio.h"
+#include "drivers/coreaudio/audio_driver_coreaudio.h"
 #include "drivers/unix/os_unix.h"
 #include "joypad_osx.h"
 #include "main/input_default.h"
 #include "os/input.h"
-#include "platform/osx/audio_driver_osx.h"
 #include "power_osx.h"
 #include "servers/audio_server.h"
-#include "servers/physics_2d/physics_2d_server_sw.h"
-#include "servers/physics_2d/physics_2d_server_wrap_mt.h"
-#include "servers/physics_server.h"
 #include "servers/visual/rasterizer.h"
 #include "servers/visual/visual_server_wrap_mt.h"
 #include "servers/visual_server.h"
+#include <AppKit/NSCursor.h>
 #include <ApplicationServices/ApplicationServices.h>
 
-//bitch
 #undef CursorShape
 /**
 	@author Juan Linietsky <reduzio@gmail.com>
@@ -56,6 +52,17 @@
 
 class OS_OSX : public OS_Unix {
 public:
+	struct KeyEvent {
+		unsigned int osx_state;
+		bool pressed;
+		bool echo;
+		uint32_t scancode;
+		uint32_t unicode;
+	};
+
+	Vector<KeyEvent> key_event_buffer;
+	int key_event_pos;
+
 	bool force_quit;
 	//  rasterizer seems to no longer be given to visual server, its using GLES3 directly?
 	//Rasterizer *rasterizer;
@@ -64,12 +71,9 @@ public:
 	List<String> args;
 	MainLoop *main_loop;
 
-	PhysicsServer *physics_server;
-	Physics2DServer *physics_2d_server;
-
 	IP_Unix *ip_unix;
 
-	AudioDriverOSX audio_driver_osx;
+	AudioDriverCoreAudio audio_driver;
 
 	InputDefault *input;
 	JoypadOSX *joypad_osx;
@@ -79,6 +83,7 @@ public:
 	CGEventSourceRef eventSource;
 
 	void process_events();
+	void process_key_events();
 
 	void *framework;
 	//          pthread_key_t   current;
@@ -95,6 +100,7 @@ public:
 	id context;
 
 	CursorShape cursor_shape;
+	NSCursor *cursors[CURSOR_MAX] = { NULL };
 	MouseMode mouse_mode;
 
 	String title;
@@ -105,6 +111,8 @@ public:
 	Size2 window_size;
 	Rect2 restore_rect;
 
+	String open_with_filename;
+
 	Point2 im_position;
 	ImeCallback im_callback;
 	void *im_target;
@@ -114,23 +122,23 @@ public:
 	CrashHandler crash_handler;
 
 	float _mouse_scale(float p_scale) {
-		if (display_scale > 1.0)
+		if (_display_scale() > 1.0)
 			return p_scale;
 		else
 			return 1.0;
 	}
 
-	void _update_window();
+	float _display_scale() const;
+	float _display_scale(id screen) const;
 
-	float display_scale;
+	void _update_window();
 
 protected:
 	virtual int get_video_driver_count() const;
 	virtual const char *get_video_driver_name(int p_driver) const;
-	virtual VideoMode get_default_video_mode() const;
 
 	virtual void initialize_core();
-	virtual void initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver);
+	virtual Error initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver);
 	virtual void finalize();
 
 	virtual void set_main_loop(MainLoop *p_main_loop);
@@ -143,11 +151,12 @@ public:
 
 	virtual String get_name();
 
-	virtual void print_error(const char *p_function, const char *p_file, int p_line, const char *p_code, const char *p_rationale, ErrorType p_type = ERR_ERROR);
-
 	virtual void alert(const String &p_alert, const String &p_title = "ALERT!");
 
+	virtual Error open_dynamic_library(const String p_path, void *&p_library_handle, bool p_also_set_library_path = false);
+
 	virtual void set_cursor_shape(CursorShape p_shape);
+	virtual void set_custom_mouse_cursor(const RES &p_cursor, CursorShape p_shape, const Vector2 &p_hotspot);
 
 	virtual void set_mouse_show(bool p_show);
 	virtual void set_mouse_grab(bool p_grab);
@@ -162,6 +171,11 @@ public:
 	virtual void set_icon(const Ref<Image> &p_icon);
 
 	virtual MainLoop *get_main_loop() const;
+
+	virtual String get_config_path() const;
+	virtual String get_data_path() const;
+	virtual String get_cache_path() const;
+	virtual String get_godot_dir_name() const;
 
 	virtual String get_system_dir(SystemDir p_dir) const;
 
@@ -210,7 +224,7 @@ public:
 	virtual void request_attention();
 	virtual String get_joy_guid(int p_device) const;
 
-	virtual void set_borderless_window(int p_borderless);
+	virtual void set_borderless_window(bool p_borderless);
 	virtual bool get_borderless_window();
 	virtual void set_ime_position(const Point2 &p_pos);
 	virtual void set_ime_intermediate_text_callback(ImeCallback p_callback, void *p_inp);
@@ -221,6 +235,9 @@ public:
 
 	virtual bool _check_internal_feature_support(const String &p_feature);
 
+	virtual void _set_use_vsync(bool p_enable);
+	//virtual bool is_vsync_enabled() const;
+
 	void run();
 
 	void set_mouse_mode(MouseMode p_mode);
@@ -229,7 +246,17 @@ public:
 	void disable_crash_handler();
 	bool is_disable_crash_handler() const;
 
+	virtual Error move_to_trash(const String &p_path);
+
+	void force_process_input();
+
 	OS_OSX();
+
+private:
+	Point2 get_native_screen_position(int p_screen) const;
+	Point2 get_native_window_position() const;
+	void set_native_window_position(const Point2 &p_position);
+	Point2 get_screens_origin() const;
 };
 
 #endif

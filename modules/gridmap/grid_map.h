@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef GRID_MAP_H
 #define GRID_MAP_H
 
@@ -136,6 +137,9 @@ class GridMap : public Spatial {
 		OctantKey() { key = 0; }
 	};
 
+	uint32_t collision_layer;
+	uint32_t collision_mask;
+
 	Transform last_transform;
 
 	bool _in_tree;
@@ -148,6 +152,9 @@ class GridMap : public Spatial {
 	bool clip;
 	bool clip_above;
 	int clip_floor;
+
+	bool recreating_octants;
+
 	Vector3::Axis clip_axis;
 
 	Ref<MeshLibrary> theme;
@@ -170,6 +177,7 @@ class GridMap : public Spatial {
 		return Vector3(p_key.x, p_key.y, p_key.z) * cell_size * octant_size;
 	}
 
+	void _reset_physic_bodies_collision_filters();
 	void _octant_enter_world(const OctantKey &p_key);
 	void _octant_exit_world(const OctantKey &p_key);
 	bool _octant_update(const OctantKey &p_key);
@@ -184,6 +192,15 @@ class GridMap : public Spatial {
 
 	void _clear_internal();
 
+	Vector3 _get_offset() const;
+
+	struct BakedMesh {
+		Ref<Mesh> mesh;
+		RID instance;
+	};
+
+	Vector<BakedMesh> baked_meshes;
+
 protected:
 	bool _set(const StringName &p_name, const Variant &p_value);
 	bool _get(const StringName &p_name, Variant &r_ret) const;
@@ -197,6 +214,18 @@ public:
 	enum {
 		INVALID_CELL_ITEM = -1
 	};
+
+	void set_collision_layer(uint32_t p_layer);
+	uint32_t get_collision_layer() const;
+
+	void set_collision_mask(uint32_t p_mask);
+	uint32_t get_collision_mask() const;
+
+	void set_collision_layer_bit(int p_bit, bool p_value);
+	bool get_collision_layer_bit(int p_bit) const;
+
+	void set_collision_mask_bit(int p_bit, bool p_value);
+	bool get_collision_mask_bit(int p_bit) const;
 
 	void set_theme(const Ref<MeshLibrary> &p_theme);
 	Ref<MeshLibrary> get_theme() const;
@@ -218,14 +247,25 @@ public:
 	int get_cell_item(int p_x, int p_y, int p_z) const;
 	int get_cell_item_orientation(int p_x, int p_y, int p_z) const;
 
+	Vector3 world_to_map(const Vector3 &p_pos) const;
+	Vector3 map_to_world(int p_x, int p_y, int p_z) const;
+
 	void set_clip(bool p_enabled, bool p_clip_above = true, int p_floor = 0, Vector3::Axis p_axis = Vector3::AXIS_X);
 
 	void set_cell_scale(float p_scale);
 	float get_cell_scale() const;
 
+	Array get_used_cells() const;
+
 	Array get_meshes();
 
+	void clear_baked_meshes();
+	void make_baked_meshes(bool p_gen_lightmap_uv = false, float p_lightmap_uv_texel_size = 0.1);
+
 	void clear();
+
+	Array get_bake_meshes();
+	RID get_bake_mesh_instance(int p_idx);
 
 	GridMap();
 	~GridMap();

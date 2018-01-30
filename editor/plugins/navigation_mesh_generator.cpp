@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "navigation_mesh_generator.h"
 
 #ifdef RECAST_ENABLED
@@ -38,9 +39,11 @@ void NavigationMeshGenerator::_add_vertex(const Vector3 &p_vec3, Vector<float> &
 }
 
 void NavigationMeshGenerator::_add_mesh(const Ref<Mesh> &p_mesh, const Transform &p_xform, Vector<float> &p_verticies, Vector<int> &p_indices) {
-	int current_vertex_count = p_verticies.size() / 3;
+	int current_vertex_count = 0;
 
 	for (int i = 0; i < p_mesh->get_surface_count(); i++) {
+		current_vertex_count = p_verticies.size() / 3;
+
 		if (p_mesh->surface_get_primitive_type(i) != Mesh::PRIMITIVE_TRIANGLES)
 			continue;
 
@@ -135,12 +138,12 @@ void NavigationMeshGenerator::_convert_detail_mesh_to_native_navigation_mesh(con
 
 void NavigationMeshGenerator::_build_recast_navigation_mesh(Ref<NavigationMesh> p_nav_mesh, EditorProgress *ep,
 		rcHeightfield *hf, rcCompactHeightfield *chf, rcContourSet *cset, rcPolyMesh *poly_mesh, rcPolyMeshDetail *detail_mesh,
-		Vector<float> &verticies, Vector<int> &indices) {
+		Vector<float> &vertices, Vector<int> &indices) {
 	rcContext ctx;
 	ep->step(TTR("Setting up Configuration..."), 1);
 
-	const float *verts = verticies.ptr();
-	const int nverts = verticies.size() / 3;
+	const float *verts = vertices.ptr();
+	const int nverts = vertices.size() / 3;
 	const int *tris = indices.ptr();
 	const int ntris = indices.size() / 3;
 
@@ -187,8 +190,8 @@ void NavigationMeshGenerator::_build_recast_navigation_mesh(Ref<NavigationMesh> 
 
 		ERR_FAIL_COND(tri_areas.size() == 0);
 
-		memset(tri_areas.ptr(), 0, ntris * sizeof(unsigned char));
-		rcMarkWalkableTriangles(&ctx, cfg.walkableSlopeAngle, verts, nverts, tris, ntris, tri_areas.ptr());
+		memset(tri_areas.ptrw(), 0, ntris * sizeof(unsigned char));
+		rcMarkWalkableTriangles(&ctx, cfg.walkableSlopeAngle, verts, nverts, tris, ntris, tri_areas.ptrw());
 
 		ERR_FAIL_COND(!rcRasterizeTriangles(&ctx, verts, nverts, tris, tri_areas.ptr(), ntris, *hf, cfg.walkableClimb));
 	}
@@ -213,7 +216,7 @@ void NavigationMeshGenerator::_build_recast_navigation_mesh(Ref<NavigationMesh> 
 	ep->step(TTR("Eroding walkable area..."), 6);
 	ERR_FAIL_COND(!rcErodeWalkableArea(&ctx, cfg.walkableRadius, *chf));
 
-	ep->step(TTR("Partioning..."), 7);
+	ep->step(TTR("Partitioning..."), 7);
 	if (p_nav_mesh->get_sample_partition_type() == NavigationMesh::SAMPLE_PARTITION_WATERSHED) {
 		ERR_FAIL_COND(!rcBuildDistanceField(&ctx, *chf));
 		ERR_FAIL_COND(!rcBuildRegions(&ctx, *chf, 0, cfg.minRegionArea, cfg.mergeRegionArea));
@@ -262,12 +265,12 @@ void NavigationMeshGenerator::bake(Ref<NavigationMesh> p_nav_mesh, Node *p_node)
 	EditorProgress ep("bake", TTR("Navigation Mesh Generator Setup:"), 11);
 	ep.step(TTR("Parsing Geometry..."), 0);
 
-	Vector<float> verticies;
+	Vector<float> vertices;
 	Vector<int> indices;
 
-	_parse_geometry(Object::cast_to<Spatial>(p_node)->get_global_transform().affine_inverse(), p_node, verticies, indices);
+	_parse_geometry(Object::cast_to<Spatial>(p_node)->get_global_transform().affine_inverse(), p_node, vertices, indices);
 
-	if (verticies.size() > 0 && indices.size() > 0) {
+	if (vertices.size() > 0 && indices.size() > 0) {
 
 		rcHeightfield *hf = NULL;
 		rcCompactHeightfield *chf = NULL;
@@ -275,7 +278,7 @@ void NavigationMeshGenerator::bake(Ref<NavigationMesh> p_nav_mesh, Node *p_node)
 		rcPolyMesh *poly_mesh = NULL;
 		rcPolyMeshDetail *detail_mesh = NULL;
 
-		_build_recast_navigation_mesh(p_nav_mesh, &ep, hf, chf, cset, poly_mesh, detail_mesh, verticies, indices);
+		_build_recast_navigation_mesh(p_nav_mesh, &ep, hf, chf, cset, poly_mesh, detail_mesh, vertices, indices);
 
 		if (hf) {
 			rcFreeHeightField(hf);

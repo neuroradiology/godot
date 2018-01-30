@@ -42,7 +42,7 @@ uniform highp mat4 modelview_matrix;
 uniform highp mat4 extra_matrix;
 
 
-out mediump vec2 uv_interp;
+out highp vec2 uv_interp;
 out mediump vec4 color_interp;
 
 #ifdef USE_NINEPATCH
@@ -105,13 +105,16 @@ VERTEX_SHADER_GLOBALS
 
 void main() {
 
-	vec4 vertex_color = color_attrib;
+	vec4 color = color_attrib;
 
 #ifdef USE_INSTANCING
 	mat4 extra_matrix2 = extra_matrix * transpose(mat4(instance_xform0,instance_xform1,instance_xform2,vec4(0.0,0.0,0.0,1.0)));
-	vertex_color*=instance_color;
+	color*=instance_color;
+	vec4 instance_custom = instance_custom_data;
+
 #else
 	mat4 extra_matrix2 = extra_matrix;
+	vec4 instance_custom = vec4(0.0);
 #endif
 
 #ifdef USE_TEXTURE_RECT
@@ -135,7 +138,7 @@ void main() {
 
 	//compute h and v frames and adjust UV interp for animation
 	int total_frames = h_frames * v_frames;
-	int frame = min(int(float(total_frames) *instance_custom_data.z),total_frames-1);
+	int frame = min(int(float(total_frames) *instance_custom.z),total_frames-1);
 	float frame_w = 1.0/float(h_frames);
 	float frame_h = 1.0/float(v_frames);
 	uv_interp.x = uv_interp.x * frame_w + frame_w * float(frame % h_frames);
@@ -146,7 +149,6 @@ void main() {
 #define extra_matrix extra_matrix2
 
 {
-	vec2 src_vtx=outvec.xy;
 
 VERTEX_SHADER_CODE
 
@@ -165,11 +167,11 @@ VERTEX_SHADER_CODE
 
 #undef extra_matrix
 
-	color_interp = vertex_color;
+	color_interp = color;
 
 #ifdef USE_PIXEL_SNAP
 
-	outvec.xy=floor(outvec+0.5);
+	outvec.xy=floor(outvec+0.5).xy;
 #endif
 
 
@@ -205,7 +207,7 @@ uniform mediump sampler2D color_texture; // texunit:0
 uniform highp vec2 color_texpixel_size;
 uniform mediump sampler2D normal_texture; // texunit:1
 
-in mediump vec2 uv_interp;
+in highp vec2 uv_interp;
 in mediump vec4 color_interp;
 
 
@@ -283,7 +285,7 @@ MATERIAL_UNIFORMS
 
 FRAGMENT_SHADER_GLOBALS
 
-void light_compute(inout vec3 light,vec3 light_vec,float light_height,vec4 light_color,vec2 light_uv,vec4 shadow,vec3 normal,vec2 uv,vec2 screen_uv,vec4 color) {
+void light_compute(inout vec4 light,vec2 light_vec,float light_height,vec4 light_color,vec2 light_uv,vec4 shadow,vec3 normal,vec2 uv,vec2 screen_uv,vec4 color) {
 
 #if defined(USE_LIGHT_SHADER_CODE)
 
@@ -379,8 +381,7 @@ void main() {
 
 	if (clip_rect_uv) {
 
-		vec2 half_texpixel = color_texpixel_size * 0.5;
-		uv = clamp(uv,src_rect.xy+half_texpixel,src_rect.xy+abs(src_rect.zw)-color_texpixel_size);
+		uv = clamp(uv,src_rect.xy,src_rect.xy+abs(src_rect.zw));
 	}
 
 #endif

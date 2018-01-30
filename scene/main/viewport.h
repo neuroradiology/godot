@@ -1,4 +1,3 @@
-
 /*************************************************************************/
 /*  viewport.h                                                           */
 /*************************************************************************/
@@ -6,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -28,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef VIEWPORT_H
 #define VIEWPORT_H
 
@@ -58,6 +58,8 @@ class ViewportTexture : public Texture {
 
 	friend class Viewport;
 	Viewport *vp;
+
+	RID proxy;
 
 protected:
 	static void _bind_methods();
@@ -204,12 +206,6 @@ private:
 	void _test_new_mouseover(ObjectID new_collider);
 	Map<ObjectID, uint64_t> physics_2d_mouseover;
 
-	void _update_rect();
-
-	void _parent_resized();
-	void _parent_draw();
-	void _parent_visibility_changed();
-
 	Ref<World2D> world_2d;
 	Ref<World> world;
 	Ref<World> own_world;
@@ -267,7 +263,6 @@ private:
 		float tooltip_timer;
 		float tooltip_delay;
 		List<Control *> modal_stack;
-		unsigned int cancelled_input_ID;
 		Transform2D focus_inv_xform;
 		bool subwindow_order_dirty;
 		List<Control *> subwindows;
@@ -292,9 +287,6 @@ private:
 	void update_worlds();
 
 	_FORCE_INLINE_ Transform2D _get_input_pre_xform() const;
-
-	void _vp_enter_tree();
-	void _vp_exit_tree();
 
 	void _vp_input(const Ref<InputEvent> &p_ev);
 	void _vp_input_text(const String &p_text);

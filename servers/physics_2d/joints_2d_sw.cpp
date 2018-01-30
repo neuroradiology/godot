@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "joints_2d_sw.h"
 
 #include "space_2d_sw.h"
@@ -178,8 +179,8 @@ real_t PinJoint2DSW::get_param(Physics2DServer::PinJointParam p_param) const {
 	ERR_FAIL_V(0);
 }
 
-PinJoint2DSW::PinJoint2DSW(const Vector2 &p_pos, Body2DSW *p_body_a, Body2DSW *p_body_b)
-	: Joint2DSW(_arr, p_body_b ? 2 : 1) {
+PinJoint2DSW::PinJoint2DSW(const Vector2 &p_pos, Body2DSW *p_body_a, Body2DSW *p_body_b) :
+		Joint2DSW(_arr, p_body_b ? 2 : 1) {
 
 	A = p_body_a;
 	B = p_body_b;
@@ -323,8 +324,8 @@ void GrooveJoint2DSW::solve(real_t p_step) {
 	B->apply_impulse(rB, j);
 }
 
-GrooveJoint2DSW::GrooveJoint2DSW(const Vector2 &p_a_groove1, const Vector2 &p_a_groove2, const Vector2 &p_b_anchor, Body2DSW *p_body_a, Body2DSW *p_body_b)
-	: Joint2DSW(_arr, 2) {
+GrooveJoint2DSW::GrooveJoint2DSW(const Vector2 &p_a_groove1, const Vector2 &p_a_groove2, const Vector2 &p_b_anchor, Body2DSW *p_body_a, Body2DSW *p_body_b) :
+		Joint2DSW(_arr, 2) {
 
 	A = p_body_a;
 	B = p_body_b;
@@ -432,8 +433,8 @@ real_t DampedSpringJoint2DSW::get_param(Physics2DServer::DampedStringParam p_par
 	ERR_FAIL_V(0);
 }
 
-DampedSpringJoint2DSW::DampedSpringJoint2DSW(const Vector2 &p_anchor_a, const Vector2 &p_anchor_b, Body2DSW *p_body_a, Body2DSW *p_body_b)
-	: Joint2DSW(_arr, 2) {
+DampedSpringJoint2DSW::DampedSpringJoint2DSW(const Vector2 &p_anchor_a, const Vector2 &p_anchor_b, Body2DSW *p_body_a, Body2DSW *p_body_b) :
+		Joint2DSW(_arr, 2) {
 
 	A = p_body_a;
 	B = p_body_b;

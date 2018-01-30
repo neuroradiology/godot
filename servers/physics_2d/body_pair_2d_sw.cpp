@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "body_pair_2d_sw.h"
 #include "collision_solver_2d_sw.h"
 #include "space_2d_sw.h"
@@ -417,7 +418,7 @@ bool BodyPair2DSW::setup(real_t p_step) {
 
 		c.bias = -bias * inv_dt * MIN(0.0f, -depth + max_penetration);
 		c.depth = depth;
-//c.acc_bias_impulse=0;
+		//c.acc_bias_impulse=0;
 
 #ifdef ACCUMULATE_IMPULSES
 		{
@@ -500,8 +501,8 @@ void BodyPair2DSW::solve(real_t p_step) {
 	}
 }
 
-BodyPair2DSW::BodyPair2DSW(Body2DSW *p_A, int p_shape_A, Body2DSW *p_B, int p_shape_B)
-	: Constraint2DSW(_arr, 2) {
+BodyPair2DSW::BodyPair2DSW(Body2DSW *p_A, int p_shape_A, Body2DSW *p_B, int p_shape_B) :
+		Constraint2DSW(_arr, 2) {
 
 	A = p_A;
 	B = p_B;

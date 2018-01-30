@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,8 +27,10 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "viewport_container.h"
 
+#include "core/engine.h"
 #include "scene/main/viewport.h"
 
 Size2 ViewportContainer::get_minimum_size() const {
@@ -62,6 +64,34 @@ bool ViewportContainer::is_stretch_enabled() const {
 	return stretch;
 }
 
+void ViewportContainer::set_stretch_shrink(int p_shrink) {
+
+	ERR_FAIL_COND(p_shrink < 1);
+	if (shrink == p_shrink)
+		return;
+
+	shrink = p_shrink;
+
+	if (!stretch)
+		return;
+
+	for (int i = 0; i < get_child_count(); i++) {
+
+		Viewport *c = Object::cast_to<Viewport>(get_child(i));
+		if (!c)
+			continue;
+
+		c->set_size(get_size() / shrink);
+	}
+
+	update();
+}
+
+int ViewportContainer::get_stretch_shrink() const {
+
+	return shrink;
+}
+
 void ViewportContainer::_notification(int p_what) {
 
 	if (p_what == NOTIFICATION_RESIZED) {
@@ -75,7 +105,7 @@ void ViewportContainer::_notification(int p_what) {
 			if (!c)
 				continue;
 
-			c->set_size(get_size());
+			c->set_size(get_size() / shrink);
 		}
 	}
 
@@ -110,15 +140,47 @@ void ViewportContainer::_notification(int p_what) {
 	}
 }
 
+void ViewportContainer::_input(const Ref<InputEvent> &p_event) {
+
+	if (Engine::get_singleton()->is_editor_hint())
+		return;
+
+	Transform2D xform = get_global_transform();
+
+	if (stretch) {
+		Transform2D scale_xf;
+		scale_xf.scale(Vector2(shrink, shrink));
+		xform *= scale_xf;
+	}
+
+	Ref<InputEvent> ev = p_event->xformed_by(xform.affine_inverse());
+
+	for (int i = 0; i < get_child_count(); i++) {
+
+		Viewport *c = Object::cast_to<Viewport>(get_child(i));
+		if (!c || c->is_input_disabled())
+			continue;
+
+		c->input(ev);
+	}
+}
+
 void ViewportContainer::_bind_methods() {
 
+	ClassDB::bind_method(D_METHOD("_input", "event"), &ViewportContainer::_input);
 	ClassDB::bind_method(D_METHOD("set_stretch", "enable"), &ViewportContainer::set_stretch);
 	ClassDB::bind_method(D_METHOD("is_stretch_enabled"), &ViewportContainer::is_stretch_enabled);
 
+	ClassDB::bind_method(D_METHOD("set_stretch_shrink", "amount"), &ViewportContainer::set_stretch_shrink);
+	ClassDB::bind_method(D_METHOD("get_stretch_shrink"), &ViewportContainer::get_stretch_shrink);
+
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "stretch"), "set_stretch", "is_stretch_enabled");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "stretch_shrink"), "set_stretch_shrink", "get_stretch_shrink");
 }
 
 ViewportContainer::ViewportContainer() {
 
 	stretch = false;
+	shrink = 1;
+	set_process_input(true);
 }

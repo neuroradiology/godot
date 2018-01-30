@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -137,7 +137,7 @@ class AppxPackager {
 	ZPOS64_T end_of_central_dir_offset;
 	Vector<uint8_t> central_dir_data;
 
-	String hash_block(uint8_t *p_block_data, size_t p_block_len);
+	String hash_block(const uint8_t *p_block_data, size_t p_block_len);
 
 	void make_block_map();
 	void make_content_types();
@@ -188,14 +188,14 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-String AppxPackager::hash_block(uint8_t *p_block_data, size_t p_block_len) {
+String AppxPackager::hash_block(const uint8_t *p_block_data, size_t p_block_len) {
 
 	char hash[32];
 	char base64[45];
 
 	sha256_context ctx;
 	sha256_init(&ctx);
-	sha256_hash(&ctx, p_block_data, p_block_len);
+	sha256_hash(&ctx, (uint8_t *)p_block_data, p_block_len);
 	sha256_done(&ctx, (uint8_t *)hash);
 
 	base64_encode(base64, hash, 32);
@@ -456,8 +456,8 @@ void AppxPackager::init(FileAccess *p_fa) {
 	package = p_fa;
 	central_dir_offset = 0;
 	end_of_central_dir_offset = 0;
-	tmp_blockmap_file_path = EditorSettings::get_singleton()->get_settings_path() + "/tmp/tmpblockmap.xml";
-	tmp_content_types_file_path = EditorSettings::get_singleton()->get_settings_path() + "/tmp/tmpcontenttypes.xml";
+	tmp_blockmap_file_path = EditorSettings::get_singleton()->get_cache_dir().plus_file("tmpblockmap.xml");
+	tmp_content_types_file_path = EditorSettings::get_singleton()->get_cache_dir().plus_file("tmpcontenttypes.xml");
 }
 
 void AppxPackager::add_file(String p_file_name, const uint8_t *p_buffer, size_t p_len, int p_file_no, int p_total_files, bool p_compress) {
@@ -510,8 +510,8 @@ void AppxPackager::add_file(String p_file_name, const uint8_t *p_buffer, size_t 
 
 			strm.avail_in = block_size;
 			strm.avail_out = strm_out.size();
-			strm.next_in = strm_in.ptr();
-			strm.next_out = strm_out.ptr();
+			strm.next_in = (uint8_t *)strm_in.ptr();
+			strm.next_out = strm_out.ptrw();
 
 			int total_out_before = strm.total_out;
 
@@ -541,8 +541,8 @@ void AppxPackager::add_file(String p_file_name, const uint8_t *p_buffer, size_t 
 
 		strm.avail_in = 0;
 		strm.avail_out = strm_out.size();
-		strm.next_in = strm_in.ptr();
-		strm.next_out = strm_out.ptr();
+		strm.next_in = (uint8_t *)strm_in.ptr();
+		strm.next_out = strm_out.ptrw();
 
 		int total_out_before = strm.total_out;
 
@@ -588,7 +588,7 @@ void AppxPackager::finish() {
 	Vector<uint8_t> blockmap_buffer;
 	blockmap_buffer.resize(blockmap_file->get_len());
 
-	blockmap_file->get_buffer(blockmap_buffer.ptr(), blockmap_buffer.size());
+	blockmap_file->get_buffer(blockmap_buffer.ptrw(), blockmap_buffer.size());
 
 	add_file("AppxBlockMap.xml", blockmap_buffer.ptr(), blockmap_buffer.size(), -1, -1, true);
 
@@ -604,7 +604,7 @@ void AppxPackager::finish() {
 	Vector<uint8_t> types_buffer;
 	types_buffer.resize(types_file->get_len());
 
-	types_file->get_buffer(types_buffer.ptr(), types_buffer.size());
+	types_file->get_buffer(types_buffer.ptrw(), types_buffer.size());
 
 	add_file("[Content_Types].xml", types_buffer.ptr(), types_buffer.size(), -1, -1, true);
 
@@ -886,7 +886,7 @@ class EditorExportUWP : public EditorExportPlatform {
 
 		if (!image) return data;
 
-		String tmp_path = EditorSettings::get_singleton()->get_settings_path().plus_file("tmp/uwp_tmp_logo.png");
+		String tmp_path = EditorSettings::get_singleton()->get_cache_dir().plus_file("uwp_tmp_logo.png");
 
 		Error err = image->get_data()->save_png(tmp_path);
 
@@ -911,7 +911,7 @@ class EditorExportUWP : public EditorExportPlatform {
 		}
 
 		data.resize(f->get_len());
-		f->get_buffer(data.ptr(), data.size());
+		f->get_buffer(data.ptrw(), data.size());
 
 		f->close();
 		memdelete(f);
@@ -1013,7 +1013,7 @@ public:
 		return "UWP";
 	}
 
-	virtual String get_binary_extension() const {
+	virtual String get_binary_extension(const Ref<EditorExportPreset> &p_preset) const {
 		return "appx";
 	}
 
@@ -1024,6 +1024,17 @@ public:
 	virtual void get_preset_features(const Ref<EditorExportPreset> &p_preset, List<String> *r_features) {
 		r_features->push_back("s3tc");
 		r_features->push_back("etc");
+		switch ((int)p_preset->get("architecture/target")) {
+			case EditorExportUWP::ARM: {
+				r_features->push_back("arm");
+			} break;
+			case EditorExportUWP::X86: {
+				r_features->push_back("32");
+			} break;
+			case EditorExportUWP::X64: {
+				r_features->push_back("64");
+			} break;
+		}
 	}
 
 	virtual void get_export_options(List<ExportOption> *r_options) {
@@ -1040,6 +1051,10 @@ public:
 
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, "identity/product_guid"), "00000000-0000-0000-0000-000000000000"));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, "identity/publisher_guid"), "00000000-0000-0000-0000-000000000000"));
+
+		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, "signing/certificate", PROPERTY_HINT_GLOBAL_FILE, "*.pfx"), ""));
+		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, "signing/password"), ""));
+		r_options->push_back(ExportOption(PropertyInfo(Variant::INT, "signing/algorithm", PROPERTY_HINT_ENUM, "MD5,SHA1,SHA256"), 2));
 
 		r_options->push_back(ExportOption(PropertyInfo(Variant::INT, "version/major"), 1));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::INT, "version/minor"), 0));
@@ -1301,7 +1316,7 @@ public:
 			if (do_read) {
 				data.resize(info.uncompressed_size);
 				unzOpenCurrentFile(pkg);
-				unzReadCurrentFile(pkg, data.ptr(), data.size());
+				unzReadCurrentFile(pkg, data.ptrw(), data.size());
 				unzCloseCurrentFile(pkg);
 			}
 
@@ -1341,7 +1356,7 @@ public:
 
 		// Argc
 		clf.resize(4);
-		encode_uint32(cl.size(), clf.ptr());
+		encode_uint32(cl.size(), clf.ptrw());
 
 		for (int i = 0; i < cl.size(); i++) {
 
@@ -1370,6 +1385,58 @@ public:
 
 		packager.finish();
 
+#ifdef WINDOWS_ENABLED
+		// Sign with signtool
+		String signtool_path = EditorSettings::get_singleton()->get("export/uwp/signtool");
+		if (signtool_path == String()) {
+			return OK;
+		}
+
+		if (!FileAccess::exists(signtool_path)) {
+			ERR_PRINTS("Could not find signtool executable at " + signtool_path + ", aborting.");
+			return ERR_FILE_NOT_FOUND;
+		}
+
+		static String algs[] = { "MD5", "SHA1", "SHA256" };
+
+		String cert_path = EditorSettings::get_singleton()->get("export/uwp/debug_certificate");
+		String cert_pass = EditorSettings::get_singleton()->get("export/uwp/debug_password");
+		int cert_alg = EditorSettings::get_singleton()->get("export/uwp/debug_algorithm");
+
+		if (!p_debug) {
+			cert_path = p_preset->get("signing/certificate");
+			cert_pass = p_preset->get("signing/password");
+			cert_alg = p_preset->get("signing/algorithm");
+		}
+
+		if (cert_path == String()) {
+			return OK; // Certificate missing, don't try to sign
+		}
+
+		if (!FileAccess::exists(cert_path)) {
+			ERR_PRINTS("Could not find certificate file at " + cert_path + ", aborting.");
+			return ERR_FILE_NOT_FOUND;
+		}
+
+		if (cert_alg < 0 || cert_alg > 2) {
+			ERR_PRINTS("Invalid certificate algorithm " + itos(cert_alg) + ", aborting.");
+			return ERR_INVALID_DATA;
+		}
+
+		List<String> args;
+		args.push_back("sign");
+		args.push_back("/fd");
+		args.push_back(algs[cert_alg]);
+		args.push_back("/a");
+		args.push_back("/f");
+		args.push_back(cert_path);
+		args.push_back("/p");
+		args.push_back(cert_pass);
+		args.push_back(p_path);
+
+		OS::get_singleton()->execute(signtool_path, args, true);
+#endif // WINDOWS_ENABLED
+
 		return OK;
 	}
 
@@ -1387,6 +1454,18 @@ public:
 };
 
 void register_uwp_exporter() {
-	Ref<EditorExportUWP> exporter = Ref<EditorExportUWP>(memnew(EditorExportUWP));
+
+#ifdef WINDOWS_ENABLED
+	EDITOR_DEF("export/uwp/signtool", "");
+	EditorSettings::get_singleton()->add_property_hint(PropertyInfo(Variant::STRING, "export/uwp/signtool", PROPERTY_HINT_GLOBAL_FILE, "*.exe"));
+	EDITOR_DEF("export/uwp/debug_certificate", "");
+	EditorSettings::get_singleton()->add_property_hint(PropertyInfo(Variant::STRING, "export/uwp/debug_certificate", PROPERTY_HINT_GLOBAL_FILE, "*.pfx"));
+	EDITOR_DEF("export/uwp/debug_password", "");
+	EDITOR_DEF("export/uwp/debug_algorithm", 2); // SHA256 is the default
+	EditorSettings::get_singleton()->add_property_hint(PropertyInfo(Variant::INT, "export/uwp/debug_algorithm", PROPERTY_HINT_ENUM, "MD5,SHA1,SHA256"));
+#endif // WINDOWS_ENABLED
+
+	Ref<EditorExportUWP> exporter;
+	exporter.instance();
 	EditorExport::get_singleton()->add_export_platform(exporter);
 }

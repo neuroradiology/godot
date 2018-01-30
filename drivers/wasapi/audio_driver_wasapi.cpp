@@ -3,10 +3,10 @@
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
-/*                    http://www.godotengine.org                         */
+/*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifdef WASAPI_ENABLED
 
 #include "audio_driver_wasapi.h"
@@ -39,7 +40,7 @@ const IID IID_IMMDeviceEnumerator = __uuidof(IMMDeviceEnumerator);
 const IID IID_IAudioClient = __uuidof(IAudioClient);
 const IID IID_IAudioRenderClient = __uuidof(IAudioRenderClient);
 
-Error AudioDriverWASAPI::init_device() {
+Error AudioDriverWASAPI::init_device(bool reinit) {
 
 	WAVEFORMATEX *pwfex;
 	IMMDeviceEnumerator *enumerator = NULL;
@@ -51,30 +52,45 @@ Error AudioDriverWASAPI::init_device() {
 	ERR_FAIL_COND_V(hr != S_OK, ERR_CANT_OPEN);
 
 	hr = enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device);
-	ERR_FAIL_COND_V(hr != S_OK, ERR_CANT_OPEN);
+	if (reinit) {
+		// In case we're trying to re-initialize the device prevent throwing this error on the console,
+		// otherwise if there is currently no devie available this will spam the console.
+		if (hr != S_OK) {
+			return ERR_CANT_OPEN;
+		}
+	} else {
+		ERR_FAIL_COND_V(hr != S_OK, ERR_CANT_OPEN);
+	}
 
 	hr = device->Activate(IID_IAudioClient, CLSCTX_ALL, NULL, (void **)&audio_client);
-	ERR_FAIL_COND_V(hr != S_OK, ERR_CANT_OPEN);
+	if (reinit) {
+		if (hr != S_OK) {
+			return ERR_CANT_OPEN;
+		}
+	} else {
+		ERR_FAIL_COND_V(hr != S_OK, ERR_CANT_OPEN);
+	}
 
 	hr = audio_client->GetMixFormat(&pwfex);
 	ERR_FAIL_COND_V(hr != S_OK, ERR_CANT_OPEN);
 
 	// Since we're using WASAPI Shared Mode we can't control any of these, we just tag along
-	channels = pwfex->nChannels;
+	wasapi_channels = pwfex->nChannels;
 	mix_rate = pwfex->nSamplesPerSec;
 	format_tag = pwfex->wFormatTag;
 	bits_per_sample = pwfex->wBitsPerSample;
 
-	switch (channels) {
+	switch (wasapi_channels) {
 		case 2: // Stereo
 		case 4: // Surround 3.1
 		case 6: // Surround 5.1
 		case 8: // Surround 7.1
+			channels = wasapi_channels;
 			break;
 
 		default:
-			ERR_PRINTS("WASAPI: Unsupported number of channels: " + itos(channels));
-			ERR_FAIL_V(ERR_CANT_OPEN);
+			WARN_PRINTS("WASAPI: Unsupported number of channels: " + itos(wasapi_channels));
+			channels = 2;
 			break;
 	}
 
@@ -152,7 +168,9 @@ Error AudioDriverWASAPI::finish_device() {
 Error AudioDriverWASAPI::init() {
 
 	Error err = init_device();
-	ERR_FAIL_COND_V(err != OK, err);
+	if (err != OK) {
+		ERR_PRINT("WASAPI: init_device error");
+	}
 
 	active = false;
 	exit_thread = false;
@@ -190,6 +208,35 @@ AudioDriver::SpeakerMode AudioDriverWASAPI::get_speaker_mode() const {
 	return get_speaker_mode_by_total_channels(channels);
 }
 
+void AudioDriverWASAPI::write_sample(AudioDriverWASAPI *ad, BYTE *buffer, int i, int32_t sample) {
+	if (ad->format_tag == WAVE_FORMAT_PCM) {
+		switch (ad->bits_per_sample) {
+			case 8:
+				((int8_t *)buffer)[i] = sample >> 24;
+				break;
+
+			case 16:
+				((int16_t *)buffer)[i] = sample >> 16;
+				break;
+
+			case 24:
+				((int8_t *)buffer)[i * 3 + 2] = sample >> 24;
+				((int8_t *)buffer)[i * 3 + 1] = sample >> 16;
+				((int8_t *)buffer)[i * 3 + 0] = sample >> 8;
+				break;
+
+			case 32:
+				((int32_t *)buffer)[i] = sample;
+				break;
+		}
+	} else if (ad->format_tag == WAVE_FORMAT_IEEE_FLOAT) {
+		((float *)buffer)[i] = (sample >> 16) / 32768.f;
+	} else {
+		ERR_PRINT("WASAPI: Unknown format tag");
+		ad->exit_thread = true;
+	}
+}
+
 void AudioDriverWASAPI::thread_func(void *p_udata) {
 
 	AudioDriverWASAPI *ad = (AudioDriverWASAPI *)p_udata;
@@ -198,7 +245,7 @@ void AudioDriverWASAPI::thread_func(void *p_udata) {
 		if (ad->active) {
 			ad->lock();
 
-			ad->audio_server_process(ad->buffer_frames, ad->samples_in.ptr());
+			ad->audio_server_process(ad->buffer_frames, ad->samples_in.ptrw());
 
 			ad->unlock();
 		} else {
@@ -209,7 +256,7 @@ void AudioDriverWASAPI::thread_func(void *p_udata) {
 
 		unsigned int left_frames = ad->buffer_frames;
 		unsigned int buffer_idx = 0;
-		while (left_frames > 0) {
+		while (left_frames > 0 && ad->audio_client) {
 			WaitForSingleObject(ad->event, 1000);
 
 			UINT32 cur_frames;
@@ -224,42 +271,21 @@ void AudioDriverWASAPI::thread_func(void *p_udata) {
 				if (hr == S_OK) {
 					// We're using WASAPI Shared Mode so we must convert the buffer
 
-					if (ad->format_tag == WAVE_FORMAT_PCM) {
-						switch (ad->bits_per_sample) {
-							case 8:
-								for (unsigned int i = 0; i < write_frames * ad->channels; i++) {
-									((int8_t *)buffer)[i] = ad->samples_in[buffer_idx++] >> 24;
-								}
-								break;
-
-							case 16:
-								for (unsigned int i = 0; i < write_frames * ad->channels; i++) {
-									((int16_t *)buffer)[i] = ad->samples_in[buffer_idx++] >> 16;
-								}
-								break;
-
-							case 24:
-								for (unsigned int i = 0; i < write_frames * ad->channels; i++) {
-									int32_t sample = ad->samples_in[buffer_idx++];
-									((int8_t *)buffer)[i * 3 + 2] = sample >> 24;
-									((int8_t *)buffer)[i * 3 + 1] = sample >> 16;
-									((int8_t *)buffer)[i * 3 + 0] = sample >> 8;
-								}
-								break;
-
-							case 32:
-								for (unsigned int i = 0; i < write_frames * ad->channels; i++) {
-									((int32_t *)buffer)[i] = ad->samples_in[buffer_idx++];
-								}
-								break;
-						}
-					} else if (ad->format_tag == WAVE_FORMAT_IEEE_FLOAT) {
+					if (ad->channels == ad->wasapi_channels) {
 						for (unsigned int i = 0; i < write_frames * ad->channels; i++) {
-							((float *)buffer)[i] = (ad->samples_in[buffer_idx++] >> 16) / 32768.f;
+							ad->write_sample(ad, buffer, i, ad->samples_in[buffer_idx++]);
 						}
 					} else {
-						ERR_PRINT("WASAPI: Unknown format tag");
-						ad->exit_thread = true;
+						for (unsigned int i = 0; i < write_frames; i++) {
+							for (unsigned int j = 0; j < MIN(ad->channels, ad->wasapi_channels); j++) {
+								ad->write_sample(ad, buffer, i * ad->wasapi_channels + j, ad->samples_in[buffer_idx++]);
+							}
+							if (ad->wasapi_channels > ad->channels) {
+								for (unsigned int j = ad->channels; j < ad->wasapi_channels; j++) {
+									ad->write_sample(ad, buffer, i * ad->wasapi_channels + j, 0);
+								}
+							}
+						}
 					}
 
 					hr = ad->render_client->ReleaseBuffer(write_frames, 0);
@@ -271,9 +297,9 @@ void AudioDriverWASAPI::thread_func(void *p_udata) {
 				} else if (hr == AUDCLNT_E_DEVICE_INVALIDATED) {
 					// Device is not valid anymore, reopen it
 
-					Error err = ad->reopen();
+					Error err = ad->finish_device();
 					if (err != OK) {
-						ad->exit_thread = true;
+						ERR_PRINT("WASAPI: finish_device error");
 					} else {
 						// We reopened the device and samples_in may have resized, so invalidate the current left_frames
 						left_frames = 0;
@@ -285,15 +311,22 @@ void AudioDriverWASAPI::thread_func(void *p_udata) {
 			} else if (hr == AUDCLNT_E_DEVICE_INVALIDATED) {
 				// Device is not valid anymore, reopen it
 
-				Error err = ad->reopen();
+				Error err = ad->finish_device();
 				if (err != OK) {
-					ad->exit_thread = true;
+					ERR_PRINT("WASAPI: finish_device error");
 				} else {
 					// We reopened the device and samples_in may have resized, so invalidate the current left_frames
 					left_frames = 0;
 				}
 			} else {
 				ERR_PRINT("WASAPI: GetCurrentPadding error");
+			}
+		}
+
+		if (!ad->audio_client) {
+			Error err = ad->init_device(true);
+			if (err == OK) {
+				ad->start();
 			}
 		}
 	}
@@ -303,11 +336,13 @@ void AudioDriverWASAPI::thread_func(void *p_udata) {
 
 void AudioDriverWASAPI::start() {
 
-	HRESULT hr = audio_client->Start();
-	if (hr != S_OK) {
-		ERR_PRINT("WASAPI: Start failed");
-	} else {
-		active = true;
+	if (audio_client) {
+		HRESULT hr = audio_client->Start();
+		if (hr != S_OK) {
+			ERR_PRINT("WASAPI: Start failed");
+		} else {
+			active = true;
+		}
 	}
 }
 
@@ -355,6 +390,7 @@ AudioDriverWASAPI::AudioDriverWASAPI() {
 
 	buffer_size = 0;
 	channels = 0;
+	wasapi_channels = 0;
 	mix_rate = 0;
 	buffer_frames = 0;
 

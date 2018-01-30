@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "theme_editor_plugin.h"
 
 #include "os/file_access.h"
@@ -427,7 +428,9 @@ void ThemeEditor::_dialog_cbk() {
 
 void ThemeEditor::_theme_menu_cbk(int p_option) {
 
-	if (p_option == POPUP_CREATE_EMPTY || p_option == POPUP_CREATE_EDITOR_EMPTY) {
+	if (p_option == POPUP_CREATE_EMPTY || p_option == POPUP_CREATE_EDITOR_EMPTY || p_option == POPUP_IMPORT_EDITOR_THEME) {
+
+		bool import = (p_option == POPUP_IMPORT_EDITOR_THEME);
 
 		Ref<Theme> base_theme;
 
@@ -449,21 +452,21 @@ void ThemeEditor::_theme_menu_cbk(int p_option) {
 				base_theme->get_icon_list(type, &icons);
 
 				for (List<StringName>::Element *E = icons.front(); E; E = E->next()) {
-					theme->set_icon(E->get(), type, Ref<Texture>());
+					theme->set_icon(E->get(), type, import ? base_theme->get_icon(E->get(), type) : Ref<Texture>());
 				}
 
 				List<StringName> shaders;
 				base_theme->get_shader_list(type, &shaders);
 
 				for (List<StringName>::Element *E = shaders.front(); E; E = E->next()) {
-					theme->set_shader(E->get(), type, Ref<Shader>());
+					theme->set_shader(E->get(), type, import ? base_theme->get_shader(E->get(), type) : Ref<Shader>());
 				}
 
 				List<StringName> styleboxs;
 				base_theme->get_stylebox_list(type, &styleboxs);
 
 				for (List<StringName>::Element *E = styleboxs.front(); E; E = E->next()) {
-					theme->set_stylebox(E->get(), type, Ref<StyleBox>());
+					theme->set_stylebox(E->get(), type, import ? base_theme->get_stylebox(E->get(), type) : Ref<StyleBox>());
 				}
 
 				List<StringName> fonts;
@@ -477,14 +480,14 @@ void ThemeEditor::_theme_menu_cbk(int p_option) {
 				base_theme->get_color_list(type, &colors);
 
 				for (List<StringName>::Element *E = colors.front(); E; E = E->next()) {
-					theme->set_color(E->get(), type, Color());
+					theme->set_color(E->get(), type, import ? base_theme->get_color(E->get(), type) : Color());
 				}
 
 				List<StringName> constants;
 				base_theme->get_constant_list(type, &constants);
 
 				for (List<StringName>::Element *E = constants.front(); E; E = E->next()) {
-					theme->set_constant(E->get(), type, base_theme->get_constant(type, E->get()));
+					theme->set_constant(E->get(), type, base_theme->get_constant(E->get(), type));
 				}
 			}
 		}
@@ -588,6 +591,8 @@ void ThemeEditor::_notification(int p_what) {
 			time_left = 1.5;
 			_refresh_interval();
 		}
+	} else if (p_what == NOTIFICATION_THEME_CHANGED) {
+		theme_menu->set_icon(get_icon("Theme", "EditorIcons"));
 	}
 }
 
@@ -627,7 +632,9 @@ ThemeEditor::ThemeEditor() {
 	main_vb->add_child(hb_menu);
 
 	theme_menu = memnew(MenuButton);
-	theme_menu->set_text(TTR("Theme"));
+	theme_menu->set_text(TTR("Edit theme.."));
+	theme_menu->set_flat(false);
+	theme_menu->set_tooltip(TTR("Theme editing menu."));
 	theme_menu->get_popup()->add_item(TTR("Add Item"), POPUP_ADD);
 	theme_menu->get_popup()->add_item(TTR("Add Class Items"), POPUP_CLASS_ADD);
 	theme_menu->get_popup()->add_item(TTR("Remove Item"), POPUP_REMOVE);
@@ -635,7 +642,7 @@ ThemeEditor::ThemeEditor() {
 	theme_menu->get_popup()->add_separator();
 	theme_menu->get_popup()->add_item(TTR("Create Empty Template"), POPUP_CREATE_EMPTY);
 	theme_menu->get_popup()->add_item(TTR("Create Empty Editor Template"), POPUP_CREATE_EDITOR_EMPTY);
-
+	theme_menu->get_popup()->add_item(TTR("Create From Current Editor Theme"), POPUP_IMPORT_EDITOR_THEME);
 	add_child(theme_menu);
 	theme_menu->set_position(Vector2(3, 3) * EDSCALE);
 	theme_menu->get_popup()->connect("id_pressed", this, "_theme_menu_cbk");
@@ -928,6 +935,6 @@ ThemeEditorPlugin::ThemeEditorPlugin(EditorNode *p_node) {
 	theme_editor->set_custom_minimum_size(Size2(0, 200));
 
 	//p_node->get_viewport()->add_child(theme_editor);
-	button = editor->add_bottom_panel_item("Theme", theme_editor);
+	button = editor->add_bottom_panel_item(TTR("Theme"), theme_editor);
 	button->hide();
 }

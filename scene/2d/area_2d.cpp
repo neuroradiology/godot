@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "area_2d.h"
 #include "scene/scene_string_names.h"
 #include "servers/audio_server.h"
@@ -169,7 +170,7 @@ void Area2D::_body_inout(int p_status, const RID &p_body, int p_instance, int p_
 			E->get().in_tree = node && node->is_inside_tree();
 			if (node) {
 				node->connect(SceneStringNames::get_singleton()->tree_entered, this, SceneStringNames::get_singleton()->_body_enter_tree, make_binds(objid));
-				node->connect(SceneStringNames::get_singleton()->tree_exited, this, SceneStringNames::get_singleton()->_body_exit_tree, make_binds(objid));
+				node->connect(SceneStringNames::get_singleton()->tree_exiting, this, SceneStringNames::get_singleton()->_body_exit_tree, make_binds(objid));
 				if (E->get().in_tree) {
 					emit_signal(SceneStringNames::get_singleton()->body_entered, node);
 				}
@@ -196,7 +197,7 @@ void Area2D::_body_inout(int p_status, const RID &p_body, int p_instance, int p_
 
 			if (node) {
 				node->disconnect(SceneStringNames::get_singleton()->tree_entered, this, SceneStringNames::get_singleton()->_body_enter_tree);
-				node->disconnect(SceneStringNames::get_singleton()->tree_exited, this, SceneStringNames::get_singleton()->_body_exit_tree);
+				node->disconnect(SceneStringNames::get_singleton()->tree_exiting, this, SceneStringNames::get_singleton()->_body_exit_tree);
 				if (E->get().in_tree)
 					emit_signal(SceneStringNames::get_singleton()->body_exited, obj);
 			}
@@ -270,7 +271,7 @@ void Area2D::_area_inout(int p_status, const RID &p_area, int p_instance, int p_
 			E->get().in_tree = node && node->is_inside_tree();
 			if (node) {
 				node->connect(SceneStringNames::get_singleton()->tree_entered, this, SceneStringNames::get_singleton()->_area_enter_tree, make_binds(objid));
-				node->connect(SceneStringNames::get_singleton()->tree_exited, this, SceneStringNames::get_singleton()->_area_exit_tree, make_binds(objid));
+				node->connect(SceneStringNames::get_singleton()->tree_exiting, this, SceneStringNames::get_singleton()->_area_exit_tree, make_binds(objid));
 				if (E->get().in_tree) {
 					emit_signal(SceneStringNames::get_singleton()->area_entered, node);
 				}
@@ -297,7 +298,7 @@ void Area2D::_area_inout(int p_status, const RID &p_area, int p_instance, int p_
 
 			if (node) {
 				node->disconnect(SceneStringNames::get_singleton()->tree_entered, this, SceneStringNames::get_singleton()->_area_enter_tree);
-				node->disconnect(SceneStringNames::get_singleton()->tree_exited, this, SceneStringNames::get_singleton()->_area_exit_tree);
+				node->disconnect(SceneStringNames::get_singleton()->tree_exiting, this, SceneStringNames::get_singleton()->_area_exit_tree);
 				if (E->get().in_tree)
 					emit_signal(SceneStringNames::get_singleton()->area_exited, obj);
 			}
@@ -337,7 +338,7 @@ void Area2D::_clear_monitoring() {
 			//ERR_CONTINUE(!node);
 
 			node->disconnect(SceneStringNames::get_singleton()->tree_entered, this, SceneStringNames::get_singleton()->_body_enter_tree);
-			node->disconnect(SceneStringNames::get_singleton()->tree_exited, this, SceneStringNames::get_singleton()->_body_exit_tree);
+			node->disconnect(SceneStringNames::get_singleton()->tree_exiting, this, SceneStringNames::get_singleton()->_body_exit_tree);
 
 			if (!E->get().in_tree)
 				continue;
@@ -367,7 +368,7 @@ void Area2D::_clear_monitoring() {
 			//ERR_CONTINUE(!node);
 
 			node->disconnect(SceneStringNames::get_singleton()->tree_entered, this, SceneStringNames::get_singleton()->_area_enter_tree);
-			node->disconnect(SceneStringNames::get_singleton()->tree_exited, this, SceneStringNames::get_singleton()->_area_exit_tree);
+			node->disconnect(SceneStringNames::get_singleton()->tree_exiting, this, SceneStringNames::get_singleton()->_area_exit_tree);
 
 			if (!E->get().in_tree)
 				continue;
@@ -688,8 +689,8 @@ void Area2D::_bind_methods() {
 	BIND_ENUM_CONSTANT(SPACE_OVERRIDE_REPLACE_COMBINE);
 }
 
-Area2D::Area2D()
-	: CollisionObject2D(Physics2DServer::get_singleton()->area_create(), true) {
+Area2D::Area2D() :
+		CollisionObject2D(Physics2DServer::get_singleton()->area_create(), true) {
 
 	space_override = SPACE_OVERRIDE_DISABLED;
 	set_gravity(98);

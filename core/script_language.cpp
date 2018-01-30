@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "script_language.h"
 
 ScriptLanguage *ScriptServer::_languages[MAX_LANGUAGES];
@@ -54,11 +55,14 @@ void Script::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_source_code"), &Script::get_source_code);
 	ClassDB::bind_method(D_METHOD("set_source_code", "source"), &Script::set_source_code);
 	ClassDB::bind_method(D_METHOD("reload", "keep_state"), &Script::reload, DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("get_base_script"), &Script::get_base_script);
+	ClassDB::bind_method(D_METHOD("get_instance_base_type"), &Script::get_instance_base_type);
 
 	ClassDB::bind_method(D_METHOD("has_script_signal", "signal_name"), &Script::has_script_signal);
 
 	ClassDB::bind_method(D_METHOD("is_tool"), &Script::is_tool);
-	ClassDB::bind_method(D_METHOD("get_node_type"), &Script::get_node_type);
+
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "source_code", PROPERTY_HINT_NONE, "", 0), "set_source_code", "get_source_code");
 }
 
 void ScriptServer::set_scripting_enabled(bool p_enabled) {
@@ -388,10 +392,10 @@ void PlaceHolderScriptInstance::update(const List<PropertyInfo> &p_properties, c
 	//change notify
 }
 
-PlaceHolderScriptInstance::PlaceHolderScriptInstance(ScriptLanguage *p_language, Ref<Script> p_script, Object *p_owner)
-	: owner(p_owner),
-	  language(p_language),
-	  script(p_script) {
+PlaceHolderScriptInstance::PlaceHolderScriptInstance(ScriptLanguage *p_language, Ref<Script> p_script, Object *p_owner) :
+		owner(p_owner),
+		language(p_language),
+		script(p_script) {
 }
 
 PlaceHolderScriptInstance::~PlaceHolderScriptInstance() {

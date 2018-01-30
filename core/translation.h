@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef TRANSLATION_H
 #define TRANSLATION_H
 
@@ -73,6 +74,8 @@ class TranslationServer : public Object {
 	Set<Ref<Translation> > translations;
 	Ref<Translation> tool_translation;
 
+	Map<String, String> locale_name_map;
+
 	bool enabled;
 
 	static TranslationServer *singleton;
@@ -83,13 +86,13 @@ class TranslationServer : public Object {
 public:
 	_FORCE_INLINE_ static TranslationServer *get_singleton() { return singleton; }
 
-	//yes, portuguese is supported!
-
 	void set_enabled(bool p_enabled) { enabled = p_enabled; }
 	_FORCE_INLINE_ bool is_enabled() const { return enabled; }
 
 	void set_locale(const String &p_locale);
 	String get_locale() const;
+
+	String get_locale_name(const String &p_locale) const;
 
 	void add_translation(const Ref<Translation> &p_translation);
 	void remove_translation(const Ref<Translation> &p_translation);
@@ -99,6 +102,7 @@ public:
 	static Vector<String> get_all_locales();
 	static Vector<String> get_all_locale_names();
 	static bool is_locale_valid(const String &p_locale);
+	static String standardize_locale(const String &p_locale);
 
 	void set_tool_translation(const Ref<Translation> &p_translation);
 	StringName tool_translate(const StringName &p_message) const;

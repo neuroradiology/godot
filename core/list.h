@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef GLOBALS_LIST_H
 #define GLOBALS_LIST_H
 
@@ -306,6 +307,8 @@ public:
 
 		if (!p_element->next_ptr) {
 			_data->last = n;
+		} else {
+			p_element->next_ptr->prev_ptr = n;
 		}
 
 		p_element->next_ptr = n;
@@ -330,6 +333,8 @@ public:
 
 		if (!p_element->prev_ptr) {
 			_data->first = n;
+		} else {
+			p_element->prev_ptr->next_ptr = n;
 		}
 
 		p_element->prev_ptr = n;
@@ -383,7 +388,7 @@ public:
 	};
 
 	/**
-	 * return wether the list is empty
+	 * return whether the list is empty
 	 */
 	_FORCE_INLINE_ bool empty() const {
 

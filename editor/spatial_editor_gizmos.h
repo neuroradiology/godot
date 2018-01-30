@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,11 +27,13 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef SPATIAL_EDITOR_GIZMOS_H
 #define SPATIAL_EDITOR_GIZMOS_H
 
 #include "editor/plugins/spatial_editor_plugin.h"
 #include "scene/3d/audio_stream_player_3d.h"
+#include "scene/3d/baked_lightmap.h"
 #include "scene/3d/camera.h"
 #include "scene/3d/collision_polygon.h"
 #include "scene/3d/collision_shape.h"
@@ -78,7 +80,7 @@ class EditorSpatialGizmo : public SpatialEditorGizmo {
 
 	Vector<Vector3> collision_segments;
 	Ref<TriangleMesh> collision_mesh;
-	Rect3 collision_mesh_bounds;
+	AABB collision_mesh_bounds;
 
 	struct Handle {
 		Vector3 pos;
@@ -100,12 +102,13 @@ protected:
 	void add_lines(const Vector<Vector3> &p_lines, const Ref<Material> &p_material, bool p_billboard = false);
 	void add_mesh(const Ref<ArrayMesh> &p_mesh, bool p_billboard = false, const RID &p_skeleton = RID());
 	void add_collision_segments(const Vector<Vector3> &p_lines);
-	void add_collision_triangles(const Ref<TriangleMesh> &p_tmesh, const Rect3 &p_bounds = Rect3());
+	void add_collision_triangles(const Ref<TriangleMesh> &p_tmesh, const AABB &p_bounds = AABB());
 	void add_unscaled_billboard(const Ref<Material> &p_material, float p_scale = 1);
 	void add_handles(const Vector<Vector3> &p_handles, bool p_billboard = false, bool p_secondary = false);
 	void add_solid_box(Ref<Material> &p_material, Vector3 size);
 
 	void set_spatial_node(Spatial *p_node);
+	const Spatial *get_spatial_node() const { return spatial_node; }
 
 	static void _bind_methods();
 
@@ -288,6 +291,22 @@ public:
 	GIProbeGizmo(GIProbe *p_probe = NULL);
 };
 
+class BakedIndirectLightGizmo : public EditorSpatialGizmo {
+
+	GDCLASS(BakedIndirectLightGizmo, EditorSpatialGizmo);
+
+	BakedLightmap *baker;
+
+public:
+	virtual String get_handle_name(int p_idx) const;
+	virtual Variant get_handle_value(int p_idx) const;
+	virtual void set_handle(int p_idx, Camera *p_camera, const Point2 &p_point);
+	virtual void commit_handle(int p_idx, const Variant &p_restore, bool p_cancel = false);
+
+	void redraw();
+	BakedIndirectLightGizmo(BakedLightmap *p_baker = NULL);
+};
+
 class CollisionShapeSpatialGizmo : public EditorSpatialGizmo {
 
 	GDCLASS(CollisionShapeSpatialGizmo, EditorSpatialGizmo);
@@ -355,6 +374,21 @@ public:
 	NavigationMeshSpatialGizmo(NavigationMeshInstance *p_navmesh = NULL);
 };
 
+class JointGizmosDrawer {
+public:
+	static Basis look_body(const Transform &joint_transform, const Transform &body_transform);
+	static Basis look_body_toward(Vector3::Axis p_axis, const Transform &joint_transform, const Transform &body_transform);
+	static Basis look_body_toward_x(const Transform &joint_transform, const Transform &body_transform);
+	static Basis look_body_toward_y(const Transform &joint_transform, const Transform &body_transform);
+	/// Special function just used for physics joints, it that returns a basis constrained toward Joint Z axis
+	/// with axis X and Y that are looking toward the body and oriented toward up
+	static Basis look_body_toward_z(const Transform &joint_transform, const Transform &body_transform);
+
+	// Draw circle around p_axis
+	static void draw_circle(Vector3::Axis p_axis, real_t p_radius, const Transform &p_offset, const Basis &p_base, real_t p_limit_lower, real_t p_limit_upper, Vector<Vector3> &r_points, bool p_inverse = false);
+	static void draw_cone(const Transform &p_offset, const Basis &p_base, real_t p_swing, real_t p_twist, Vector<Vector3> &r_points);
+};
+
 class PinJointSpatialGizmo : public EditorSpatialGizmo {
 
 	GDCLASS(PinJointSpatialGizmo, EditorSpatialGizmo);
@@ -362,6 +396,8 @@ class PinJointSpatialGizmo : public EditorSpatialGizmo {
 	PinJoint *p3d;
 
 public:
+	static void CreateGizmo(const Transform &p_offset, Vector<Vector3> &r_cursor_points);
+
 	void redraw();
 	PinJointSpatialGizmo(PinJoint *p_p3d = NULL);
 };
@@ -373,6 +409,8 @@ class HingeJointSpatialGizmo : public EditorSpatialGizmo {
 	HingeJoint *p3d;
 
 public:
+	static void CreateGizmo(const Transform &p_offset, const Transform &p_trs_joint, const Transform &p_trs_body_a, const Transform &p_trs_body_b, real_t p_limit_lower, real_t p_limit_upper, bool p_use_limit, Vector<Vector3> &r_common_points, Vector<Vector3> *r_body_a_points, Vector<Vector3> *r_body_b_points);
+
 	void redraw();
 	HingeJointSpatialGizmo(HingeJoint *p_p3d = NULL);
 };
@@ -384,6 +422,8 @@ class SliderJointSpatialGizmo : public EditorSpatialGizmo {
 	SliderJoint *p3d;
 
 public:
+	static void CreateGizmo(const Transform &p_offset, const Transform &p_trs_joint, const Transform &p_trs_body_a, const Transform &p_trs_body_b, real_t p_angular_limit_lower, real_t p_angular_limit_upper, real_t p_linear_limit_lower, real_t p_linear_limit_upper, Vector<Vector3> &r_points, Vector<Vector3> *r_body_a_points, Vector<Vector3> *r_body_b_points);
+
 	void redraw();
 	SliderJointSpatialGizmo(SliderJoint *p_p3d = NULL);
 };
@@ -395,6 +435,8 @@ class ConeTwistJointSpatialGizmo : public EditorSpatialGizmo {
 	ConeTwistJoint *p3d;
 
 public:
+	static void CreateGizmo(const Transform &p_offset, const Transform &p_trs_joint, const Transform &p_trs_body_a, const Transform &p_trs_body_b, real_t p_swing, real_t p_twist, Vector<Vector3> &r_points, Vector<Vector3> *r_body_a_points, Vector<Vector3> *r_body_b_points);
+
 	void redraw();
 	ConeTwistJointSpatialGizmo(ConeTwistJoint *p_p3d = NULL);
 };
@@ -406,6 +448,33 @@ class Generic6DOFJointSpatialGizmo : public EditorSpatialGizmo {
 	Generic6DOFJoint *p3d;
 
 public:
+	static void CreateGizmo(
+			const Transform &p_offset,
+			const Transform &p_trs_joint,
+			const Transform &p_trs_body_a,
+			const Transform &p_trs_body_b,
+			real_t p_angular_limit_lower_x,
+			real_t p_angular_limit_upper_x,
+			real_t p_linear_limit_lower_x,
+			real_t p_linear_limit_upper_x,
+			bool p_enable_angular_limit_x,
+			bool p_enable_linear_limit_x,
+			real_t p_angular_limit_lower_y,
+			real_t p_angular_limit_upper_y,
+			real_t p_linear_limit_lower_y,
+			real_t p_linear_limit_upper_y,
+			bool p_enable_angular_limit_y,
+			bool p_enable_linear_limit_y,
+			real_t p_angular_limit_lower_z,
+			real_t p_angular_limit_upper_z,
+			real_t p_linear_limit_lower_z,
+			real_t p_linear_limit_upper_z,
+			bool p_enable_angular_limit_z,
+			bool p_enable_linear_limit_z,
+			Vector<Vector3> &r_points,
+			Vector<Vector3> *r_body_a_points,
+			Vector<Vector3> *r_body_b_points);
+
 	void redraw();
 	Generic6DOFJointSpatialGizmo(Generic6DOFJoint *p_p3d = NULL);
 };

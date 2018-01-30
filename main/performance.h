@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef PERFORMANCE_H
 #define PERFORMANCE_H
 
@@ -43,14 +44,14 @@ class Performance : public Object {
 	static void _bind_methods();
 
 	float _process_time;
-	float _fixed_process_time;
+	float _physics_process_time;
 
 public:
 	enum Monitor {
 
 		TIME_FPS,
 		TIME_PROCESS,
-		TIME_FIXED_PROCESS,
+		TIME_PHYSICS_PROCESS,
 		MEMORY_STATIC,
 		MEMORY_DYNAMIC,
 		MEMORY_STATIC_MAX,
@@ -79,11 +80,19 @@ public:
 		MONITOR_MAX
 	};
 
+	enum MonitorType {
+		MONITOR_TYPE_QUANTITY,
+		MONITOR_TYPE_MEMORY,
+		MONITOR_TYPE_TIME
+	};
+
 	float get_monitor(Monitor p_monitor) const;
 	String get_monitor_name(Monitor p_monitor) const;
 
+	MonitorType get_monitor_type(Monitor p_monitor) const;
+
 	void set_process_time(float p_pt);
-	void set_fixed_process_time(float p_pt);
+	void set_physics_process_time(float p_pt);
 
 	static Performance *get_singleton() { return singleton; }
 

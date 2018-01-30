@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef AUDIO_STREAM_OGG_VORBIS_H
 #define AUDIO_STREAM_OGG_VORBIS_H
 
@@ -85,7 +86,7 @@ public:
 	virtual void set_loop_restart_time(float p_time) { loop_restart_time = p_time; }
 
 	virtual void set_paused(bool p_paused);
-	virtual bool is_paused(bool p_paused) const;
+	virtual bool is_paused() const;
 
 	virtual void set_loop(bool p_enable);
 	virtual bool has_loop() const;
@@ -103,7 +104,7 @@ public:
 	virtual int get_mix_rate() const { return stream_srate; }
 
 	virtual int get_minimum_buffer_size() const { return 0; }
-	virtual int mix(int16_t *p_bufer, int p_frames);
+	virtual int mix(int16_t *p_buffer, int p_frames);
 
 	AudioStreamPlaybackOGGVorbis();
 	~AudioStreamPlaybackOGGVorbis();

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,10 +27,56 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "path_2d.h"
 
 #include "engine.h"
 #include "scene/scene_string_names.h"
+
+#ifdef TOOLS_ENABLED
+#include "editor/editor_scale.h"
+#endif
+
+Rect2 Path2D::_edit_get_rect() const {
+
+	if (!curve.is_valid() || curve->get_point_count() == 0)
+		return Rect2(0, 0, 0, 0);
+
+	Rect2 aabb = Rect2(curve->get_point_position(0), Vector2(0, 0));
+
+	for (int i = 0; i < curve->get_point_count(); i++) {
+
+		for (int j = 0; j <= 8; j++) {
+
+			real_t frac = j / 8.0;
+			Vector2 p = curve->interpolate(i, frac);
+			aabb.expand_to(p);
+		}
+	}
+
+	return aabb;
+}
+
+bool Path2D::_edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const {
+
+	for (int i = 0; i < curve->get_point_count(); i++) {
+		Vector2 s[2];
+		s[0] = curve->get_point_position(i);
+
+		for (int j = 1; j <= 8; j++) {
+			real_t frac = j / 8.0;
+			s[1] = curve->interpolate(i, frac);
+
+			Vector2 p = Geometry::get_closest_point_to_segment_2d(p_point, s);
+			if (p.distance_to(p_point) <= p_tolerance)
+				return true;
+
+			s[0] = s[1];
+		}
+	}
+
+	return false;
+}
 
 void Path2D::_notification(int p_what) {
 
@@ -41,6 +87,13 @@ void Path2D::_notification(int p_what) {
 			return;
 		}
 
+#if TOOLS_ENABLED
+		const float line_width = 2 * EDSCALE;
+#else
+		const float line_width = 2;
+#endif
+		const Color color = Color(0.5, 0.6, 1.0, 0.7);
+
 		for (int i = 0; i < curve->get_point_count(); i++) {
 
 			Vector2 prev_p = curve->get_point_position(i);
@@ -49,7 +102,7 @@ void Path2D::_notification(int p_what) {
 
 				real_t frac = j / 8.0;
 				Vector2 p = curve->interpolate(i, frac);
-				draw_line(prev_p, p, Color(0.5, 0.6, 1.0, 0.7), 2);
+				draw_line(prev_p, p, color, line_width);
 				prev_p = p;
 			}
 		}
@@ -107,20 +160,51 @@ void PathFollow2D::_update_transform() {
 	if (!c.is_valid())
 		return;
 
-	float o = offset;
+	float path_length = c->get_baked_length();
+	float bounded_offset = offset;
 	if (loop)
-		o = Math::fposmod(o, c->get_baked_length());
+		bounded_offset = Math::fposmod(bounded_offset, path_length);
+	else
+		bounded_offset = CLAMP(bounded_offset, 0, path_length);
 
-	Vector2 pos = c->interpolate_baked(o, cubic);
+	Vector2 pos = c->interpolate_baked(bounded_offset, cubic);
 
 	if (rotate) {
+		float ahead = bounded_offset + lookahead;
 
-		Vector2 n = (c->interpolate_baked(o + lookahead, cubic) - pos).normalized();
-		Vector2 t = -n.tangent();
-		pos += n * h_offset;
-		pos += t * v_offset;
+		if (loop && ahead >= path_length) {
+			// If our lookahead will loop, we need to check if the path is closed.
+			int point_count = c->get_point_count();
+			if (point_count > 0) {
+				Vector2 start_point = c->get_point_position(0);
+				Vector2 end_point = c->get_point_position(point_count - 1);
+				if (start_point == end_point) {
+					// Since the path is closed we want to 'smooth off'
+					// the corner at the start/end.
+					// So we wrap the lookahead back round.
+					ahead = Math::fmod(ahead, path_length);
+				}
+			}
+		}
 
-		set_rotation(t.angle());
+		Vector2 ahead_pos = c->interpolate_baked(ahead, cubic);
+
+		Vector2 tangent_to_curve;
+		if (ahead_pos == pos) {
+			// This will happen at the end of non-looping or non-closed paths.
+			// We'll try a look behind instead, in order to get a meaningful angle.
+			tangent_to_curve =
+					(pos - c->interpolate_baked(bounded_offset - lookahead, cubic)).normalized();
+		} else {
+			tangent_to_curve = (ahead_pos - pos).normalized();
+		}
+
+		Vector2 normal_of_curve = -tangent_to_curve.tangent();
+
+		pos += tangent_to_curve * h_offset;
+		pos += normal_of_curve * v_offset;
+
+		set_rotation(tangent_to_curve.angle());
 
 	} else {
 
@@ -160,66 +244,16 @@ bool PathFollow2D::get_cubic_interpolation() const {
 	return cubic;
 }
 
-bool PathFollow2D::_set(const StringName &p_name, const Variant &p_value) {
+void PathFollow2D::_validate_property(PropertyInfo &property) const {
 
-	if (p_name == SceneStringNames::get_singleton()->offset) {
-		set_offset(p_value);
-	} else if (p_name == SceneStringNames::get_singleton()->unit_offset) {
-		set_unit_offset(p_value);
-	} else if (p_name == SceneStringNames::get_singleton()->rotate) {
-		set_rotate(p_value);
-	} else if (p_name == SceneStringNames::get_singleton()->v_offset) {
-		set_v_offset(p_value);
-	} else if (p_name == SceneStringNames::get_singleton()->h_offset) {
-		set_h_offset(p_value);
-	} else if (String(p_name) == "cubic_interp") {
-		set_cubic_interpolation(p_value);
-	} else if (String(p_name) == "loop") {
-		set_loop(p_value);
-	} else if (String(p_name) == "lookahead") {
-		set_lookahead(p_value);
-	} else
-		return false;
+	if (property.name == "offset") {
 
-	return true;
-}
+		float max = 10000;
+		if (path && path->get_curve().is_valid())
+			max = path->get_curve()->get_baked_length();
 
-bool PathFollow2D::_get(const StringName &p_name, Variant &r_ret) const {
-
-	if (p_name == SceneStringNames::get_singleton()->offset) {
-		r_ret = get_offset();
-	} else if (p_name == SceneStringNames::get_singleton()->unit_offset) {
-		r_ret = get_unit_offset();
-	} else if (p_name == SceneStringNames::get_singleton()->rotate) {
-		r_ret = is_rotating();
-	} else if (p_name == SceneStringNames::get_singleton()->v_offset) {
-		r_ret = get_v_offset();
-	} else if (p_name == SceneStringNames::get_singleton()->h_offset) {
-		r_ret = get_h_offset();
-	} else if (String(p_name) == "cubic_interp") {
-		r_ret = cubic;
-	} else if (String(p_name) == "loop") {
-		r_ret = loop;
-	} else if (String(p_name) == "lookahead") {
-		r_ret = lookahead;
-	} else
-		return false;
-
-	return true;
-}
-void PathFollow2D::_get_property_list(List<PropertyInfo> *p_list) const {
-
-	float max = 10000;
-	if (path && path->get_curve().is_valid())
-		max = path->get_curve()->get_baked_length();
-	p_list->push_back(PropertyInfo(Variant::REAL, "offset", PROPERTY_HINT_RANGE, "0," + rtos(max) + ",0.01"));
-	p_list->push_back(PropertyInfo(Variant::REAL, "unit_offset", PROPERTY_HINT_RANGE, "0,1,0.0001", PROPERTY_USAGE_EDITOR));
-	p_list->push_back(PropertyInfo(Variant::REAL, "h_offset"));
-	p_list->push_back(PropertyInfo(Variant::REAL, "v_offset"));
-	p_list->push_back(PropertyInfo(Variant::BOOL, "rotate"));
-	p_list->push_back(PropertyInfo(Variant::BOOL, "cubic_interp"));
-	p_list->push_back(PropertyInfo(Variant::BOOL, "loop"));
-	p_list->push_back(PropertyInfo(Variant::REAL, "lookahead", PROPERTY_HINT_RANGE, "0.001,1024.0,0.001"));
+		property.hint_string = "0," + rtos(max) + ",0.01";
+	}
 }
 
 String PathFollow2D::get_configuration_warning() const {
@@ -256,6 +290,18 @@ void PathFollow2D::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_loop", "loop"), &PathFollow2D::set_loop);
 	ClassDB::bind_method(D_METHOD("has_loop"), &PathFollow2D::has_loop);
+
+	ClassDB::bind_method(D_METHOD("set_lookahead", "lookahead"), &PathFollow2D::set_lookahead);
+	ClassDB::bind_method(D_METHOD("get_lookahead"), &PathFollow2D::get_lookahead);
+
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "offset", PROPERTY_HINT_RANGE, "0,10000,0.01"), "set_offset", "get_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "unit_offset", PROPERTY_HINT_RANGE, "0,1,0.0001", PROPERTY_USAGE_EDITOR), "set_unit_offset", "get_unit_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "h_offset"), "set_h_offset", "get_h_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "v_offset"), "set_v_offset", "get_v_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "rotate"), "set_rotate", "is_rotating");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "cubic_interp"), "set_cubic_interpolation", "get_cubic_interpolation");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "loop"), "set_loop", "has_loop");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "lookahead", PROPERTY_HINT_RANGE, "0.001,1024.0,0.001"), "set_lookahead", "get_lookahead");
 }
 
 void PathFollow2D::set_offset(float p_offset) {

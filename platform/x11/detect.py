@@ -52,10 +52,11 @@ def get_opts():
         BoolVariable('use_static_cpp', 'Link stdc++ statically', False),
         BoolVariable('use_sanitizer', 'Use LLVM compiler address sanitizer', False),
         BoolVariable('use_leak_sanitizer', 'Use LLVM compiler memory leaks sanitizer (implies use_sanitizer)', False),
-        BoolVariable('use_lto', 'Use link time optimization', False),
         BoolVariable('pulseaudio', 'Detect & use pulseaudio', True),
         BoolVariable('udev', 'Use udev for gamepad connection callbacks', False),
         EnumVariable('debug_symbols', 'Add debug symbols to release version', 'yes', ('yes', 'no', 'full')),
+        BoolVariable('separate_debug_symbols', 'Create a separate file with the debug symbols', False),
+        BoolVariable('touch', 'Enable touch events', True),
     ]
 
 
@@ -101,11 +102,15 @@ def configure(env):
 
     ## Compiler configuration
 
+    if 'CXX' in env and 'clang' in env['CXX']:
+        # Convenience check to enforce the use_llvm overrides when CXX is clang(++)
+        env['use_llvm'] = True
+
     if env['use_llvm']:
         if ('clang++' not in env['CXX']):
             env["CC"] = "clang"
             env["CXX"] = "clang++"
-            env["LD"] = "clang++"
+            env["LINK"] = "clang++"
         env.Append(CPPFLAGS=['-DTYPED_METHOD_BIND'])
         env.extra_suffix = ".llvm" + env.extra_suffix
 
@@ -138,6 +143,14 @@ def configure(env):
     env.ParseConfig('pkg-config xinerama --cflags --libs')
     env.ParseConfig('pkg-config xrandr --cflags --libs')
 
+    if (env['touch']):
+        x11_error = os.system("pkg-config xi --modversion > /dev/null ")
+        if (x11_error):
+            print("xi not found.. cannot build with touch. Aborting.")
+            sys.exit(255)
+        env.ParseConfig('pkg-config xi --cflags --libs')
+        env.Append(CPPFLAGS=['-DTOUCH_ENABLED'])
+
     # FIXME: Check for existence of the libs before parsing their flags with pkg-config
 
     if not env['builtin_openssl']:
@@ -145,6 +158,7 @@ def configure(env):
 
     if not env['builtin_libwebp']:
         env.ParseConfig('pkg-config libwebp --cflags --libs')
+
 
     # freetype depends on libpng and zlib, so bundling one of them while keeping others
     # as shared libraries leads to weird issues
@@ -158,6 +172,16 @@ def configure(env):
 
     if not env['builtin_libpng']:
         env.ParseConfig('pkg-config libpng --cflags --libs')
+
+    if not env['builtin_bullet']:
+        # We need at least version 2.88
+        import subprocess
+        bullet_version = subprocess.check_output(['pkg-config', 'bullet', '--modversion']).strip()
+        if bullet_version < "2.88":
+            # Abort as system bullet was requested but too old
+            print("Bullet: System version {0} does not match minimal requirements ({1}). Aborting.".format(bullet_version, "2.88"))
+            sys.exit(255)
+        env.ParseConfig('pkg-config bullet --cflags --libs')
 
     if not env['builtin_enet']:
         env.ParseConfig('pkg-config libenet --cflags --libs')
@@ -233,11 +257,14 @@ def configure(env):
         env.ParseConfig('pkg-config zlib --cflags --libs')
 
     env.Append(CPPPATH=['#platform/x11'])
-    env.Append(CPPFLAGS=['-DX11_ENABLED', '-DUNIX_ENABLED', '-DOPENGL_ENABLED', '-DGLES2_ENABLED', '-DGLES_OVER_GL'])
+    env.Append(CPPFLAGS=['-DX11_ENABLED', '-DUNIX_ENABLED', '-DOPENGL_ENABLED', '-DGLES_ENABLED', '-DGLES_OVER_GL'])
     env.Append(LIBS=['GL', 'pthread'])
 
     if (platform.system() == "Linux"):
         env.Append(LIBS=['dl'])
+
+    if (platform.system().find("BSD") >= 0):
+        env.Append(LIBS=['execinfo'])
 
     ## Cross-compilation
 
@@ -247,6 +274,7 @@ def configure(env):
     elif (not is64 and env["bits"] == "64"):
         env.Append(CPPFLAGS=['-m64'])
         env.Append(LINKFLAGS=['-m64', '-L/usr/lib/i686-linux-gnu'])
+
 
     if env['use_static_cpp']:
         env.Append(LINKFLAGS=['-static-libstdc++'])

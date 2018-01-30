@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef SURFACE_TOOL_H
 #define SURFACE_TOOL_H
 
@@ -127,10 +128,11 @@ public:
 	List<Vertex> &get_vertex_array() { return vertex_array; }
 
 	void create_from_triangle_arrays(const Array &p_arrays);
+	static Vector<Vertex> create_vertex_array_from_triangle_arrays(const Array &p_arrays);
 	Array commit_to_arrays();
 	void create_from(const Ref<Mesh> &p_existing, int p_surface);
 	void append_from(const Ref<Mesh> &p_existing, int p_surface, const Transform &p_xform);
-	Ref<ArrayMesh> commit(const Ref<ArrayMesh> &p_existing = Ref<ArrayMesh>());
+	Ref<ArrayMesh> commit(const Ref<ArrayMesh> &p_existing = Ref<ArrayMesh>(), uint32_t p_flags = Mesh::ARRAY_COMPRESS_DEFAULT);
 
 	SurfaceTool();
 };

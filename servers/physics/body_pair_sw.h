@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef BODY_PAIR_SW_H
 #define BODY_PAIR_SW_H
 
@@ -59,6 +60,7 @@ class BodyPairSW : public ConstraintSW {
 		real_t acc_normal_impulse; // accumulated normal impulse (Pn)
 		Vector3 acc_tangent_impulse; // accumulated tangent impulse (Pt)
 		real_t acc_bias_impulse; // accumulated normal impulse for position bias (Pnb)
+		real_t acc_bias_impulse_center_of_mass; // accumulated normal impulse for position bias applied to com
 		real_t mass_normal;
 		real_t bias;
 		real_t bounce;

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef SPRITE_3D_H
 #define SPRITE_3D_H
 
@@ -71,7 +72,7 @@ private:
 
 	Vector3::Axis axis;
 	float pixel_size;
-	Rect3 aabb;
+	AABB aabb;
 
 	RID immediate;
 
@@ -87,7 +88,7 @@ protected:
 	void _notification(int p_what);
 	static void _bind_methods();
 	virtual void _draw() = 0;
-	_FORCE_INLINE_ void set_aabb(const Rect3 &p_aabb) { aabb = p_aabb; }
+	_FORCE_INLINE_ void set_aabb(const AABB &p_aabb) { aabb = p_aabb; }
 	_FORCE_INLINE_ RID &get_immediate() { return immediate; }
 	void _queue_update();
 
@@ -130,7 +131,7 @@ public:
 
 	virtual Rect2 get_item_rect() const = 0;
 
-	virtual Rect3 get_aabb() const;
+	virtual AABB get_aabb() const;
 	virtual PoolVector<Face3> get_faces(uint32_t p_usage_flags) const;
 
 	SpriteBase3D();

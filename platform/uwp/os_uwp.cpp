@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,19 +27,22 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "os_uwp.h"
+
 #include "drivers/gles3/rasterizer_gles3.h"
 #include "drivers/unix/ip_unix.h"
 #include "drivers/windows/dir_access_windows.h"
 #include "drivers/windows/file_access_windows.h"
 #include "drivers/windows/mutex_windows.h"
+#include "drivers/windows/packet_peer_udp_winsock.h"
 #include "drivers/windows/rw_lock_windows.h"
 #include "drivers/windows/semaphore_windows.h"
+#include "drivers/windows/stream_peer_tcp_winsock.h"
+#include "drivers/windows/tcp_server_winsock.h"
 #include "io/marshalls.h"
 #include "main/main.h"
-#include "platform/windows/packet_peer_udp_winsock.h"
-#include "platform/windows/stream_peer_winsock.h"
-#include "platform/windows/tcp_server_winsock.h"
+#include "platform/windows/windows_terminal_logger.h"
 #include "project_settings.h"
 #include "servers/audio_server.h"
 #include "servers/visual/visual_server_raster.h"
@@ -68,12 +71,7 @@ int OSUWP::get_video_driver_count() const {
 }
 const char *OSUWP::get_video_driver_name(int p_driver) const {
 
-	return "GLES2";
-}
-
-OS::VideoMode OSUWP::get_default_video_mode() const {
-
-	return video_mode;
+	return "GLES3";
 }
 
 Size2 OSUWP::get_window_size() const {
@@ -166,7 +164,7 @@ void OSUWP::initialize_core() {
 	DirAccess::make_default<DirAccessWindows>(DirAccess::ACCESS_FILESYSTEM);
 
 	TCPServerWinsock::make_default();
-	StreamPeerWinsock::make_default();
+	StreamPeerTCPWinsock::make_default();
 	PacketPeerUDPWinsock::make_default();
 
 	// We need to know how often the clock is updated
@@ -197,7 +195,7 @@ void OSUWP::screen_size_changed() {
 	gl_context->reset();
 };
 
-void OSUWP::initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver) {
+Error OSUWP::initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver) {
 
 	main_loop = NULL;
 	outside = true;
@@ -244,6 +242,7 @@ void OSUWP::initialize(const VideoMode &p_desired, int p_video_driver, int p_aud
 
 	RasterizerGLES3::register_config();
 	RasterizerGLES3::make_current();
+	gl_context->set_use_vsync(vm.use_vsync);
 
 	visual_server = memnew(VisualServerRaster);
 	// FIXME: Reimplement threaded rendering? Or remove?
@@ -253,13 +252,6 @@ void OSUWP::initialize(const VideoMode &p_desired, int p_video_driver, int p_aud
 		visual_server = memnew(VisualServerWrapMT(visual_server, get_render_thread_mode() == RENDER_SEPARATE_THREAD));
 	}
 	*/
-
-	//
-	physics_server = memnew(PhysicsServerSW);
-	physics_server->init();
-
-	physics_2d_server = memnew(Physics2DServerSW);
-	physics_2d_server->init();
 
 	visual_server->init();
 
@@ -300,12 +292,14 @@ void OSUWP::initialize(const VideoMode &p_desired, int p_video_driver, int p_aud
 				ref new TypedEventHandler<Gyrometer ^, GyrometerReadingChangedEventArgs ^>(managed_object, &ManagedType::on_gyroscope_reading_changed);
 	}
 
-	_ensure_data_dir();
+	_ensure_user_data_dir();
 
 	if (is_keep_screen_on())
 		display_request->RequestActive();
 
 	set_keep_screen_on(GLOBAL_DEF("display/window/keep_screen_on", true));
+
+	return OK;
 }
 
 void OSUWP::set_clipboard(const String &p_text) {
@@ -359,43 +353,11 @@ void OSUWP::finalize() {
 
 	memdelete(input);
 
-	physics_server->finish();
-	memdelete(physics_server);
-
-	physics_2d_server->finish();
-	memdelete(physics_2d_server);
-
 	joypad = nullptr;
 }
 
 void OSUWP::finalize_core() {
 }
-
-void OSUWP::vprint(const char *p_format, va_list p_list, bool p_stderr) {
-
-	char buf[16384 + 1];
-	int len = vsnprintf(buf, 16384, p_format, p_list);
-	if (len <= 0)
-		return;
-	buf[len] = 0;
-
-	int wlen = MultiByteToWideChar(CP_UTF8, 0, buf, len, NULL, 0);
-	if (wlen < 0)
-		return;
-
-	wchar_t *wbuf = (wchar_t *)malloc((len + 1) * sizeof(wchar_t));
-	MultiByteToWideChar(CP_UTF8, 0, buf, len, wbuf, wlen);
-	wbuf[wlen] = 0;
-
-	if (p_stderr)
-		fwprintf(stderr, L"%s", wbuf);
-	else
-		wprintf(L"%s", wbuf);
-
-	free(wbuf);
-
-	fflush(stdout);
-};
 
 void OSUWP::alert(const String &p_alert, const String &p_title) {
 
@@ -518,30 +480,6 @@ OS::VideoMode OSUWP::get_video_mode(int p_screen) const {
 	return video_mode;
 }
 void OSUWP::get_fullscreen_mode_list(List<VideoMode> *p_list, int p_screen) const {
-}
-
-void OSUWP::print_error(const char *p_function, const char *p_file, int p_line, const char *p_code, const char *p_rationale, ErrorType p_type) {
-
-	const char *err_details;
-	if (p_rationale && p_rationale[0])
-		err_details = p_rationale;
-	else
-		err_details = p_code;
-
-	switch (p_type) {
-		case ERR_ERROR:
-			print("ERROR: %s: %s\n", p_function, err_details);
-			print("   At: %s:%i\n", p_file, p_line);
-			break;
-		case ERR_WARNING:
-			print("WARNING: %s: %s\n", p_function, err_details);
-			print("     At: %s:%i\n", p_file, p_line);
-			break;
-		case ERR_SCRIPT:
-			print("SCRIPT ERROR: %s: %s\n", p_function, err_details);
-			print("          At: %s:%i\n", p_file, p_line);
-			break;
-	}
 }
 
 String OSUWP::get_name() {
@@ -716,7 +654,11 @@ void OSUWP::set_cursor_shape(CursorShape p_shape) {
 	cursor_shape = p_shape;
 }
 
-Error OSUWP::execute(const String &p_path, const List<String> &p_arguments, bool p_blocking, ProcessID *r_child_id, String *r_pipe, int *r_exitcode) {
+void OSUWP::set_custom_mouse_cursor(const RES &p_cursor, CursorShape p_shape, const Vector2 &p_hotspot) {
+	// TODO
+}
+
+Error OSUWP::execute(const String &p_path, const List<String> &p_arguments, bool p_blocking, ProcessID *r_child_id, String *r_pipe, int *r_exitcode, bool read_stderr) {
 
 	return FAILED;
 };
@@ -810,6 +752,51 @@ void OSUWP::hide_virtual_keyboard() {
 	pane->TryHide();
 }
 
+static String format_error_message(DWORD id) {
+
+	LPWSTR messageBuffer = NULL;
+	size_t size = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+			NULL, id, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&messageBuffer, 0, NULL);
+
+	String msg = "Error " + itos(id) + ": " + String(messageBuffer, size);
+
+	LocalFree(messageBuffer);
+
+	return msg;
+}
+
+Error OSUWP::open_dynamic_library(const String p_path, void *&p_library_handle, bool p_also_set_library_path) {
+
+	String full_path = "game/" + p_path;
+	p_library_handle = (void *)LoadPackagedLibrary(full_path.c_str(), 0);
+
+	if (!p_library_handle) {
+		ERR_EXPLAIN("Can't open dynamic library: " + full_path + ". Error: " + format_error_message(GetLastError()));
+		ERR_FAIL_V(ERR_CANT_OPEN);
+	}
+	return OK;
+}
+
+Error OSUWP::close_dynamic_library(void *p_library_handle) {
+	if (!FreeLibrary((HMODULE)p_library_handle)) {
+		return FAILED;
+	}
+	return OK;
+}
+
+Error OSUWP::get_dynamic_library_symbol_handle(void *p_library_handle, const String p_name, void *&p_symbol_handle, bool p_optional) {
+	p_symbol_handle = (void *)GetProcAddress((HMODULE)p_library_handle, p_name.utf8().get_data());
+	if (!p_symbol_handle) {
+		if (!p_optional) {
+			ERR_EXPLAIN("Can't resolve symbol " + p_name + ". Error: " + String::num(GetLastError()));
+			ERR_FAIL_V(ERR_CANT_RESOLVE);
+		} else {
+			return ERR_CANT_RESOLVE;
+		}
+	}
+	return OK;
+}
+
 void OSUWP::run() {
 
 	if (!main_loop)
@@ -839,7 +826,7 @@ MainLoop *OSUWP::get_main_loop() const {
 	return main_loop;
 }
 
-String OSUWP::get_data_dir() const {
+String OSUWP::get_user_data_dir() const {
 
 	Windows::Storage::StorageFolder ^ data_folder = Windows::Storage::ApplicationData::Current->LocalFolder;
 
@@ -890,6 +877,10 @@ OSUWP::OSUWP() {
 	mouse_mode_changed = CreateEvent(NULL, TRUE, FALSE, L"os_mouse_mode_changed");
 
 	AudioDriverManager::add_driver(&audio_driver);
+
+	Vector<Logger *> loggers;
+	loggers.push_back(memnew(WindowsTerminalLogger));
+	_set_logger(memnew(CompositeLogger(loggers)));
 }
 
 OSUWP::~OSUWP() {

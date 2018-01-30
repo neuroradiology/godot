@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef MATH_FUNCS_H
 #define MATH_FUNCS_H
 
@@ -39,6 +40,7 @@
 #include <math.h>
 
 #define Math_PI 3.14159265358979323846
+#define Math_TAU 6.28318530717958647692
 #define Math_SQRT12 0.7071067811865475244008443621048490
 #define Math_LN2 0.693147180559945309417
 #define Math_INF INFINITY
@@ -207,6 +209,9 @@ public:
 	static _ALWAYS_INLINE_ double round(double p_val) { return (p_val >= 0) ? Math::floor(p_val + 0.5) : -Math::floor(-p_val + 0.5); }
 	static _ALWAYS_INLINE_ float round(float p_val) { return (p_val >= 0) ? Math::floor(p_val + 0.5) : -Math::floor(-p_val + 0.5); }
 
+	static int wrapi(int value, int min, int max);
+	static float wrapf(float value, float min, float max);
+
 	// double only, as these functions are mainly used by the editor and not performance-critical,
 	static double ease(double p_x, double p_c);
 	static int step_decimals(double p_step);
@@ -268,7 +273,7 @@ public:
 
 #elif defined(_MSC_VER) && _MSC_VER < 1800
 		__asm fld a __asm fistp b
-/*#elif defined( __GNUC__ ) && ( defined( __i386__ ) || defined( __x86_64__ ) )
+		/*#elif defined( __GNUC__ ) && ( defined( __i386__ ) || defined( __x86_64__ ) )
 		// use AT&T inline assembly style, document that
 		// we use memory as output (=m) and input (m)
 		__asm__ __volatile__ (
@@ -386,6 +391,23 @@ public:
 		}
 
 		return hf;
+	}
+
+	static _ALWAYS_INLINE_ float snap_scalar(float p_offset, float p_step, float p_target) {
+		return p_step != 0 ? Math::stepify(p_target - p_offset, p_step) + p_offset : p_target;
+	}
+
+	static _ALWAYS_INLINE_ float snap_scalar_seperation(float p_offset, float p_step, float p_target, float p_separation) {
+		if (p_step != 0) {
+			float a = Math::stepify(p_target - p_offset, p_step + p_separation) + p_offset;
+			float b = a;
+			if (p_target >= 0)
+				b -= p_separation;
+			else
+				b += p_step;
+			return (Math::abs(p_target - a) < Math::abs(p_target - b)) ? a : b;
+		}
+		return p_target;
 	}
 };
 

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "file_access_android.h"
 #include "print_string.h"
 
@@ -144,6 +145,11 @@ int FileAccessAndroid::get_buffer(uint8_t *p_dst, int p_length) const {
 Error FileAccessAndroid::get_error() const {
 
 	return eof ? ERR_FILE_EOF : OK; //not sure what else it may happen
+}
+
+void FileAccessAndroid::flush() {
+
+	ERR_FAIL();
 }
 
 void FileAccessAndroid::store_8(uint8_t p_dest) {

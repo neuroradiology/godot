@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef PATH_H
 #define PATH_H
 
@@ -67,10 +68,10 @@ public:
 
 private:
 	Path *path;
+	real_t delta_offset; // change in offset since last _update_transform
 	real_t offset;
 	real_t h_offset;
 	real_t v_offset;
-	real_t lookahead;
 	bool cubic;
 	bool loop;
 	RotationMode rotation_mode;
@@ -78,9 +79,7 @@ private:
 	void _update_transform();
 
 protected:
-	bool _set(const StringName &p_name, const Variant &p_value);
-	bool _get(const StringName &p_name, Variant &r_ret) const;
-	void _get_property_list(List<PropertyInfo> *p_list) const;
+	virtual void _validate_property(PropertyInfo &property) const;
 
 	void _notification(int p_what);
 	static void _bind_methods();
@@ -97,9 +96,6 @@ public:
 
 	void set_unit_offset(float p_unit_offset);
 	float get_unit_offset() const;
-
-	void set_lookahead(float p_lookahead);
-	float get_lookahead() const;
 
 	void set_loop(bool p_loop);
 	bool has_loop() const;

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "particles_2d_editor_plugin.h"
 
 #include "canvas_item_editor_plugin.h"
@@ -77,11 +78,6 @@ void Particles2DEditorPlugin::_menu_callback(int p_idx) {
 		case MENU_CLEAR_EMISSION_MASK: {
 
 			emission_mask->popup_centered_minsize();
-
-			/*undo_redo->create_action(TTR("Clear Emission Mask"));
-			undo_redo->add_do_method(particles, "set_emission_points", PoolVector<Vector2>());
-			undo_redo->add_undo_method(particles, "set_emission_points", particles->get_emission_points());
-			undo_redo->commit_action();*/
 		} break;
 	}
 }
@@ -309,14 +305,6 @@ void Particles2DEditorPlugin::_generate_emission_mask() {
 	} else {
 		pm->set_emission_shape(ParticlesMaterial::EMISSION_SHAPE_POINTS);
 	}
-
-	/*undo_redo->create_action(TTR("Set Emission Mask"));
-	undo_redo->add_do_method(particles, "set_emission_points", epoints);
-	undo_redo->add_do_method(particles, "set_emission_half_extents", extents);
-	undo_redo->add_undo_method(particles, "set_emission_points", particles->get_emission_points());
-	undo_redo->add_undo_method(particles, "set_emission_half_extents", particles->get_emission_half_extents());
-	undo_redo->commit_action();
-	*/
 }
 
 void Particles2DEditorPlugin::_notification(int p_what) {

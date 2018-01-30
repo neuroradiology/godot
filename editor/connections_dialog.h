@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef CONNECTIONS_DIALOG_H
 #define CONNECTIONS_DIALOG_H
 
@@ -55,7 +56,6 @@ class ConnectDialog : public ConfirmationDialog {
 	LineEdit *dst_path;
 	LineEdit *dst_method;
 	SceneTreeEditor *tree;
-	//MenuButton *dst_method_list;
 	OptionButton *type_list;
 	CheckButton *deferred;
 	CheckButton *oneshot;
@@ -66,7 +66,6 @@ class ConnectDialog : public ConfirmationDialog {
 	void ok_pressed();
 	void _cancel_pressed();
 	void _tree_node_selected();
-	void _dst_method_list_selected(int p_idx);
 	void _add_bind();
 	void _remove_bind();
 
@@ -84,8 +83,6 @@ public:
 	void set_dst_method(const StringName &p_method);
 	void set_dst_node(Node *p_node);
 
-	//Button *get_ok() { return ok; }
-	//Button *get_cancel() { return cancel; }
 	void edit(Node *p_node);
 
 	ConnectDialog();

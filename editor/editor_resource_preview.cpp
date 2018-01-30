@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "editor_resource_preview.h"
 
 #include "editor_scale.h"
@@ -86,7 +87,6 @@ void EditorResourcePreview::_thread_func(void *ud) {
 
 void EditorResourcePreview::_preview_ready(const String &p_str, const Ref<Texture> &p_texture, ObjectID id, const StringName &p_func, const Variant &p_ud) {
 
-	//print_line("preview is ready");
 	preview_mutex->lock();
 
 	String path = p_str;
@@ -121,7 +121,6 @@ Ref<Texture> EditorResourcePreview::_generate_preview(const QueueItem &p_item, c
 		type = p_item.resource->get_class();
 	else
 		type = ResourceLoader::get_resource_type(p_item.path);
-	//print_line("resource type is: "+type);
 
 	if (type == "")
 		return Ref<Texture>(); //could not guess type
@@ -144,7 +143,6 @@ Ref<Texture> EditorResourcePreview::_generate_preview(const QueueItem &p_item, c
 	if (!p_item.resource.is_valid()) {
 		// cache the preview in case it's a resource on disk
 		if (generated.is_valid()) {
-			//print_line("was generated");
 			int thumbnail_size = EditorSettings::get_singleton()->get("filesystem/file_dialog/thumbnail_size");
 			thumbnail_size *= EDSCALE;
 			//wow it generated a preview... save cache
@@ -164,14 +162,10 @@ Ref<Texture> EditorResourcePreview::_generate_preview(const QueueItem &p_item, c
 
 void EditorResourcePreview::_thread() {
 
-	//print_line("begin thread");
 	while (!exit) {
 
-		//print_line("wait for semaphore");
 		preview_sem->wait();
 		preview_mutex->lock();
-
-		//print_line("blue team go");
 
 		if (queue.size()) {
 
@@ -185,23 +179,19 @@ void EditorResourcePreview::_thread() {
 					path += ":" + itos(cache[item.path].last_hash); //keep last hash (see description of what this is in condition below)
 				}
 
-				print_line("cached: " + item.path);
 				_preview_ready(path, cache[item.path].preview, item.id, item.function, item.userdata);
 
 				preview_mutex->unlock();
 			} else {
+
 				preview_mutex->unlock();
 
 				Ref<ImageTexture> texture;
-
-				//print_line("pop from queue "+item.path);
 
 				int thumbnail_size = EditorSettings::get_singleton()->get("filesystem/file_dialog/thumbnail_size");
 				thumbnail_size *= EDSCALE;
 
 				if (item.resource.is_valid()) {
-
-					print_line("generated: " + item.path);
 
 					texture = _generate_preview(item, String());
 					//adding hash to the end of path (should be ID:<objid>:<hash>) because of 5 argument limit to call_deferred
@@ -209,20 +199,15 @@ void EditorResourcePreview::_thread() {
 
 				} else {
 
-					print_line("from file: " + item.path);
-
-					String temp_path = EditorSettings::get_singleton()->get_settings_path().plus_file("tmp");
+					String temp_path = EditorSettings::get_singleton()->get_cache_dir();
 					String cache_base = ProjectSettings::get_singleton()->globalize_path(item.path).md5_text();
 					cache_base = temp_path.plus_file("resthumb-" + cache_base);
 
 					//does not have it, try to load a cached thumbnail
 
 					String file = cache_base + ".txt";
-					//print_line("cachetxt at "+file);
 					FileAccess *f = FileAccess::open(file, FileAccess::READ);
 					if (!f) {
-
-						//print_line("generate because not cached");
 
 						//generate
 						texture = _generate_preview(item, cache_base);
@@ -283,7 +268,6 @@ void EditorResourcePreview::_thread() {
 						}
 					}
 
-					//print_line("notify of preview ready");
 					_preview_ready(item.path, texture, item.id, item.function, item.userdata);
 				}
 			}
@@ -313,7 +297,6 @@ void EditorResourcePreview::queue_edited_resource_preview(const Ref<Resource> &p
 
 	cache.erase(path_id); //erase if exists, since it will be regen
 
-	//print_line("send to thread "+p_path);
 	QueueItem item;
 	item.function = p_receiver_func;
 	item.id = p_receiver->get_instance_id();
@@ -337,7 +320,6 @@ void EditorResourcePreview::queue_resource_preview(const String &p_path, Object 
 		return;
 	}
 
-	//print_line("send to thread "+p_path);
 	QueueItem item;
 	item.function = p_receiver_func;
 	item.id = p_receiver->get_instance_id();

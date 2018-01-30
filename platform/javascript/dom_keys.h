@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef DOM_KEYS_H
 #define DOM_KEYS_H
 
@@ -262,7 +263,7 @@ int dom2godot_scancode(int dom_keycode) {
 		case DOM_VK_CAPS_LOCK:
 			return KEY_CAPSLOCK;
 
-		/*
+			/*
 		case DOM_VK_KANA: return KEY_UNKNOWN;
 		case DOM_VK_HANGUL: return KEY_UNKNOWN;
 		case DOM_VK_EISU: return KEY_UNKNOWN;
@@ -274,7 +275,7 @@ int dom2godot_scancode(int dom_keycode) {
 
 		case DOM_VK_ESCAPE:
 			return KEY_ESCAPE;
-		/*
+			/*
 		case DOM_VK_CONVERT: return KEY_UNKNOWN;
 		case DOM_VK_NONCONVERT: return KEY_UNKNOWN;
 		case DOM_VK_ACCEPT: return KEY_UNKNOWN;
@@ -292,7 +293,7 @@ int dom2godot_scancode(int dom_keycode) {
 		case DOM_VK_DOWN:
 			return KEY_DOWN;
 
-		//case DOM_VK_SELECT: return KEY_UNKNOWN;
+			//case DOM_VK_SELECT: return KEY_UNKNOWN;
 
 		case DOM_VK_PRINTSCREEN: // this is the usual printScreen key
 		case DOM_VK_PRINT: // maybe for alt+printScreen or physical printers?
@@ -320,7 +321,7 @@ int dom2godot_scancode(int dom_keycode) {
 		case DOM_VK_DIVIDE:
 			return KEY_KP_DIVIDE;
 
-		/*
+			/*
 		case DOM_VK_F17: return KEY_UNKNOWN;
 		case DOM_VK_F18: return KEY_UNKNOWN;
 		case DOM_VK_F19: return KEY_UNKNOWN;
@@ -335,7 +336,7 @@ int dom2godot_scancode(int dom_keycode) {
 		case DOM_VK_SCROLL_LOCK:
 			return KEY_SCROLLLOCK;
 
-		/*
+			/*
 		case DOM_VK_WIN_OEM_FJ_JISHO: return KEY_UNKNOWN;
 		case DOM_VK_WIN_OEM_FJ_MASSHOU: return KEY_UNKNOWN;
 		case DOM_VK_WIN_OEM_FJ_TOUROKU: return KEY_UNKNOWN;
@@ -375,7 +376,7 @@ int dom2godot_scancode(int dom_keycode) {
 		case DOM_VK_QUOTE:
 			return KEY_APOSTROPHE;
 
-		// rest is OEM/unusual
+			// rest is OEM/unusual
 
 		default: return KEY_UNKNOWN;
 	};

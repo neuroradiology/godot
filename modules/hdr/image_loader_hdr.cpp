@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "image_loader_hdr.h"
 
 #include "os/os.h"
@@ -38,7 +39,6 @@ Error ImageLoaderHDR::load_image(Ref<Image> p_image, FileAccess *f, bool p_force
 
 	String header = f->get_token();
 
-	print_line("HEADER: " + header);
 	ERR_FAIL_COND_V(header != "#?RADIANCE" && header != "#?RGBE", ERR_FILE_UNRECOGNIZED);
 
 	while (true) {
@@ -63,8 +63,6 @@ Error ImageLoaderHDR::load_image(Ref<Image> p_image, FileAccess *f, bool p_force
 	ERR_FAIL_COND_V(token != "+X", ERR_FILE_CORRUPT);
 
 	int width = f->get_line().to_int();
-
-	print_line("HDR w: " + itos(width) + " h:" + itos(height));
 
 	PoolVector<uint8_t> imgdata;
 
@@ -102,7 +100,6 @@ Error ImageLoaderHDR::load_image(Ref<Image> p_image, FileAccess *f, bool p_force
 				len <<= 8;
 				len |= f->get_8();
 
-				print_line("line: " + itos(len));
 				if (len != width) {
 					ERR_EXPLAIN("invalid decoded scanline length, corrupt HDR");
 					ERR_FAIL_V(ERR_FILE_CORRUPT);

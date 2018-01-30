@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "area_sw.h"
 #include "body_sw.h"
 #include "space_sw.h"
@@ -237,8 +238,10 @@ void AreaSW::call_queries() {
 	//get_space()->area_remove_from_monitor_query_list(&monitor_query_list);
 }
 
-AreaSW::AreaSW()
-	: CollisionObjectSW(TYPE_AREA), monitor_query_list(this), moved_list(this) {
+AreaSW::AreaSW() :
+		CollisionObjectSW(TYPE_AREA),
+		monitor_query_list(this),
+		moved_list(this) {
 
 	_set_static(true); //areas are never active
 	space_override_mode = PhysicsServer::AREA_SPACE_OVERRIDE_DISABLED;

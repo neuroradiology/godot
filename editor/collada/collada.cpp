@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifdef TOOLS_ENABLED
 
 #include "collada.h"
@@ -422,11 +423,6 @@ Vector<String> Collada::_read_string_array(XMLParser &parser) {
 			// parse String data
 			String str = parser.get_node_data();
 			array = str.split_spaces();
-			/*
-			for(int i=0;i<array.size();i++) {
-				print_line(itos(i)+": "+array[i]);
-			}
-			*/
 		} else if (parser.get_node_type() == XMLParser::NODE_ELEMENT_END)
 			break; // end parsing text
 	}
@@ -912,7 +908,7 @@ void Collada::_parse_curve_geometry(XMLParser &parser, String p_id, String p_nam
 	COLLADA_PRINT("curve name: " + p_name);
 
 	String current_source;
-	// handles geometry node and the curve childs in this loop
+	// handles geometry node and the curve children in this loop
 	// read sources with arrays and accessor for each curve
 	if (parser.is_empty()) {
 		return;
@@ -1000,7 +996,7 @@ void Collada::_parse_mesh_geometry(XMLParser &parser, String p_id, String p_name
 	COLLADA_PRINT("mesh name: " + p_name);
 
 	String current_source;
-	// handles geometry node and the mesh childs in this loop
+	// handles geometry node and the mesh children in this loop
 	// read sources with arrays and accessor for each mesh
 	if (parser.is_empty()) {
 		return;
@@ -1320,11 +1316,8 @@ void Collada::_parse_morph_controller(XMLParser &parser, String p_id) {
 	state.morph_controller_data_map[p_id] = MorphControllerData();
 	MorphControllerData &morphdata = state.morph_controller_data_map[p_id];
 
-	print_line("morph source: " + parser.get_attribute_value("source") + " id: " + p_id);
 	morphdata.mesh = _uri_to_id(parser.get_attribute_value("source"));
-	print_line("morph source2: " + morphdata.mesh);
 	morphdata.mode = parser.get_attribute_value("method");
-	printf("JJmorph: %p\n", &morphdata);
 	String current_source;
 
 	while (parser.read() == OK) {
@@ -1690,7 +1683,6 @@ Collada::Node *Collada::_parse_visual_scene_node(XMLParser &parser) {
 
 			} else if (section != "node") {
 				//usually what defines the type of node
-				//print_line(" don't know what to do with "+section);
 				if (section.begins_with("instance_")) {
 
 					if (!node) {
@@ -1863,9 +1855,6 @@ void Collada::_parse_animation(XMLParser &parser) {
 
 		String source = _uri_to_id(channel_sources[i]);
 		String target = channel_targets[i];
-		if (!samplers.has(source)) {
-			print_line("channel lacks source: " + source);
-		}
 		ERR_CONTINUE(!samplers.has(source));
 		Map<String, String> &sampler = samplers[source];
 
@@ -1970,8 +1959,6 @@ void Collada::_parse_animation(XMLParser &parser) {
 				track.target = target;
 			}
 
-			print_line("TARGET: " + track.target);
-
 			state.animation_tracks.push_back(track);
 
 			if (!state.referenced_tracks.has(target))
@@ -2027,8 +2014,8 @@ void Collada::_parse_animation_clip(XMLParser &parser) {
 	}
 
 	state.animation_clips.push_back(clip);
-	print_line("found anim clip: " + clip.name);
 }
+
 void Collada::_parse_scene(XMLParser &parser) {
 
 	if (parser.is_empty()) {
@@ -2044,7 +2031,6 @@ void Collada::_parse_scene(XMLParser &parser) {
 			if (name == "instance_visual_scene") {
 
 				state.root_visual_scene = _uri_to_id(parser.get_attribute_value("url"));
-				print_line("***ROOT VISUAL SCENE: " + state.root_visual_scene);
 			} else if (name == "instance_physics_scene") {
 
 				state.root_physics_scene = _uri_to_id(parser.get_attribute_value("url"));
@@ -2213,9 +2199,6 @@ void Collada::_merge_skeletons(VisualScene *p_vscene, Node *p_node) {
 
 				NodeJoint *nj = SAFE_CAST<NodeJoint *>(state.scene_map[nodeid]);
 				ERR_CONTINUE(!nj); //broken collada
-				if (!nj->owner) {
-					print_line("no owner for: " + String(nodeid));
-				}
 				ERR_CONTINUE(!nj->owner); //weird, node should have a skeleton owner
 
 				skeletons.insert(nj->owner);
@@ -2268,10 +2251,6 @@ void Collada::_merge_skeletons2(VisualScene *p_vscene) {
 
 			name = state.sid_to_node_map[F->key()];
 
-			if (!state.scene_map.has(name)) {
-				print_line("no foundie node for: " + name);
-			}
-
 			ERR_CONTINUE(!state.scene_map.has(name));
 
 			Node *node = state.scene_map[name];
@@ -2299,9 +2278,6 @@ void Collada::_merge_skeletons2(VisualScene *p_vscene) {
 
 			if (skeleton != sk) {
 				//whoa.. wtf, merge.
-				print_line("MERGED BONES!!");
-
-				//NodeSkeleton *merged = E->get();
 				_remove_node(p_vscene, sk);
 				for (int i = 0; i < sk->children.size(); i++) {
 
@@ -2399,9 +2375,6 @@ bool Collada::_move_geometry_to_skeletons(VisualScene *p_vscene, Node *p_node, L
 			ERR_FAIL_COND_V(!state.scene_map.has(nodeid), false); //weird, it should have it...
 			NodeJoint *nj = SAFE_CAST<NodeJoint *>(state.scene_map[nodeid]);
 			ERR_FAIL_COND_V(!nj, false);
-			if (!nj->owner) {
-				print_line("Has no owner: " + nj->name);
-			}
 			ERR_FAIL_COND_V(!nj->owner, false); //weird, node should have a skeleton owner
 
 			NodeSkeleton *sk = nj->owner;

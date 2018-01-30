@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,8 +27,11 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
-#include "tree.h"
 
+#include "tree.h"
+#include <limits.h>
+
+#include "math_funcs.h"
 #include "os/input.h"
 #include "os/keyboard.h"
 #include "os/os.h"
@@ -36,29 +39,36 @@
 #include "project_settings.h"
 #include "scene/main/viewport.h"
 
+#ifdef TOOLS_ENABLED
+#include "editor/editor_node.h"
+#endif
+
 void TreeItem::move_to_top() {
 
-	if (!parent || parent->childs == this)
+	if (!parent || parent->children == this)
 		return; //already on top
 	TreeItem *prev = get_prev();
 	prev->next = next;
-	next = parent->childs;
-	parent->childs = this;
+	next = parent->children;
+	parent->children = this;
 }
 
 void TreeItem::move_to_bottom() {
-
 	if (!parent || !next)
 		return;
 
-	while (next) {
+	TreeItem *prev = get_prev();
+	TreeItem *last = next;
+	while (last->next)
+		last = last->next;
 
-		if (parent->childs == this)
-			parent->childs = next;
-		TreeItem *n = next;
-		next = n->next;
-		n->next = this;
+	if (prev) {
+		prev->next = next;
+	} else {
+		parent->children = next;
 	}
+	last->next = this;
+	next = NULL;
 }
 
 Size2 TreeItem::Cell::get_icon_size() const {
@@ -151,8 +161,17 @@ void TreeItem::set_text(int p_column, String p_text) {
 
 	if (cells[p_column].mode == TreeItem::CELL_MODE_RANGE || cells[p_column].mode == TreeItem::CELL_MODE_RANGE_EXPRESSION) {
 
-		cells[p_column].min = 0;
-		cells[p_column].max = p_text.get_slice_count(",");
+		Vector<String> strings = p_text.split(",");
+		cells[p_column].min = INT_MAX;
+		cells[p_column].max = INT_MIN;
+		for (int i = 0; i < strings.size(); i++) {
+			int value = i;
+			if (!strings[i].get_slicec(':', 1).empty()) {
+				value = strings[i].get_slicec(':', 1).to_int();
+			}
+			cells[p_column].min = MIN(cells[p_column].min, value);
+			cells[p_column].max = MAX(cells[p_column].max, value);
+		}
 		cells[p_column].step = 0;
 	}
 	_changed_notify(p_column);
@@ -349,10 +368,10 @@ TreeItem *TreeItem::get_next() {
 
 TreeItem *TreeItem::get_prev() {
 
-	if (!parent || parent->childs == this)
+	if (!parent || parent->children == this)
 		return NULL;
 
-	TreeItem *prev = parent->childs;
+	TreeItem *prev = parent->children;
 	while (prev && prev->next != this)
 		prev = prev->next;
 
@@ -366,7 +385,7 @@ TreeItem *TreeItem::get_parent() {
 
 TreeItem *TreeItem::get_children() {
 
-	return childs;
+	return children;
 }
 
 TreeItem *TreeItem::get_prev_visible() {
@@ -383,10 +402,10 @@ TreeItem *TreeItem::get_prev_visible() {
 	} else {
 
 		current = prev;
-		while (!current->collapsed && current->childs) {
+		while (!current->collapsed && current->children) {
 			//go to the very end
 
-			current = current->childs;
+			current = current->children;
 			while (current->next)
 				current = current->next;
 		}
@@ -399,9 +418,9 @@ TreeItem *TreeItem::get_next_visible() {
 
 	TreeItem *current = this;
 
-	if (!current->collapsed && current->childs) {
+	if (!current->collapsed && current->children) {
 
-		current = current->childs;
+		current = current->children;
 
 	} else if (current->next) {
 
@@ -425,7 +444,7 @@ TreeItem *TreeItem::get_next_visible() {
 void TreeItem::remove_child(TreeItem *p_item) {
 
 	ERR_FAIL_NULL(p_item);
-	TreeItem **c = &childs;
+	TreeItem **c = &children;
 
 	while (*c) {
 
@@ -765,6 +784,10 @@ void TreeItem::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_disable_folding", "disable"), &TreeItem::set_disable_folding);
 	ClassDB::bind_method(D_METHOD("is_folding_disabled"), &TreeItem::is_folding_disabled);
 
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "collapsed"), "set_collapsed", "is_collapsed");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "disable_folding"), "set_disable_folding", "is_folding_disabled");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "custom_minimum_height", PROPERTY_HINT_RANGE, "0,1000,1"), "set_custom_minimum_height", "get_custom_minimum_height");
+
 	BIND_ENUM_CONSTANT(CELL_MODE_STRING);
 	BIND_ENUM_CONSTANT(CELL_MODE_CHECK);
 	BIND_ENUM_CONSTANT(CELL_MODE_RANGE);
@@ -779,16 +802,16 @@ void TreeItem::_bind_methods() {
 
 void TreeItem::clear_children() {
 
-	TreeItem *c = childs;
+	TreeItem *c = children;
 	while (c) {
 
 		TreeItem *aux = c;
 		c = c->get_next();
-		aux->parent = 0; // so it wont try to recursively autoremove from me in here
+		aux->parent = 0; // so it won't try to recursively autoremove from me in here
 		memdelete(aux);
 	}
 
-	childs = 0;
+	children = 0;
 };
 
 TreeItem::TreeItem(Tree *p_tree) {
@@ -800,7 +823,7 @@ TreeItem::TreeItem(Tree *p_tree) {
 
 	parent = 0; // parent item
 	next = 0; // next in list
-	childs = 0; //child items
+	children = 0; //child items
 }
 
 TreeItem::~TreeItem() {
@@ -862,6 +885,7 @@ void Tree::update_cache() {
 	cache.arrow_collapsed = get_icon("arrow_collapsed");
 	cache.arrow = get_icon("arrow");
 	cache.select_arrow = get_icon("select_arrow");
+	cache.select_option = get_icon("select_option");
 	cache.updown = get_icon("updown");
 
 	cache.custom_button = get_stylebox("custom_button");
@@ -896,6 +920,7 @@ int Tree::compute_item_height(TreeItem *p_item) const {
 	if (p_item == root && hide_root)
 		return 0;
 
+	ERR_FAIL_COND_V(cache.font.is_null(), 0);
 	int height = cache.font->get_height();
 
 	for (int i = 0; i < columns.size(); i++) {
@@ -952,9 +977,9 @@ int Tree::get_item_height(TreeItem *p_item) const {
 	int height = compute_item_height(p_item);
 	height += cache.vseparation;
 
-	if (!p_item->collapsed) { /* if not collapsed, check the childs */
+	if (!p_item->collapsed) { /* if not collapsed, check the children */
 
-		TreeItem *c = p_item->childs;
+		TreeItem *c = p_item->children;
 
 		while (c) {
 
@@ -968,6 +993,8 @@ int Tree::get_item_height(TreeItem *p_item) const {
 }
 
 void Tree::draw_item_rect(const TreeItem::Cell &p_cell, const Rect2i &p_rect, const Color &p_color, const Color &p_icon_color) {
+
+	ERR_FAIL_COND(cache.font.is_null());
 
 	Rect2i rect = p_rect;
 	Ref<Font> font = cache.font;
@@ -990,10 +1017,10 @@ void Tree::draw_item_rect(const TreeItem::Cell &p_cell, const Rect2i &p_rect, co
 		case TreeItem::ALIGN_LEFT:
 			break; //do none
 		case TreeItem::ALIGN_CENTER:
-			rect.position.x = MAX(0, (rect.size.width - w) / 2);
+			rect.position.x += MAX(0, (rect.size.width - w) / 2);
 			break; //do none
 		case TreeItem::ALIGN_RIGHT:
-			rect.position.x = MAX(0, (rect.size.width - w));
+			rect.position.x += MAX(0, (rect.size.width - w));
 			break; //do none
 	}
 
@@ -1038,6 +1065,7 @@ int Tree::draw_item(const Point2i &p_pos, const Point2 &p_draw_ofs, const Size2 
 		//draw separation.
 		//if (p_item->get_parent()!=root || !hide_root)
 
+		ERR_FAIL_COND_V(cache.font.is_null(), -1);
 		Ref<Font> font = cache.font;
 
 		int font_ascent = font->get_ascent();
@@ -1122,7 +1150,7 @@ int Tree::draw_item(const Point2i &p_pos, const Point2 &p_draw_ofs, const Size2 
 
 			if (p_item->cells[i].selected && select_mode != SELECT_ROW) {
 
-				Rect2i r(item_rect.position, item_rect.size);
+				Rect2i r(cell_rect.position, cell_rect.size);
 				if (p_item->cells[i].text.size() > 0) {
 					float icon_width = p_item->cells[i].get_icon_size().width;
 					r.position.x += icon_width;
@@ -1227,8 +1255,18 @@ int Tree::draw_item(const Point2i &p_pos, const Point2 &p_draw_ofs, const Size2 
 
 						int option = (int)p_item->cells[i].val;
 
-						String s = p_item->cells[i].text;
-						s = s.get_slicec(',', option);
+						String s = RTR("(Other)");
+						Vector<String> strings = p_item->cells[i].text.split(",");
+						for (int i = 0; i < strings.size(); i++) {
+							int value = i;
+							if (!strings[i].get_slicec(':', 1).empty()) {
+								value = strings[i].get_slicec(':', 1).to_int();
+							}
+							if (option == value) {
+								s = strings[i].get_slicec(':', 0);
+								break;
+							}
+						}
 
 						if (p_item->cells[i].suffix != String())
 							s += " " + p_item->cells[i].suffix;
@@ -1348,7 +1386,7 @@ int Tree::draw_item(const Point2i &p_pos, const Point2 &p_draw_ofs, const Size2 
 			}
 		}
 
-		if (!p_item->disable_folding && !hide_folding && p_item->childs) { //has childs, draw the guide box
+		if (!p_item->disable_folding && !hide_folding && p_item->children) { //has children, draw the guide box
 
 			Ref<Texture> arrow;
 
@@ -1375,9 +1413,9 @@ int Tree::draw_item(const Point2i &p_pos, const Point2 &p_draw_ofs, const Size2 
 		children_pos.y += htotal;
 	}
 
-	if (!p_item->collapsed) { /* if not collapsed, check the childs */
+	if (!p_item->collapsed) { /* if not collapsed, check the children */
 
-		TreeItem *c = p_item->childs;
+		TreeItem *c = p_item->children;
 
 		while (c) {
 
@@ -1388,18 +1426,39 @@ int Tree::draw_item(const Point2i &p_pos, const Point2 &p_draw_ofs, const Size2 
 				if (c->get_children() != NULL)
 					root_pos -= Point2i(cache.arrow->get_width(), 0);
 
+				float line_width = 1.0;
+#ifdef TOOLS_ENABLED
+				line_width *= EDSCALE;
+#endif
+
 				Point2i parent_pos = Point2i(parent_ofs - cache.arrow->get_width() / 2, p_pos.y + label_h / 2 + cache.arrow->get_height() / 2) - cache.offset + p_draw_ofs;
-				VisualServer::get_singleton()->canvas_item_add_line(ci, root_pos, Point2i(parent_pos.x, root_pos.y), cache.relationship_line_color);
-				VisualServer::get_singleton()->canvas_item_add_line(ci, Point2i(parent_pos.x, root_pos.y), parent_pos, cache.relationship_line_color);
+
+				if (root_pos.y + line_width >= 0) {
+					VisualServer::get_singleton()->canvas_item_add_line(ci, root_pos, Point2i(parent_pos.x - Math::floor(line_width / 2), root_pos.y), cache.relationship_line_color, line_width);
+					VisualServer::get_singleton()->canvas_item_add_line(ci, Point2i(parent_pos.x, root_pos.y), parent_pos, cache.relationship_line_color, line_width);
+				}
+
+				if (htotal < 0) {
+					return -1;
+				}
 			}
 
-			int child_h = draw_item(children_pos, p_draw_ofs, p_draw_size, c);
+			if (htotal >= 0) {
+				int child_h = draw_item(children_pos, p_draw_ofs, p_draw_size, c);
 
-			if (child_h < 0 && cache.draw_relationship_lines == 0)
-				return -1; // break, stop drawing, no need to anymore
+				if (child_h < 0) {
+					if (cache.draw_relationship_lines == 0) {
+						return -1; // break, stop drawing, no need to anymore
+					} else {
+						htotal = -1;
+						children_pos.y = cache.offset.y + p_draw_size.height;
+					}
+				} else {
+					htotal += child_h;
+					children_pos.y += child_h;
+				}
+			}
 
-			htotal += child_h;
-			children_pos.y += child_h;
 			c = c->next;
 		}
 	}
@@ -1510,7 +1569,7 @@ void Tree::select_single_item(TreeItem *p_selected, TreeItem *p_current, int p_c
 		*r_in_range = false;
 	}
 
-	TreeItem *c = p_current->childs;
+	TreeItem *c = p_current->children;
 
 	while (c) {
 
@@ -1576,7 +1635,7 @@ int Tree::propagate_mouse_event(const Point2i &p_pos, int x_ofs, int y_ofs, bool
 
 		if (!p_item->disable_folding && !hide_folding && (p_pos.x >= x_ofs && p_pos.x < (x_ofs + cache.item_margin))) {
 
-			if (p_item->childs)
+			if (p_item->children)
 				p_item->set_collapsed(!p_item->is_collapsed());
 
 			return -1; //handled!
@@ -1741,7 +1800,7 @@ int Tree::propagate_mouse_event(const Point2i &p_pos, int x_ofs, int y_ofs, bool
 			case TreeItem::CELL_MODE_STRING: {
 				//nothing in particular
 
-				if (select_mode == SELECT_MULTI && (get_tree()->get_last_event_id() == focus_in_id || !already_cursor)) {
+				if (select_mode == SELECT_MULTI && (get_tree()->get_event_count() == focus_in_id || !already_cursor)) {
 					bring_up_editor = false;
 				}
 
@@ -1772,7 +1831,7 @@ int Tree::propagate_mouse_event(const Point2i &p_pos, int x_ofs, int y_ofs, bool
 					for (int i = 0; i < c.text.get_slice_count(","); i++) {
 
 						String s = c.text.get_slicec(',', i);
-						popup_menu->add_item(s, i);
+						popup_menu->add_item(s.get_slicec(':', 0), s.get_slicec(':', 1).empty() ? i : s.get_slicec(':', 1).to_int());
 					}
 
 					popup_menu->set_size(Size2(col_width, 0));
@@ -1829,7 +1888,7 @@ int Tree::propagate_mouse_event(const Point2i &p_pos, int x_ofs, int y_ofs, bool
 					} else {
 
 						editor_text = String::num(p_item->cells[col].val, Math::step_decimals(p_item->cells[col].step));
-						if (select_mode == SELECT_MULTI && get_tree()->get_last_event_id() == focus_in_id)
+						if (select_mode == SELECT_MULTI && get_tree()->get_event_count() == focus_in_id)
 							bring_up_editor = false;
 					}
 				}
@@ -1883,9 +1942,9 @@ int Tree::propagate_mouse_event(const Point2i &p_pos, int x_ofs, int y_ofs, bool
 			new_pos.y -= item_h;
 		}
 
-		if (!p_item->collapsed) { /* if not collapsed, check the childs */
+		if (!p_item->collapsed) { /* if not collapsed, check the children */
 
-			TreeItem *c = p_item->childs;
+			TreeItem *c = p_item->children;
 
 			while (c) {
 
@@ -2318,8 +2377,6 @@ void Tree::_gui_input(Ref<InputEvent> p_event) {
 						last_keypress = 0;
 				}
 			} break;
-
-				last_keypress = 0;
 		}
 	}
 
@@ -2492,7 +2549,7 @@ void Tree::_gui_input(Ref<InputEvent> p_event) {
 					if (drag_speed == 0) {
 						drag_touching_deaccel = false;
 						drag_touching = false;
-						set_fixed_process(false);
+						set_physics_process(false);
 					} else {
 
 						drag_touching_deaccel = true;
@@ -2558,7 +2615,7 @@ void Tree::_gui_input(Ref<InputEvent> p_event) {
 					break;
 
 				if (drag_touching) {
-					set_fixed_process(false);
+					set_physics_process(false);
 					drag_touching_deaccel = false;
 					drag_touching = false;
 					drag_speed = 0;
@@ -2573,7 +2630,12 @@ void Tree::_gui_input(Ref<InputEvent> p_event) {
 					drag_touching = OS::get_singleton()->has_touchscreen_ui_hint();
 					drag_touching_deaccel = false;
 					if (drag_touching) {
-						set_fixed_process(true);
+						set_physics_process(true);
+					}
+
+					if (b->get_button_index() == BUTTON_LEFT) {
+						if (get_item_at_position(b->get_position()) == NULL && !b->get_shift() && !b->get_control() && !b->get_command())
+							emit_signal("nothing_selected");
 					}
 				}
 
@@ -2587,6 +2649,12 @@ void Tree::_gui_input(Ref<InputEvent> p_event) {
 				v_scroll->set_value(v_scroll->get_value() + v_scroll->get_page() * b->get_factor() / 8);
 			} break;
 		}
+	}
+
+	Ref<InputEventPanGesture> pan_gesture = p_event;
+	if (pan_gesture.is_valid()) {
+
+		v_scroll->set_value(v_scroll->get_value() + v_scroll->get_page() * pan_gesture->get_delta().y / 8);
 	}
 }
 
@@ -2630,7 +2698,7 @@ bool Tree::edit_selected() {
 		for (int i = 0; i < c.text.get_slice_count(","); i++) {
 
 			String s = c.text.get_slicec(',', i);
-			popup_menu->add_item(s, i);
+			popup_menu->add_item(s.get_slicec(':', 0), s.get_slicec(':', 1).empty() ? i : s.get_slicec(':', 1).to_int());
 		}
 
 		popup_menu->set_size(Size2(rect.size.width, 0));
@@ -2734,6 +2802,7 @@ void Tree::update_scrollbars() {
 
 int Tree::_get_title_button_height() const {
 
+	ERR_FAIL_COND_V(cache.font.is_null() || cache.title_button.is_null(), 0);
 	return show_column_titles ? cache.font->get_height() + cache.title_button->get_minimum_size().height : 0;
 }
 
@@ -2741,7 +2810,7 @@ void Tree::_notification(int p_what) {
 
 	if (p_what == NOTIFICATION_FOCUS_ENTER) {
 
-		focus_in_id = get_tree()->get_last_event_id();
+		focus_in_id = get_tree()->get_event_count();
 	}
 	if (p_what == NOTIFICATION_MOUSE_EXIT) {
 
@@ -2764,7 +2833,7 @@ void Tree::_notification(int p_what) {
 
 		drop_mode_flags = 0;
 		scrolling = false;
-		set_fixed_process(false);
+		set_physics_process(false);
 		update();
 	}
 	if (p_what == NOTIFICATION_DRAG_BEGIN) {
@@ -2772,23 +2841,23 @@ void Tree::_notification(int p_what) {
 		single_select_defer = NULL;
 		if (cache.scroll_speed > 0 && get_rect().has_point(get_viewport()->get_mouse_position() - get_global_position())) {
 			scrolling = true;
-			set_fixed_process(true);
+			set_physics_process(true);
 		}
 	}
-	if (p_what == NOTIFICATION_FIXED_PROCESS) {
+	if (p_what == NOTIFICATION_PHYSICS_PROCESS) {
 
 		if (drag_touching) {
 
 			if (drag_touching_deaccel) {
 
 				float pos = v_scroll->get_value();
-				pos += drag_speed * get_fixed_process_delta_time();
+				pos += drag_speed * get_physics_process_delta_time();
 
 				bool turnoff = false;
 				if (pos < 0) {
 					pos = 0;
 					turnoff = true;
-					set_fixed_process(false);
+					set_physics_process(false);
 					drag_touching = false;
 					drag_touching_deaccel = false;
 				}
@@ -2800,7 +2869,7 @@ void Tree::_notification(int p_what) {
 				v_scroll->set_value(pos);
 				float sgn = drag_speed < 0 ? -1 : 1;
 				float val = Math::abs(drag_speed);
-				val -= 1000 * get_fixed_process_delta_time();
+				val -= 1000 * get_physics_process_delta_time();
 
 				if (val < 0) {
 					turnoff = true;
@@ -2808,7 +2877,7 @@ void Tree::_notification(int p_what) {
 				drag_speed = sgn * val;
 
 				if (turnoff) {
-					set_fixed_process(false);
+					set_physics_process(false);
 					drag_touching = false;
 					drag_touching_deaccel = false;
 				}
@@ -2833,7 +2902,7 @@ void Tree::_notification(int p_what) {
 			} else {
 				point.y = 0;
 			}
-			point *= cache.scroll_speed * get_fixed_process_delta_time();
+			point *= cache.scroll_speed * get_physics_process_delta_time();
 			point += get_scroll();
 			h_scroll->set_value(point.x);
 			v_scroll->set_value(point.y);
@@ -2905,43 +2974,51 @@ Size2 Tree::get_minimum_size() const {
 	return Size2(1, 1);
 }
 
-TreeItem *Tree::create_item(TreeItem *p_parent) {
+TreeItem *Tree::create_item(TreeItem *p_parent, int p_idx) {
 
 	ERR_FAIL_COND_V(blocked > 0, NULL);
 
-	TreeItem *ti = memnew(TreeItem(this));
-
-	ERR_FAIL_COND_V(!ti, NULL);
-	ti->cells.resize(columns.size());
+	TreeItem *ti = NULL;
 
 	if (p_parent) {
 
-		/* Always append at the end */
+		// Append or insert a new item to the given parent.
+		ti = memnew(TreeItem(this));
+		ERR_FAIL_COND_V(!ti, NULL);
+		ti->cells.resize(columns.size());
 
-		TreeItem *last = 0;
-		TreeItem *c = p_parent->childs;
+		TreeItem *prev = NULL;
+		TreeItem *c = p_parent->children;
+		int idx = 0;
 
 		while (c) {
-
-			last = c;
+			if (idx++ == p_idx) {
+				ti->next = c;
+				break;
+			}
+			prev = c;
 			c = c->next;
 		}
 
-		if (last) {
-
-			last->next = ti;
-		} else {
-
-			p_parent->childs = ti;
-		}
+		if (prev)
+			prev->next = ti;
+		else
+			p_parent->children = ti;
 		ti->parent = p_parent;
 
 	} else {
 
-		if (root)
-			ti->childs = root;
+		if (!root) {
+			// No root exists, make the given item the new root.
+			ti = memnew(TreeItem(this));
+			ERR_FAIL_COND_V(!ti, NULL);
+			ti->cells.resize(columns.size());
 
-		root = ti;
+			root = ti;
+		} else {
+			// Root exists, append or insert to root.
+			ti = create_item(root, p_idx);
+		}
 	}
 
 	return ti;
@@ -2959,8 +3036,8 @@ TreeItem *Tree::get_last_item() {
 
 		if (last->next)
 			last = last->next;
-		else if (last->childs)
-			last = last->childs;
+		else if (last->children)
+			last = last->children;
 		else
 			break;
 	}
@@ -2993,6 +3070,7 @@ void Tree::item_selected(int p_column, TreeItem *p_item) {
 		p_item->cells[p_column].selected = true;
 		//emit_signal("multi_selected",p_item,p_column,true); - NO this is for TreeItem::select
 
+		selected_col = p_column;
 	} else {
 
 		select_single_item(p_item, root, p_column);
@@ -3011,6 +3089,32 @@ void Tree::item_deselected(int p_column, TreeItem *p_item) {
 void Tree::set_select_mode(SelectMode p_mode) {
 
 	select_mode = p_mode;
+}
+
+Tree::SelectMode Tree::get_select_mode() const {
+
+	return select_mode;
+}
+
+void Tree::deselect_all() {
+
+	TreeItem *item = get_next_selected(get_root());
+	while (item) {
+		item->deselect(selected_col);
+		TreeItem *prev_item = item;
+		item = get_next_selected(get_root());
+		ERR_FAIL_COND(item == prev_item);
+	}
+
+	selected_item = NULL;
+	selected_col = -1;
+
+	update();
+}
+
+bool Tree::is_anything_selected() {
+
+	return (selected_item != NULL);
 }
 
 void Tree::clear() {
@@ -3045,6 +3149,11 @@ void Tree::set_hide_root(bool p_enabled) {
 
 	hide_root = p_enabled;
 	update();
+}
+
+bool Tree::is_root_hidden() const {
+
+	return hide_root;
 }
 
 void Tree::set_column_min_width(int p_column, int p_min_width) {
@@ -3099,9 +3208,9 @@ TreeItem *Tree::get_next_selected(TreeItem *p_item) {
 			p_item = root;
 		} else {
 
-			if (p_item->childs) {
+			if (p_item->children) {
 
-				p_item = p_item->childs;
+				p_item = p_item->children;
 
 			} else if (p_item->next) {
 
@@ -3216,9 +3325,9 @@ int Tree::get_item_offset(TreeItem *p_item) const {
 
 		ofs += compute_item_height(it) + cache.vseparation;
 
-		if (it->childs && !it->collapsed) {
+		if (it->children && !it->collapsed) {
 
-			it = it->childs;
+			it = it->children;
 
 		} else if (it->next) {
 
@@ -3328,6 +3437,26 @@ Point2 Tree::get_scroll() const {
 	return ofs;
 }
 
+void Tree::scroll_to_item(TreeItem *p_item) {
+
+	if (!is_visible_in_tree()) {
+
+		// hack to work around crash in get_item_rect() if Tree is not in tree.
+		return;
+	}
+
+	// make sure the scrollbar min and max are up to date with latest changes.
+	update_scrollbars();
+
+	const Rect2 r = get_item_rect(p_item);
+
+	if (r.position.y < v_scroll->get_value()) {
+		v_scroll->set_value(r.position.y);
+	} else if (r.position.y + r.size.y + 2 * cache.vseparation > v_scroll->get_value() + get_size().y) {
+		v_scroll->set_value(r.position.y + r.size.y + 2 * cache.vseparation - get_size().y);
+	}
+}
+
 TreeItem *Tree::_search_item_text(TreeItem *p_at, const String &p_find, int *r_col, bool p_selectable, bool p_backwards) {
 
 	while (p_at) {
@@ -3419,7 +3548,7 @@ TreeItem *Tree::_find_item_at_pos(TreeItem *p_item, const Point2 &p_pos, int &r_
 	}
 
 	if (p_item->is_collapsed())
-		return NULL; // do not try childs, it's collapsed
+		return NULL; // do not try children, it's collapsed
 
 	TreeItem *n = p_item->get_children();
 	while (n) {
@@ -3639,7 +3768,7 @@ void Tree::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_scroll_moved"), &Tree::_scroll_moved);
 
 	ClassDB::bind_method(D_METHOD("clear"), &Tree::clear);
-	ClassDB::bind_method(D_METHOD("create_item", "parent"), &Tree::_create_item, DEFVAL(Variant()));
+	ClassDB::bind_method(D_METHOD("create_item", "parent", "idx"), &Tree::_create_item, DEFVAL(Variant()), DEFVAL(-1));
 
 	ClassDB::bind_method(D_METHOD("get_root"), &Tree::get_root);
 	ClassDB::bind_method(D_METHOD("set_column_min_width", "column", "min_width"), &Tree::set_column_min_width);
@@ -3647,11 +3776,13 @@ void Tree::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_column_width", "column"), &Tree::get_column_width);
 
 	ClassDB::bind_method(D_METHOD("set_hide_root", "enable"), &Tree::set_hide_root);
+	ClassDB::bind_method(D_METHOD("is_root_hidden"), &Tree::is_root_hidden);
 	ClassDB::bind_method(D_METHOD("get_next_selected", "from"), &Tree::_get_next_selected);
 	ClassDB::bind_method(D_METHOD("get_selected"), &Tree::get_selected);
 	ClassDB::bind_method(D_METHOD("get_selected_column"), &Tree::get_selected_column);
 	ClassDB::bind_method(D_METHOD("get_pressed_button"), &Tree::get_pressed_button);
 	ClassDB::bind_method(D_METHOD("set_select_mode", "mode"), &Tree::set_select_mode);
+	ClassDB::bind_method(D_METHOD("get_select_mode"), &Tree::get_select_mode);
 
 	ClassDB::bind_method(D_METHOD("set_columns", "amount"), &Tree::set_columns);
 	ClassDB::bind_method(D_METHOD("get_columns"), &Tree::get_columns);
@@ -3685,6 +3816,14 @@ void Tree::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_allow_reselect", "allow"), &Tree::set_allow_reselect);
 	ClassDB::bind_method(D_METHOD("get_allow_reselect"), &Tree::get_allow_reselect);
 
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "columns"), "set_columns", "get_columns");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "allow_reselect"), "set_allow_reselect", "get_allow_reselect");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "allow_rmb_select"), "set_allow_rmb_select", "get_allow_rmb_select");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "hide_folding"), "set_hide_folding", "is_folding_hidden");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "hide_root"), "set_hide_root", "is_root_hidden");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "drop_mode_flags", PROPERTY_HINT_FLAGS, "On Item,In between"), "set_drop_mode_flags", "get_drop_mode_flags");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "select_mode", PROPERTY_HINT_ENUM, "Single,Row,Multi"), "set_select_mode", "get_select_mode");
+
 	ADD_SIGNAL(MethodInfo("item_selected"));
 	ADD_SIGNAL(MethodInfo("cell_selected"));
 	ADD_SIGNAL(MethodInfo("multi_selected", PropertyInfo(Variant::OBJECT, "item"), PropertyInfo(Variant::INT, "column"), PropertyInfo(Variant::BOOL, "selected")));
@@ -3700,6 +3839,7 @@ void Tree::_bind_methods() {
 	ADD_SIGNAL(MethodInfo("custom_popup_edited", PropertyInfo(Variant::BOOL, "arrow_clicked")));
 	ADD_SIGNAL(MethodInfo("item_activated"));
 	ADD_SIGNAL(MethodInfo("column_title_pressed", PropertyInfo(Variant::INT, "column")));
+	ADD_SIGNAL(MethodInfo("nothing_selected"));
 
 	BIND_ENUM_CONSTANT(SELECT_SINGLE);
 	BIND_ENUM_CONSTANT(SELECT_ROW);

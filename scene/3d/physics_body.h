@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef PHYSICS_BODY__H
 #define PHYSICS_BODY__H
 
@@ -114,14 +115,7 @@ public:
 		MODE_KINEMATIC,
 	};
 
-	enum AxisLock {
-		AXIS_LOCK_DISABLED,
-		AXIS_LOCK_X,
-		AXIS_LOCK_Y,
-		AXIS_LOCK_Z,
-	};
-
-private:
+protected:
 	bool can_sleep;
 	PhysicsDirectBodyState *state;
 	Mode mode;
@@ -138,8 +132,6 @@ private:
 
 	bool sleeping;
 	bool ccd;
-
-	AxisLock axis_lock;
 
 	int max_contacts_reported;
 
@@ -186,9 +178,8 @@ private:
 	void _body_exit_tree(ObjectID p_id);
 
 	void _body_inout(int p_status, ObjectID p_instance, int p_body_shape, int p_local_shape);
-	void _direct_state_changed(Object *p_state);
+	virtual void _direct_state_changed(Object *p_state);
 
-protected:
 	void _notification(int p_what);
 	static void _bind_methods();
 
@@ -245,8 +236,8 @@ public:
 	void set_use_continuous_collision_detection(bool p_enable);
 	bool is_using_continuous_collision_detection() const;
 
-	void set_axis_lock(AxisLock p_lock);
-	AxisLock get_axis_lock() const;
+	void set_axis_lock(PhysicsServer::BodyAxis p_axis, bool p_lock);
+	bool get_axis_lock(PhysicsServer::BodyAxis p_axis) const;
 
 	Array get_colliding_bodies() const;
 
@@ -259,7 +250,6 @@ public:
 };
 
 VARIANT_ENUM_CAST(RigidBody::Mode);
-VARIANT_ENUM_CAST(RigidBody::AxisLock);
 
 class KinematicCollision;
 
@@ -281,6 +271,8 @@ public:
 	};
 
 private:
+	uint16_t locked_axis;
+
 	float margin;
 
 	Vector3 floor_velocity;
@@ -302,6 +294,9 @@ protected:
 public:
 	bool move_and_collide(const Vector3 &p_motion, Collision &r_collision);
 	bool test_move(const Transform &p_from, const Vector3 &p_motion);
+
+	void set_axis_lock(PhysicsServer::BodyAxis p_axis, bool p_lock);
+	bool get_axis_lock(PhysicsServer::BodyAxis p_axis) const;
 
 	void set_safe_margin(float p_margin);
 	float get_safe_margin() const;

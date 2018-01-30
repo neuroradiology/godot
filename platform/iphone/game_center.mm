@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifdef GAME_CENTER_ENABLED
 
 #include "game_center.h"
@@ -49,8 +50,7 @@ extern "C" {
 GameCenter *GameCenter::instance = NULL;
 
 void GameCenter::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("connect"), &GameCenter::connect);
-	ClassDB::bind_method(D_METHOD("is_connected"), &GameCenter::is_connected);
+	ClassDB::bind_method(D_METHOD("is_authenticated"), &GameCenter::is_authenticated);
 
 	ClassDB::bind_method(D_METHOD("post_score"), &GameCenter::post_score);
 	ClassDB::bind_method(D_METHOD("award_achievement"), &GameCenter::award_achievement);
@@ -58,24 +58,41 @@ void GameCenter::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("request_achievements"), &GameCenter::request_achievements);
 	ClassDB::bind_method(D_METHOD("request_achievement_descriptions"), &GameCenter::request_achievement_descriptions);
 	ClassDB::bind_method(D_METHOD("show_game_center"), &GameCenter::show_game_center);
+	ClassDB::bind_method(D_METHOD("request_identity_verification_signature"), &GameCenter::request_identity_verification_signature);
 
 	ClassDB::bind_method(D_METHOD("get_pending_event_count"), &GameCenter::get_pending_event_count);
 	ClassDB::bind_method(D_METHOD("pop_pending_event"), &GameCenter::pop_pending_event);
 };
 
-Error GameCenter::connect() {
+void GameCenter::return_connect_error(const char *p_error_description) {
+	authenticated = false;
+	Dictionary ret;
+	ret["type"] = "authentication";
+	ret["result"] = "error";
+	ret["error_code"] = 0;
+	ret["error_description"] = p_error_description;
+	pending_events.push_back(ret);
+}
+
+void GameCenter::connect() {
 
 	//if this class isn't available, game center isn't implemented
 	if ((NSClassFromString(@"GKLocalPlayer")) == nil) {
-		GameCenter::get_singleton()->connected = false;
-		return ERR_UNAVAILABLE;
+		return_connect_error("GameCenter not available");
+		return;
 	}
 
 	GKLocalPlayer *player = [GKLocalPlayer localPlayer];
-	ERR_FAIL_COND_V(![player respondsToSelector:@selector(authenticateHandler)], ERR_UNAVAILABLE);
+	if (![player respondsToSelector:@selector(authenticateHandler)]) {
+		return_connect_error("GameCenter doesn't respond to 'authenticateHandler'");
+		return;
+	}
 
 	ViewController *root_controller = (ViewController *)((AppDelegate *)[[UIApplication sharedApplication] delegate]).window.rootViewController;
-	ERR_FAIL_COND_V(!root_controller, FAILED);
+	if (!root_controller) {
+		return_connect_error("Window doesn't have root ViewController");
+		return;
+	}
 
 	// This handler is called several times.  First when the view needs to be shown, then again
 	// after the view is cancelled or the user logs in.  Or if the user's already logged in, it's
@@ -89,24 +106,22 @@ Error GameCenter::connect() {
 			ret["type"] = "authentication";
 			if (player.isAuthenticated) {
 				ret["result"] = "ok";
-				ret["player_id"] = player.playerID;
-				GameCenter::get_singleton()->connected = true;
+				ret["player_id"] = [player.playerID UTF8String];
+				GameCenter::get_singleton()->authenticated = true;
 			} else {
 				ret["result"] = "error";
-				ret["error_code"] = error.code;
+				ret["error_code"] = (int64_t)error.code;
 				ret["error_description"] = [error.localizedDescription UTF8String];
-				GameCenter::get_singleton()->connected = false;
+				GameCenter::get_singleton()->authenticated = false;
 			};
 
 			pending_events.push_back(ret);
 		};
 	});
-
-	return OK;
 };
 
-bool GameCenter::is_connected() {
-	return connected;
+bool GameCenter::is_authenticated() {
+	return authenticated;
 };
 
 Error GameCenter::post_score(Variant p_score) {
@@ -117,7 +132,7 @@ Error GameCenter::post_score(Variant p_score) {
 	String category = params["category"];
 
 	NSString *cat_str = [[[NSString alloc] initWithUTF8String:category.utf8().get_data()] autorelease];
-	GKScore *reporter = [[[GKScore alloc] initWithCategory:cat_str] autorelease];
+	GKScore *reporter = [[[GKScore alloc] initWithLeaderboardIdentifier:cat_str] autorelease];
 	reporter.value = score;
 
 	ERR_FAIL_COND_V([GKScore respondsToSelector:@selector(reportScores)], ERR_UNAVAILABLE);
@@ -131,7 +146,7 @@ Error GameCenter::post_score(Variant p_score) {
 					ret["result"] = "ok";
 				} else {
 					ret["result"] = "error";
-					ret["error_code"] = error.code;
+					ret["error_code"] = (int64_t)error.code;
 					ret["error_description"] = [error.localizedDescription UTF8String];
 				};
 
@@ -169,7 +184,7 @@ Error GameCenter::award_achievement(Variant p_params) {
 						ret["result"] = "ok";
 					} else {
 						ret["result"] = "error";
-						ret["error_code"] = error.code;
+						ret["error_code"] = (int64_t)error.code;
 					};
 
 					pending_events.push_back(ret);
@@ -227,7 +242,7 @@ void GameCenter::request_achievement_descriptions() {
 
 		} else {
 			ret["result"] = "error";
-			ret["error_code"] = error.code;
+			ret["error_code"] = (int64_t)error.code;
 		};
 
 		pending_events.push_back(ret);
@@ -259,7 +274,7 @@ void GameCenter::request_achievements() {
 
 		} else {
 			ret["result"] = "error";
-			ret["error_code"] = error.code;
+			ret["error_code"] = (int64_t)error.code;
 		};
 
 		pending_events.push_back(ret);
@@ -275,7 +290,7 @@ void GameCenter::reset_achievements() {
 			ret["result"] = "ok";
 		} else {
 			ret["result"] = "error";
-			ret["error_code"] = error.code;
+			ret["error_code"] = (int64_t)error.code;
 		};
 
 		pending_events.push_back(ret);
@@ -326,6 +341,34 @@ Error GameCenter::show_game_center(Variant p_params) {
 	return OK;
 };
 
+Error GameCenter::request_identity_verification_signature() {
+
+	ERR_FAIL_COND_V(!is_authenticated(), ERR_UNAUTHORIZED);
+
+	GKLocalPlayer *player = [GKLocalPlayer localPlayer];
+	[player generateIdentityVerificationSignatureWithCompletionHandler:^(NSURL *publicKeyUrl, NSData *signature, NSData *salt, uint64_t timestamp, NSError *error) {
+
+		Dictionary ret;
+		ret["type"] = "identity_verification_signature";
+		if (error == nil) {
+			ret["result"] = "ok";
+			ret["public_key_url"] = [publicKeyUrl.absoluteString UTF8String];
+			ret["signature"] = [[signature base64EncodedStringWithOptions:0] UTF8String];
+			ret["salt"] = [[salt base64EncodedStringWithOptions:0] UTF8String];
+			ret["timestamp"] = timestamp;
+			ret["player_id"] = [player.playerID UTF8String];
+		} else {
+			ret["result"] = "error";
+			ret["error_code"] = (int64_t)error.code;
+			ret["error_description"] = [error.localizedDescription UTF8String];
+		};
+
+		pending_events.push_back(ret);
+	}];
+
+	return OK;
+};
+
 void GameCenter::game_center_closed() {
 
 	Dictionary ret;
@@ -354,7 +397,7 @@ GameCenter *GameCenter::get_singleton() {
 GameCenter::GameCenter() {
 	ERR_FAIL_COND(instance != NULL);
 	instance = this;
-	connected = false;
+	authenticated = false;
 };
 
 GameCenter::~GameCenter(){};

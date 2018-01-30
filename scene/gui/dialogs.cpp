@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "dialogs.h"
 #include "line_edit.h"
 #include "print_string.h"
@@ -289,10 +290,17 @@ bool WindowDialog::get_resizable() const {
 Size2 WindowDialog::get_minimum_size() const {
 
 	Ref<Font> font = get_font("title_font", "WindowDialog");
-	int msx = close_button->get_combined_minimum_size().x;
-	msx += font->get_string_size(title).x;
 
-	return Size2(msx, 1);
+	const int button_width = close_button->get_combined_minimum_size().x;
+	const int title_width = font->get_string_size(title).x;
+	const int padding = button_width / 2;
+	const int button_area = button_width + padding;
+
+	// as the title gets centered, title_width + close_button_width is not enough.
+	// we want a width w, such that w / 2 - title_width / 2 >= button_area, i.e.
+	// w >= 2 * button_area + title_width
+
+	return Size2(2 * button_area + title_width, 1);
 }
 
 TextureButton *WindowDialog::get_close_button() {

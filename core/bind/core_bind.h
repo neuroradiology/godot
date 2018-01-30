@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef CORE_BIND_H
 #define CORE_BIND_H
 
@@ -204,6 +205,7 @@ public:
 	bool has_virtual_keyboard() const;
 	void show_virtual_keyboard(const String &p_existing_text = "");
 	void hide_virtual_keyboard();
+	int get_virtual_keyboard_height();
 
 	void print_resources_in_use(bool p_short = false);
 	void print_all_resources(const String &p_to_file);
@@ -266,6 +268,8 @@ public:
 
 	bool can_draw() const;
 
+	bool is_userfs_persistent() const;
+
 	bool is_stdout_verbose() const;
 
 	int get_processor_count() const;
@@ -294,7 +298,7 @@ public:
 
 	String get_system_dir(SystemDir p_dir) const;
 
-	String get_data_dir() const;
+	String get_user_data_dir() const;
 
 	void alert(const String &p_alert, const String &p_title = "ALERT!");
 
@@ -314,6 +318,8 @@ public:
 	PowerState get_power_state();
 	int get_power_seconds_left();
 	int get_power_percent_left();
+
+	bool has_feature(const String &p_feature) const;
 
 	static _OS *get_singleton() { return singleton; }
 
@@ -358,6 +364,8 @@ public:
 	int get_uv84_normal_bit(const Vector3 &p_vector);
 
 	Vector<int> triangulate_polygon(const Vector<Vector2> &p_polygon);
+	Vector<Point2> convex_hull_2d(const Vector<Point2> &p_points);
+	Vector<Vector3> clip_polygon(const Vector<Vector3> &p_points, const Plane &p_plane);
 
 	Dictionary make_atlas(const Vector<Size2> &p_rects);
 
@@ -648,7 +656,7 @@ public:
 	int get_iterations_per_second() const;
 
 	void set_target_fps(int p_fps);
-	float get_target_fps() const;
+	int get_target_fps() const;
 
 	float get_frames_per_second() const;
 
@@ -661,7 +669,10 @@ public:
 
 	Dictionary get_version_info() const;
 
-	bool is_in_fixed_frame() const;
+	bool is_in_physics_frame() const;
+
+	bool has_singleton(const String &p_name) const;
+	Object *get_singleton_object(const String &p_name) const;
 
 	void set_editor_hint(bool p_enabled);
 	bool is_editor_hint() const;
@@ -709,7 +720,7 @@ protected:
 public:
 	static _JSON *get_singleton() { return singleton; }
 
-	String print(const Variant &p_value);
+	String print(const Variant &p_value, const String &p_indent = "", bool p_sort_keys = false);
 	Ref<JSONParseResult> parse(const String &p_json);
 
 	_JSON();

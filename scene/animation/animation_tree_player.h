@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef ANIMATION_TREE_PLAYER_H
 #define ANIMATION_TREE_PLAYER_H
 
@@ -42,7 +43,7 @@ class AnimationTreePlayer : public Node {
 
 public:
 	enum AnimationProcessMode {
-		ANIMATION_PROCESS_FIXED,
+		ANIMATION_PROCESS_PHYSICS,
 		ANIMATION_PROCESS_IDLE,
 	};
 
@@ -78,14 +79,14 @@ private:
 	struct TrackKey {
 
 		uint32_t id;
-		StringName property;
+		StringName subpath_concatenated;
 		int bone_idx;
 
 		inline bool operator<(const TrackKey &p_right) const {
 
 			if (id == p_right.id) {
 				if (bone_idx == p_right.bone_idx) {
-					return property < p_right.property;
+					return subpath_concatenated < p_right.subpath_concatenated;
 				} else
 					return bone_idx < p_right.bone_idx;
 			} else
@@ -99,7 +100,7 @@ private:
 		Spatial *spatial;
 		Skeleton *skeleton;
 		int bone_idx;
-		StringName property;
+		Vector<StringName> subpath;
 
 		Vector3 loc;
 		Quat rot;
@@ -317,6 +318,7 @@ private:
 	bool reset_request;
 
 	ConnectError _cycle_test(const StringName &p_at_node);
+	void _clear_cycle_test();
 
 	Track *_find_track(const NodePath &p_path);
 	void _recompute_caches();

@@ -12,6 +12,9 @@ def get_name():
 
 def can_build():
 
+    # Doesn't build against Godot 3.0 for now, disable to avoid confusing users
+    return False
+
     if (os.name != "posix" or sys.platform == "darwin"):
         return False
 
@@ -56,7 +59,7 @@ def configure(env):
         if ('clang++' not in env['CXX']):
             env["CC"] = "clang"
             env["CXX"] = "clang++"
-            env["LD"] = "clang++"
+            env["LINK"] = "clang++"
         env.Append(CPPFLAGS=['-DTYPED_METHOD_BIND'])
         env.extra_suffix = ".llvm" + env.extra_suffix
 
@@ -82,6 +85,16 @@ def configure(env):
 
     if not env['builtin_libpng']:
         env.ParseConfig('pkg-config libpng --cflags --libs')
+
+    if not env['builtin_bullet']:
+        # We need at least version 2.88
+        import subprocess
+        bullet_version = subprocess.check_output(['pkg-config', 'bullet', '--modversion']).strip()
+        if bullet_version < "2.88":
+            # Abort as system bullet was requested but too old
+            print("Bullet: System version {0} does not match minimal requirements ({1}). Aborting.".format(bullet_version, "2.88"))
+            sys.exit(255)
+        env.ParseConfig('pkg-config bullet --cflags --libs')
 
     if not env['builtin_enet']:
         env.ParseConfig('pkg-config libenet --cflags --libs')

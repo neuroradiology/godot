@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "input.h"
 #include "input_map.h"
 #include "os/os.h"
@@ -58,6 +59,7 @@ void Input::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_action_just_released", "action"), &Input::is_action_just_released);
 	ClassDB::bind_method(D_METHOD("add_joy_mapping", "mapping", "update_existing"), &Input::add_joy_mapping, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("remove_joy_mapping", "guid"), &Input::remove_joy_mapping);
+	ClassDB::bind_method(D_METHOD("joy_connection_changed", "device", "connected", "name", "guid"), &Input::joy_connection_changed);
 	ClassDB::bind_method(D_METHOD("is_joy_known", "device"), &Input::is_joy_known);
 	ClassDB::bind_method(D_METHOD("get_joy_axis", "device", "axis"), &Input::get_joy_axis);
 	ClassDB::bind_method(D_METHOD("get_joy_name", "device"), &Input::get_joy_name);
@@ -83,13 +85,31 @@ void Input::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("warp_mouse_position", "to"), &Input::warp_mouse_position);
 	ClassDB::bind_method(D_METHOD("action_press", "action"), &Input::action_press);
 	ClassDB::bind_method(D_METHOD("action_release", "action"), &Input::action_release);
-	ClassDB::bind_method(D_METHOD("set_custom_mouse_cursor", "image", "hotspot"), &Input::set_custom_mouse_cursor, DEFVAL(Vector2()));
+	ClassDB::bind_method(D_METHOD("set_custom_mouse_cursor", "image", "shape", "hotspot"), &Input::set_custom_mouse_cursor, DEFVAL(CURSOR_ARROW), DEFVAL(Vector2()));
 	ClassDB::bind_method(D_METHOD("parse_input_event", "event"), &Input::parse_input_event);
 
 	BIND_ENUM_CONSTANT(MOUSE_MODE_VISIBLE);
 	BIND_ENUM_CONSTANT(MOUSE_MODE_HIDDEN);
 	BIND_ENUM_CONSTANT(MOUSE_MODE_CAPTURED);
 	BIND_ENUM_CONSTANT(MOUSE_MODE_CONFINED);
+
+	BIND_ENUM_CONSTANT(CURSOR_ARROW);
+	BIND_ENUM_CONSTANT(CURSOR_IBEAM);
+	BIND_ENUM_CONSTANT(CURSOR_POINTING_HAND);
+	BIND_ENUM_CONSTANT(CURSOR_CROSS);
+	BIND_ENUM_CONSTANT(CURSOR_WAIT);
+	BIND_ENUM_CONSTANT(CURSOR_BUSY);
+	BIND_ENUM_CONSTANT(CURSOR_DRAG);
+	BIND_ENUM_CONSTANT(CURSOR_CAN_DROP);
+	BIND_ENUM_CONSTANT(CURSOR_FORBIDDEN);
+	BIND_ENUM_CONSTANT(CURSOR_VSIZE);
+	BIND_ENUM_CONSTANT(CURSOR_HSIZE);
+	BIND_ENUM_CONSTANT(CURSOR_BDIAGSIZE);
+	BIND_ENUM_CONSTANT(CURSOR_FDIAGSIZE);
+	BIND_ENUM_CONSTANT(CURSOR_MOVE);
+	BIND_ENUM_CONSTANT(CURSOR_VSPLIT);
+	BIND_ENUM_CONSTANT(CURSOR_HSPLIT);
+	BIND_ENUM_CONSTANT(CURSOR_HELP);
 
 	ADD_SIGNAL(MethodInfo("joy_connection_changed", PropertyInfo(Variant::INT, "index"), PropertyInfo(Variant::BOOL, "connected")));
 }

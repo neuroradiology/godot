@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "dynamic_font_stb.h"
 
 #ifndef FREETYPE_ENABLED
@@ -333,8 +334,7 @@ void DynamicFontAtSize::_update_char(CharType p_char) {
 
 	//blit to image and texture
 	{
-
-		Image img(tex.texture_size, tex.texture_size, 0, Image::FORMAT_LA8, tex.imgdata);
+		Ref<Image> img = memnew(Image(tex.texture_size, tex.texture_size, 0, Image::FORMAT_LA8, tex.imgdata));
 
 		if (tex.texture.is_null()) {
 			tex.texture.instance();
@@ -518,7 +518,7 @@ bool ResourceFormatLoaderDynamicFont::handles_type(const String &p_type) const {
 
 String ResourceFormatLoaderDynamicFont::get_resource_type(const String &p_path) const {
 
-	String el = p_path.extension().to_lower();
+	String el = p_path.get_extension().to_lower();
 	if (el == "ttf")
 		return "DynamicFontData";
 	return "";

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "gdnative/vector2.h"
 
 #include "core/math/math_2d.h"
@@ -35,8 +36,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-void _vector2_api_anchor() {}
 
 void GDAPI godot_vector2_new(godot_vector2 *r_dest, const godot_real p_x, const godot_real p_y) {
 
@@ -209,7 +208,7 @@ godot_vector2 GDAPI godot_vector2_operator_add(const godot_vector2 *p_self, cons
 	return raw_dest;
 }
 
-godot_vector2 GDAPI godot_vector2_operator_substract(const godot_vector2 *p_self, const godot_vector2 *p_b) {
+godot_vector2 GDAPI godot_vector2_operator_subtract(const godot_vector2 *p_self, const godot_vector2 *p_b) {
 	godot_vector2 raw_dest;
 	Vector2 *dest = (Vector2 *)&raw_dest;
 	const Vector2 *self = (const Vector2 *)p_self;

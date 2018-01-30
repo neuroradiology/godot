@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "video_stream_theora.h"
 
 #include "os/os.h"
@@ -309,9 +310,6 @@ void VideoStreamPlaybackTheora::set_file(const String &p_file) {
 	/* and now we have it all.  initialize decoders */
 	if (theora_p) {
 		td = th_decode_alloc(&ti, ts);
-		printf("Ogg logical stream %lx is Theora %dx%d %.02f fps",
-				to.serialno, ti.pic_width, ti.pic_height,
-				(double)ti.fps_numerator / ti.fps_denominator);
 		px_fmt = ti.pixel_fmt;
 		switch (ti.pixel_fmt) {
 			case TH_PF_420: printf(" 4:2:0 video\n"); break;
@@ -322,9 +320,6 @@ void VideoStreamPlaybackTheora::set_file(const String &p_file) {
 				printf(" video\n  (UNKNOWN Chroma sampling!)\n");
 				break;
 		}
-		if (ti.pic_width != ti.frame_width || ti.pic_height != ti.frame_height)
-			printf("  Frame content is %dx%d with offset (%d,%d).\n",
-					ti.frame_width, ti.frame_height, ti.pic_x, ti.pic_y);
 		th_decode_ctl(td, TH_DECCTL_GET_PPLEVEL_MAX, &pp_level_max,
 				sizeof(pp_level_max));
 		pp_level = 0;
@@ -351,10 +346,7 @@ void VideoStreamPlaybackTheora::set_file(const String &p_file) {
 	if (vorbis_p) {
 		vorbis_synthesis_init(&vd, &vi);
 		vorbis_block_init(&vd, &vb);
-		fprintf(stderr, "Ogg logical stream %lx is Vorbis %d channel %ld Hz audio.\n",
-				vo.serialno, vi.channels, vi.rate);
 		//_setup(vi.channels, vi.rate);
-
 	} else {
 		/* tear down the partial vorbis setup */
 		vorbis_info_clear(&vi);
@@ -406,12 +398,11 @@ void VideoStreamPlaybackTheora::update(float p_delta) {
 
 		ogg_packet op;
 		bool no_theora = false;
+		bool buffer_full = false;
 
-		while (vorbis_p) {
+		while (vorbis_p && !audio_done && !buffer_full) {
 			int ret;
 			float **pcm;
-
-			bool buffer_full = false;
 
 			/* if there's pending, decoded audio, grab it */
 			ret = vorbis_synthesis_pcmout(&vd, &pcm);
@@ -419,7 +410,7 @@ void VideoStreamPlaybackTheora::update(float p_delta) {
 
 				const int AUXBUF_LEN = 4096;
 				int to_read = ret;
-				int16_t aux_buffer[AUXBUF_LEN];
+				float aux_buffer[AUXBUF_LEN];
 
 				while (to_read) {
 
@@ -429,11 +420,7 @@ void VideoStreamPlaybackTheora::update(float p_delta) {
 
 					for (int j = 0; j < m; j++) {
 						for (int i = 0; i < vi.channels; i++) {
-
-							int val = Math::fast_ftoi(pcm[i][j] * 32767.f);
-							if (val > 32767) val = 32767;
-							if (val < -32768) val = -32768;
-							aux_buffer[count++] = val;
+							aux_buffer[count++] = pcm[i][j];
 						}
 					}
 
@@ -602,10 +589,9 @@ bool VideoStreamPlaybackTheora::is_playing() const {
 void VideoStreamPlaybackTheora::set_paused(bool p_paused) {
 
 	paused = p_paused;
-	//pau = !p_paused;
 };
 
-bool VideoStreamPlaybackTheora::is_paused(bool p_paused) const {
+bool VideoStreamPlaybackTheora::is_paused() const {
 
 	return paused;
 };
@@ -733,32 +719,10 @@ VideoStreamPlaybackTheora::~VideoStreamPlaybackTheora() {
 		memdelete(file);
 };
 
-RES ResourceFormatLoaderVideoStreamTheora::load(const String &p_path, const String &p_original_path, Error *r_error) {
-	if (r_error)
-		*r_error = ERR_FILE_CANT_OPEN;
+void VideoStreamTheora::_bind_methods() {
 
-	VideoStreamTheora *stream = memnew(VideoStreamTheora);
-	stream->set_file(p_path);
+	ClassDB::bind_method(D_METHOD("set_file", "file"), &VideoStreamTheora::set_file);
+	ClassDB::bind_method(D_METHOD("get_file"), &VideoStreamTheora::get_file);
 
-	if (r_error)
-		*r_error = OK;
-
-	return Ref<VideoStreamTheora>(stream);
-}
-
-void ResourceFormatLoaderVideoStreamTheora::get_recognized_extensions(List<String> *p_extensions) const {
-
-	p_extensions->push_back("ogm");
-	p_extensions->push_back("ogv");
-}
-bool ResourceFormatLoaderVideoStreamTheora::handles_type(const String &p_type) const {
-	return (p_type == "VideoStream" || p_type == "VideoStreamTheora");
-}
-
-String ResourceFormatLoaderVideoStreamTheora::get_resource_type(const String &p_path) const {
-
-	String exl = p_path.get_extension().to_lower();
-	if (exl == "ogm" || exl == "ogv")
-		return "VideoStreamTheora";
-	return "";
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "file", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR | PROPERTY_USAGE_INTERNAL), "set_file", "get_file");
 }

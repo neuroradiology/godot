@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "file_access_encrypted.h"
 
 #include "core/variant.h"
@@ -62,12 +63,12 @@ Error FileAccessEncrypted::open_and_parse(FileAccess *p_base, const Vector<uint8
 		writing = false;
 		key = p_key;
 		uint32_t magic = p_base->get_32();
-		print_line("MAGIC: " + itos(magic));
 		ERR_FAIL_COND_V(magic != COMP_MAGIC, ERR_FILE_UNRECOGNIZED);
+
 		mode = Mode(p_base->get_32());
 		ERR_FAIL_INDEX_V(mode, MODE_MAX, ERR_FILE_CORRUPT);
 		ERR_FAIL_COND_V(mode == 0, ERR_FILE_CORRUPT);
-		print_line("MODE: " + itos(mode));
+
 		unsigned char md5d[16];
 		p_base->get_buffer(md5d, 16);
 		length = p_base->get_64();
@@ -80,11 +81,11 @@ Error FileAccessEncrypted::open_and_parse(FileAccess *p_base, const Vector<uint8
 
 		data.resize(ds);
 
-		uint32_t blen = p_base->get_buffer(data.ptr(), ds);
+		uint32_t blen = p_base->get_buffer(data.ptrw(), ds);
 		ERR_FAIL_COND_V(blen != ds, ERR_FILE_CORRUPT);
 
 		aes256_context ctx;
-		aes256_init(&ctx, key.ptr());
+		aes256_init(&ctx, key.ptrw());
 
 		for (size_t i = 0; i < ds; i += 16) {
 
@@ -97,7 +98,7 @@ Error FileAccessEncrypted::open_and_parse(FileAccess *p_base, const Vector<uint8
 
 		MD5_CTX md5;
 		MD5Init(&md5);
-		MD5Update(&md5, data.ptr(), data.size());
+		MD5Update(&md5, (uint8_t *)data.ptr(), data.size());
 		MD5Final(&md5);
 
 		ERR_FAIL_COND_V(String::md5(md5.digest) != String::md5(md5d), ERR_FILE_CORRUPT);
@@ -141,17 +142,17 @@ void FileAccessEncrypted::close() {
 
 		MD5_CTX md5;
 		MD5Init(&md5);
-		MD5Update(&md5, data.ptr(), data.size());
+		MD5Update(&md5, (uint8_t *)data.ptr(), data.size());
 		MD5Final(&md5);
 
 		compressed.resize(len);
-		zeromem(compressed.ptr(), len);
+		zeromem(compressed.ptrw(), len);
 		for (int i = 0; i < data.size(); i++) {
 			compressed[i] = data[i];
 		}
 
 		aes256_context ctx;
-		aes256_init(&ctx, key.ptr());
+		aes256_init(&ctx, key.ptrw());
 
 		for (size_t i = 0; i < len; i += 16) {
 
@@ -266,6 +267,12 @@ void FileAccessEncrypted::store_buffer(const uint8_t *p_src, int p_length) {
 		}
 		pos += p_length;
 	}
+}
+
+void FileAccessEncrypted::flush() {
+	ERR_FAIL_COND(!writing);
+
+	// encrypted files keep data in memory till close()
 }
 
 void FileAccessEncrypted::store_8(uint8_t p_dest) {

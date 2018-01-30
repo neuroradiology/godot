@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="MenuButton" inherits="Button" category="Core" version="3.0.alpha.custom_build">
+<class name="MenuButton" inherits="Button" category="Core" version="3.0-stable">
 	<brief_description>
 		Special button that brings up a [PopupMenu] when clicked.
 	</brief_description>
@@ -11,18 +11,22 @@
 	<demos>
 	</demos>
 	<methods>
-		<method name="get_popup">
+		<method name="get_popup" qualifiers="const">
 			<return type="PopupMenu">
 			</return>
 			<description>
 				Return the [PopupMenu] contained in this button.
 			</description>
 		</method>
+		<method name="set_disable_shortcuts">
+			<return type="void">
+			</return>
+			<argument index="0" name="disabled" type="bool">
+			</argument>
+			<description>
+			</description>
+		</method>
 	</methods>
-	<members>
-		<member name="items" type="Array" setter="_set_items" getter="_get_items">
-		</member>
-	</members>
 	<signals>
 		<signal name="about_to_show">
 			<description>

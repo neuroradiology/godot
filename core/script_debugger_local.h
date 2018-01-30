@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef SCRIPT_DEBUGGER_LOCAL_H
 #define SCRIPT_DEBUGGER_LOCAL_H
 
@@ -35,7 +36,7 @@
 class ScriptDebuggerLocal : public ScriptDebugger {
 
 	bool profiling;
-	float frame_time, idle_time, fixed_time, fixed_frame_time;
+	float frame_time, idle_time, physics_time, physics_frame_time;
 	uint64_t idle_accum;
 
 	Vector<ScriptLanguage::ProfilingInfo> pinfo;
@@ -43,6 +44,7 @@ class ScriptDebuggerLocal : public ScriptDebugger {
 public:
 	void debug(ScriptLanguage *p_script, bool p_can_continue);
 	virtual void send_message(const String &p_message, const Array &p_args);
+	virtual void send_error(const String &p_func, const String &p_file, int p_line, const String &p_err, const String &p_descr, ErrorHandlerType p_type, const Vector<ScriptLanguage::StackInfo> &p_stack_info);
 
 	virtual bool is_profiling() const { return profiling; }
 	virtual void add_profiling_frame_data(const StringName &p_name, const Array &p_data) {}
@@ -51,7 +53,7 @@ public:
 
 	virtual void profiling_start();
 	virtual void profiling_end();
-	virtual void profiling_set_frame_times(float p_frame_time, float p_idle_time, float p_fixed_time, float p_fixed_frame_time);
+	virtual void profiling_set_frame_times(float p_frame_time, float p_idle_time, float p_physics_time, float p_physics_frame_time);
 
 	ScriptDebuggerLocal();
 };

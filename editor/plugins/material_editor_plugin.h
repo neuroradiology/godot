@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef MATERIAL_EDITOR_PLUGIN_H
 #define MATERIAL_EDITOR_PLUGIN_H
 
@@ -105,6 +106,22 @@ public:
 
 class SpatialMaterialConversionPlugin : public EditorResourceConversionPlugin {
 	GDCLASS(SpatialMaterialConversionPlugin, EditorResourceConversionPlugin)
+public:
+	virtual String converts_to() const;
+	virtual bool handles(const Ref<Resource> &p_resource) const;
+	virtual Ref<Resource> convert(const Ref<Resource> &p_resource);
+};
+
+class ParticlesMaterialConversionPlugin : public EditorResourceConversionPlugin {
+	GDCLASS(ParticlesMaterialConversionPlugin, EditorResourceConversionPlugin)
+public:
+	virtual String converts_to() const;
+	virtual bool handles(const Ref<Resource> &p_resource) const;
+	virtual Ref<Resource> convert(const Ref<Resource> &p_resource);
+};
+
+class CanvasItemMaterialConversionPlugin : public EditorResourceConversionPlugin {
+	GDCLASS(CanvasItemMaterialConversionPlugin, EditorResourceConversionPlugin)
 public:
 	virtual String converts_to() const;
 	virtual bool handles(const Ref<Resource> &p_resource) const;

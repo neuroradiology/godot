@@ -1,12 +1,12 @@
 /*************************************************************************/
-/*  color_ramp_edit.h                                                    */
+/*  gradient_edit.h                                                      */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,8 +27,9 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
-#ifndef SCENE_GUI_COLOR_RAMP_EDIT_H_
-#define SCENE_GUI_COLOR_RAMP_EDIT_H_
+
+#ifndef GRADIENT_EDIT_H
+#define GRADIENT_EDIT_H
 
 #include "scene/gui/color_picker.h"
 #include "scene/gui/popup.h"
@@ -72,9 +73,4 @@ public:
 	virtual ~GradientEdit();
 };
 
-/*class  ColorRampEditPanel : public Panel
-{
-	GDCLASS(ColorRampEditPanel, Panel );
-};*/
-
-#endif /* SCENE_GUI_COLOR_RAMP_EDIT_H_ */
+#endif // GRADIENT_EDIT_H

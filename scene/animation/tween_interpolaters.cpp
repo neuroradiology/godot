@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "tween.h"
 
 const real_t pi = 3.1415926535898;
@@ -50,7 +51,7 @@ static real_t in_out(real_t t, real_t b, real_t c, real_t d) {
 static real_t out_in(real_t t, real_t b, real_t c, real_t d) {
 	return c * t / d + b;
 }
-};
+}; // namespace linear
 ///////////////////////////////////////////////////////////////////////////
 // sine
 ///////////////////////////////////////////////////////////////////////////
@@ -70,7 +71,7 @@ static real_t in_out(real_t t, real_t b, real_t c, real_t d) {
 static real_t out_in(real_t t, real_t b, real_t c, real_t d) {
 	return (t < d / 2) ? out(t * 2, b, c / 2, d) : in((t * 2) - d, b + c / 2, c / 2, d);
 }
-};
+}; // namespace sine
 ///////////////////////////////////////////////////////////////////////////
 // quint
 ///////////////////////////////////////////////////////////////////////////
@@ -92,7 +93,7 @@ static real_t in_out(real_t t, real_t b, real_t c, real_t d) {
 static real_t out_in(real_t t, real_t b, real_t c, real_t d) {
 	return (t < d / 2) ? out(t * 2, b, c / 2, d) : in((t * 2) - d, b + c / 2, c / 2, d);
 }
-};
+}; // namespace quint
 ///////////////////////////////////////////////////////////////////////////
 // quart
 ///////////////////////////////////////////////////////////////////////////
@@ -114,7 +115,7 @@ static real_t in_out(real_t t, real_t b, real_t c, real_t d) {
 static real_t out_in(real_t t, real_t b, real_t c, real_t d) {
 	return (t < d / 2) ? out(t * 2, b, c / 2, d) : in((t * 2) - d, b + c / 2, c / 2, d);
 }
-};
+}; // namespace quart
 ///////////////////////////////////////////////////////////////////////////
 // quad
 ///////////////////////////////////////////////////////////////////////////
@@ -137,7 +138,7 @@ static real_t in_out(real_t t, real_t b, real_t c, real_t d) {
 static real_t out_in(real_t t, real_t b, real_t c, real_t d) {
 	return (t < d / 2) ? out(t * 2, b, c / 2, d) : in((t * 2) - d, b + c / 2, c / 2, d);
 }
-};
+}; // namespace quad
 ///////////////////////////////////////////////////////////////////////////
 // expo
 ///////////////////////////////////////////////////////////////////////////
@@ -163,7 +164,7 @@ static real_t in_out(real_t t, real_t b, real_t c, real_t d) {
 static real_t out_in(real_t t, real_t b, real_t c, real_t d) {
 	return (t < d / 2) ? out(t * 2, b, c / 2, d) : in((t * 2) - d, b + c / 2, c / 2, d);
 }
-};
+}; // namespace expo
 ///////////////////////////////////////////////////////////////////////////
 // elastic
 ///////////////////////////////////////////////////////////////////////////
@@ -205,7 +206,7 @@ static real_t in_out(real_t t, real_t b, real_t c, real_t d) {
 static real_t out_in(real_t t, real_t b, real_t c, real_t d) {
 	return (t < d / 2) ? out(t * 2, b, c / 2, d) : in((t * 2) - d, b + c / 2, c / 2, d);
 }
-};
+}; // namespace elastic
 ///////////////////////////////////////////////////////////////////////////
 // cubic
 ///////////////////////////////////////////////////////////////////////////
@@ -227,7 +228,7 @@ static real_t in_out(real_t t, real_t b, real_t c, real_t d) {
 static real_t out_in(real_t t, real_t b, real_t c, real_t d) {
 	return (t < d / 2) ? out(t * 2, b, c / 2, d) : in((t * 2) - d, b + c / 2, c / 2, d);
 }
-};
+}; // namespace cubic
 ///////////////////////////////////////////////////////////////////////////
 // circ
 ///////////////////////////////////////////////////////////////////////////
@@ -248,7 +249,7 @@ static real_t in_out(real_t t, real_t b, real_t c, real_t d) {
 static real_t out_in(real_t t, real_t b, real_t c, real_t d) {
 	return (t < d / 2) ? out(t * 2, b, c / 2, d) : in((t * 2) - d, b + c / 2, c / 2, d);
 }
-};
+}; // namespace circ
 ///////////////////////////////////////////////////////////////////////////
 // bounce
 ///////////////////////////////////////////////////////////////////////////
@@ -281,7 +282,7 @@ static real_t in_out(real_t t, real_t b, real_t c, real_t d) {
 static real_t out_in(real_t t, real_t b, real_t c, real_t d) {
 	return (t < d / 2) ? out(t * 2, b, c / 2, d) : in((t * 2) - d, b + c / 2, c / 2, d);
 }
-};
+}; // namespace bounce
 ///////////////////////////////////////////////////////////////////////////
 // back
 ///////////////////////////////////////////////////////////////////////////
@@ -307,7 +308,7 @@ static real_t in_out(real_t t, real_t b, real_t c, real_t d) {
 static real_t out_in(real_t t, real_t b, real_t c, real_t d) {
 	return (t < d / 2) ? out(t * 2, b, c / 2, d) : in((t * 2) - d, b + c / 2, c / 2, d);
 }
-};
+}; // namespace back
 
 Tween::interpolater Tween::interpolaters[Tween::TRANS_COUNT][Tween::EASE_COUNT] = {
 	{ &linear::in, &linear::out, &linear::in_out, &linear::out_in },

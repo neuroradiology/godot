@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "audio_effect_chorus.h"
 #include "math_funcs.h"
 #include "servers/audio_server.h"
@@ -68,7 +69,7 @@ void AudioEffectChorusInstance::_process_chunk(const AudioFrame *p_src_frames, A
 
 		unsigned int local_rb_pos = buffer_pos;
 		AudioFrame *dst_buff = p_dst_frames;
-		AudioFrame *rb_buff = audio_buffer.ptr();
+		AudioFrame *rb_buff = audio_buffer.ptrw();
 
 		double delay_msec = v.delay;
 		unsigned int delay_frames = Math::fast_ftoi((delay_msec / 1000.0) * mix_rate);

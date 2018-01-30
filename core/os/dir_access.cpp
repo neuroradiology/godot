@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "dir_access.h"
 #include "os/file_access.h"
 #include "os/memory.h"
@@ -38,7 +39,7 @@ String DirAccess::_get_root_path() const {
 	switch (_access_type) {
 
 		case ACCESS_RESOURCES: return ProjectSettings::get_singleton()->get_resource_path();
-		case ACCESS_USERDATA: return OS::get_singleton()->get_data_dir();
+		case ACCESS_USERDATA: return OS::get_singleton()->get_user_data_dir();
 		default: return "";
 	}
 
@@ -98,6 +99,7 @@ static Error _erase_recursive(DirAccess *da) {
 			err = _erase_recursive(da);
 			if (err) {
 				print_line("err recurso " + E->get());
+				da->change_dir("..");
 				return err;
 			}
 			err = da->change_dir("..");
@@ -217,7 +219,7 @@ String DirAccess::fix_path(String p_path) const {
 
 			if (p_path.begins_with("user://")) {
 
-				String data_dir = OS::get_singleton()->get_data_dir();
+				String data_dir = OS::get_singleton()->get_user_data_dir();
 				if (data_dir != "") {
 
 					return p_path.replace_first("user:/", data_dir);
@@ -292,7 +294,7 @@ String DirAccess::get_full_path(const String &p_path, AccessType p_access) {
 	return full;
 }
 
-Error DirAccess::copy(String p_from, String p_to, int chmod_flags) {
+Error DirAccess::copy(String p_from, String p_to, int p_chmod_flags) {
 
 	//printf("copy %s -> %s\n",p_from.ascii().get_data(),p_to.ascii().get_data());
 	Error err;
@@ -329,13 +331,112 @@ Error DirAccess::copy(String p_from, String p_to, int chmod_flags) {
 		fdst->store_8(fsrc->get_8());
 	}
 
-	if (err == OK && chmod_flags != -1) {
+	if (err == OK && p_chmod_flags != -1) {
 		fdst->close();
-		err = fdst->_chmod(p_to, chmod_flags);
+		err = fdst->_chmod(p_to, p_chmod_flags);
+		// If running on a platform with no chmod support (i.e., Windows), don't fail
+		if (err == ERR_UNAVAILABLE)
+			err = OK;
 	}
 
 	memdelete(fsrc);
 	memdelete(fdst);
+
+	return err;
+}
+
+// Changes dir for the current scope, returning back to the original dir
+// when scope exits
+class DirChanger {
+	DirAccess *da;
+	String original_dir;
+
+public:
+	DirChanger(DirAccess *p_da, String p_dir) {
+		da = p_da;
+		original_dir = p_da->get_current_dir();
+		p_da->change_dir(p_dir);
+	}
+
+	~DirChanger() {
+		da->change_dir(original_dir);
+	}
+};
+
+Error DirAccess::_copy_dir(DirAccess *p_target_da, String p_to, int p_chmod_flags) {
+	List<String> dirs;
+
+	String curdir = get_current_dir();
+	list_dir_begin();
+	String n = get_next();
+	while (n != String()) {
+
+		if (n != "." && n != "..") {
+
+			if (current_is_dir())
+				dirs.push_back(n);
+			else {
+				String rel_path = n;
+				if (!n.is_rel_path()) {
+					list_dir_end();
+					return ERR_BUG;
+				}
+				Error err = copy(get_current_dir() + "/" + n, p_to + rel_path, p_chmod_flags);
+				if (err) {
+					list_dir_end();
+					return err;
+				}
+			}
+		}
+
+		n = get_next();
+	}
+
+	list_dir_end();
+
+	for (List<String>::Element *E = dirs.front(); E; E = E->next()) {
+		String rel_path = E->get();
+		String target_dir = p_to + rel_path;
+		if (!p_target_da->dir_exists(target_dir)) {
+			Error err = p_target_da->make_dir(target_dir);
+			ERR_FAIL_COND_V(err, err);
+		}
+
+		Error err = change_dir(E->get());
+		ERR_FAIL_COND_V(err, err);
+		err = _copy_dir(p_target_da, p_to + rel_path + "/", p_chmod_flags);
+		if (err) {
+			change_dir("..");
+			ERR_PRINT("Failed to copy recursively");
+			return err;
+		}
+		err = change_dir("..");
+		if (err) {
+			ERR_PRINT("Failed to go back");
+			return err;
+		}
+	}
+
+	return OK;
+}
+
+Error DirAccess::copy_dir(String p_from, String p_to, int p_chmod_flags) {
+	ERR_FAIL_COND_V(!dir_exists(p_from), ERR_FILE_NOT_FOUND);
+
+	DirAccess *target_da = DirAccess::create_for_path(p_to);
+	ERR_FAIL_COND_V(!target_da, ERR_CANT_CREATE);
+
+	if (!target_da->dir_exists(p_to)) {
+		Error err = target_da->make_dir_recursive(p_to);
+		if (err) {
+			memdelete(target_da);
+		}
+		ERR_FAIL_COND_V(err, err);
+	}
+
+	DirChanger dir_changer(this, p_from);
+	Error err = _copy_dir(target_da, p_to + "/", p_chmod_flags);
+	memdelete(target_da);
 
 	return err;
 }

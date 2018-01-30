@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,8 +27,10 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "main/main.h"
 #include "os_windows.h"
+#include "project_settings.h"
 
 #ifdef CRASH_HANDLER_EXCEPTION
 
@@ -60,8 +62,8 @@ class symbol {
 	static const int max_name_len = 1024;
 
 public:
-	symbol(HANDLE process, DWORD64 address)
-		: sym((sym_type *)::operator new(sizeof(*sym) + max_name_len)) {
+	symbol(HANDLE process, DWORD64 address) :
+			sym((sym_type *)::operator new(sizeof(*sym) + max_name_len)) {
 		memset(sym, '\0', sizeof(*sym) + max_name_len);
 		sym->SizeOfStruct = sizeof(*sym);
 		sym->MaxNameLength = max_name_len;
@@ -84,8 +86,8 @@ class get_mod_info {
 	HANDLE process;
 
 public:
-	get_mod_info(HANDLE h)
-		: process(h) {}
+	get_mod_info(HANDLE h) :
+			process(h) {}
 
 	module_data operator()(HMODULE module) {
 		module_data ret;

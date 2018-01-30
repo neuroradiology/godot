@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "base_button.h"
 
 #include "os/keyboard.h"
@@ -310,10 +311,6 @@ void BaseButton::set_disabled(bool p_disabled) {
 	status.disabled = p_disabled;
 	update();
 	_change_notify("disabled");
-	if (p_disabled)
-		set_focus_mode(FOCUS_NONE);
-	else
-		set_focus_mode(enabled_focus_mode);
 }
 
 bool BaseButton::is_disabled() const {
@@ -450,11 +447,11 @@ String BaseButton::get_tooltip(const Point2 &p_pos) const {
 
 	String tooltip = Control::get_tooltip(p_pos);
 	if (shortcut.is_valid() && shortcut->is_valid()) {
-		if (tooltip.find("$sc") != -1) {
-			tooltip = tooltip.replace_first("$sc", "(" + shortcut->get_as_text() + ")");
-		} else {
-			tooltip += " (" + shortcut->get_as_text() + ")";
+		String text = shortcut->get_name() + " (" + shortcut->get_as_text() + ")";
+		if (shortcut->get_name().nocasecmp_to(tooltip) != 0) {
+			text += "\n" + tooltip;
 		}
+		tooltip = text;
 	}
 	return tooltip;
 }
@@ -503,12 +500,12 @@ void BaseButton::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_button_group"), &BaseButton::get_button_group);
 
 	BIND_VMETHOD(MethodInfo("_pressed"));
-	BIND_VMETHOD(MethodInfo("_toggled", PropertyInfo(Variant::BOOL, "pressed")));
+	BIND_VMETHOD(MethodInfo("_toggled", PropertyInfo(Variant::BOOL, "button_pressed")));
 
 	ADD_SIGNAL(MethodInfo("pressed"));
 	ADD_SIGNAL(MethodInfo("button_up"));
 	ADD_SIGNAL(MethodInfo("button_down"));
-	ADD_SIGNAL(MethodInfo("toggled", PropertyInfo(Variant::BOOL, "pressed")));
+	ADD_SIGNAL(MethodInfo("toggled", PropertyInfo(Variant::BOOL, "button_pressed")));
 	ADD_PROPERTYNZ(PropertyInfo(Variant::BOOL, "disabled"), "set_disabled", "is_disabled");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "toggle_mode"), "set_toggle_mode", "is_toggle_mode");
 	ADD_PROPERTYNZ(PropertyInfo(Variant::BOOL, "pressed"), "set_pressed", "is_pressed");
@@ -538,13 +535,13 @@ BaseButton::BaseButton() {
 	set_focus_mode(FOCUS_ALL);
 	enabled_focus_mode = FOCUS_ALL;
 	action_mode = ACTION_MODE_BUTTON_RELEASE;
+}
+
+BaseButton::~BaseButton() {
 
 	if (button_group.is_valid()) {
 		button_group->buttons.erase(this);
 	}
-}
-
-BaseButton::~BaseButton() {
 }
 
 void ButtonGroup::get_buttons(List<BaseButton *> *r_buttons) {

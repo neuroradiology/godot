@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "visibility_notifier_2d.h"
 
 #include "engine.h"
@@ -83,7 +84,7 @@ void VisibilityNotifier2D::set_rect(const Rect2 &p_rect) {
 	_change_notify("rect");
 }
 
-Rect2 VisibilityNotifier2D::get_item_rect() const {
+Rect2 VisibilityNotifier2D::_edit_get_rect() const {
 
 	return rect;
 }
@@ -154,8 +155,8 @@ void VisibilityEnabler2D::_screen_enter() {
 		_change_node_state(E->key(), true);
 	}
 
-	if (enabler[ENABLER_PARENT_FIXED_PROCESS] && get_parent())
-		get_parent()->set_fixed_process(true);
+	if (enabler[ENABLER_PARENT_PHYSICS_PROCESS] && get_parent())
+		get_parent()->set_physics_process(true);
 	if (enabler[ENABLER_PARENT_PROCESS] && get_parent())
 		get_parent()->set_process(true);
 
@@ -169,8 +170,8 @@ void VisibilityEnabler2D::_screen_exit() {
 		_change_node_state(E->key(), false);
 	}
 
-	if (enabler[ENABLER_PARENT_FIXED_PROCESS] && get_parent())
-		get_parent()->set_fixed_process(false);
+	if (enabler[ENABLER_PARENT_PHYSICS_PROCESS] && get_parent())
+		get_parent()->set_physics_process(false);
 	if (enabler[ENABLER_PARENT_PROCESS] && get_parent())
 		get_parent()->set_process(false);
 
@@ -218,7 +219,7 @@ void VisibilityEnabler2D::_find_nodes(Node *p_node) {
 
 	if (add) {
 
-		p_node->connect(SceneStringNames::get_singleton()->tree_exited, this, "_node_removed", varray(p_node), CONNECT_ONESHOT);
+		p_node->connect(SceneStringNames::get_singleton()->tree_exiting, this, "_node_removed", varray(p_node), CONNECT_ONESHOT);
 		nodes[p_node] = meta;
 		_change_node_state(p_node, false);
 	}
@@ -246,8 +247,8 @@ void VisibilityEnabler2D::_notification(int p_what) {
 
 		_find_nodes(from);
 
-		if (enabler[ENABLER_PARENT_FIXED_PROCESS] && get_parent())
-			get_parent()->set_fixed_process(false);
+		if (enabler[ENABLER_PARENT_PHYSICS_PROCESS] && get_parent())
+			get_parent()->set_physics_process(false);
 		if (enabler[ENABLER_PARENT_PROCESS] && get_parent())
 			get_parent()->set_process(false);
 	}
@@ -261,7 +262,7 @@ void VisibilityEnabler2D::_notification(int p_what) {
 
 			if (!visible)
 				_change_node_state(E->key(), true);
-			E->key()->disconnect(SceneStringNames::get_singleton()->tree_exited, this, "_node_removed");
+			E->key()->disconnect(SceneStringNames::get_singleton()->tree_exiting, this, "_node_removed");
 		}
 
 		nodes.clear();
@@ -339,14 +340,14 @@ void VisibilityEnabler2D::_bind_methods() {
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "pause_particles"), "set_enabler", "is_enabler_enabled", ENABLER_PAUSE_PARTICLES);
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "pause_animated_sprites"), "set_enabler", "is_enabler_enabled", ENABLER_PAUSE_ANIMATED_SPRITES);
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "process_parent"), "set_enabler", "is_enabler_enabled", ENABLER_PARENT_PROCESS);
-	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "fixed_process_parent"), "set_enabler", "is_enabler_enabled", ENABLER_PARENT_FIXED_PROCESS);
+	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "physics_process_parent"), "set_enabler", "is_enabler_enabled", ENABLER_PARENT_PHYSICS_PROCESS);
 
-	BIND_ENUM_CONSTANT(ENABLER_FREEZE_BODIES);
 	BIND_ENUM_CONSTANT(ENABLER_PAUSE_ANIMATIONS);
+	BIND_ENUM_CONSTANT(ENABLER_FREEZE_BODIES);
 	BIND_ENUM_CONSTANT(ENABLER_PAUSE_PARTICLES);
-	BIND_ENUM_CONSTANT(ENABLER_PAUSE_ANIMATED_SPRITES);
 	BIND_ENUM_CONSTANT(ENABLER_PARENT_PROCESS);
-	BIND_ENUM_CONSTANT(ENABLER_PARENT_FIXED_PROCESS);
+	BIND_ENUM_CONSTANT(ENABLER_PARENT_PHYSICS_PROCESS);
+	BIND_ENUM_CONSTANT(ENABLER_PAUSE_ANIMATED_SPRITES);
 	BIND_ENUM_CONSTANT(ENABLER_MAX);
 }
 
@@ -366,7 +367,7 @@ VisibilityEnabler2D::VisibilityEnabler2D() {
 	for (int i = 0; i < ENABLER_MAX; i++)
 		enabler[i] = true;
 	enabler[ENABLER_PARENT_PROCESS] = false;
-	enabler[ENABLER_PARENT_FIXED_PROCESS] = false;
+	enabler[ENABLER_PARENT_PHYSICS_PROCESS] = false;
 
 	visible = false;
 }

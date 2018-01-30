@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="Container" inherits="Control" category="Core" version="3.0.alpha.custom_build">
+<class name="Container" inherits="Control" category="Core" version="3.0-stable">
 	<brief_description>
 		Base node for containers.
 	</brief_description>
 	<description>
-		Base node for containers. A [Container] contains other controls and automatically arranges them in a certain way.
+		Base node for containers. A [code]Container[/code] contains other controls and automatically arranges them in a certain way.
 		A Control can inherit this to create custom container classes.
 	</description>
 	<tutorials>
@@ -39,7 +39,7 @@
 		</signal>
 	</signals>
 	<constants>
-		<constant name="NOTIFICATION_SORT_CHILDREN" value="50" enum="">
+		<constant name="NOTIFICATION_SORT_CHILDREN" value="50">
 			Notification for when sorting the children, it must be obeyed immediately.
 		</constant>
 	</constants>

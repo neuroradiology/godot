@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef GODOT_NATIVESCRIPT_H
 #define GODOT_NATIVESCRIPT_H
 
@@ -35,42 +36,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#ifdef GDAPI_BUILT_IN
-#define GDAPI_EXPORT
-#endif
-
-#ifdef _WIN32
-#if defined(GDAPI_EXPORT)
-#define GDCALLINGCONV
-#define GDAPI __declspec(dllexport) GDCALLINGCONV
-#else
-#define GDCALLINGCONV
-#define GDAPI __declspec(dllimport) GDCALLINGCONV
-#endif
-#elif defined(__APPLE__)
-#include "TargetConditionals.h"
-#if TARGET_OS_IPHONE
-#define GDCALLINGCONV __attribute__((visibility("default")))
-#define GDAPI GDCALLINGCONV
-#elif TARGET_OS_MAC
-#define GDCALLINGCONV __attribute__((sysv_abi))
-#define GDAPI GDCALLINGCONV
-#endif
-#else
-#define GDCALLINGCONV __attribute__((sysv_abi, visibility("default")))
-#define GDAPI GDCALLINGCONV
-#endif
-
-// This is for libraries *using* the header, NOT GODOT EXPOSING STUFF!!
-#ifdef _WIN32
-#define GDN_EXPORT __declspec(dllexport)
-#else
-#define GDN_EXPORT
-#endif
-
-#include <stdbool.h>
-#include <stdint.h>
 
 typedef enum {
 	GODOT_METHOD_RPC_MODE_DISABLED,
@@ -85,7 +50,7 @@ typedef enum {
 	GODOT_PROPERTY_HINT_RANGE, ///< hint_text = "min,max,step,slider; //slider is optional"
 	GODOT_PROPERTY_HINT_EXP_RANGE, ///< hint_text = "min,max,step", exponential edit
 	GODOT_PROPERTY_HINT_ENUM, ///< hint_text= "val1,val2,val3,etc"
-	GODOT_PROPERTY_HINT_EXP_EASING, /// exponential easing funciton (Math::ease)
+	GODOT_PROPERTY_HINT_EXP_EASING, /// exponential easing function (Math::ease)
 	GODOT_PROPERTY_HINT_LENGTH, ///< hint_text= "length" (as integer)
 	GODOT_PROPERTY_HINT_SPRITE_FRAME,
 	GODOT_PROPERTY_HINT_KEY_ACCEL, ///< hint_text= "length" (as integer)

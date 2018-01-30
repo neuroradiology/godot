@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "skeleton.h"
 
 #include "message_queue.h"
@@ -60,7 +61,7 @@ bool Skeleton::_set(const StringName &p_path, const Variant &p_value) {
 		set_bone_enabled(which, p_value);
 	else if (what == "pose")
 		set_bone_pose(which, p_value);
-	else if (what == "bound_childs") {
+	else if (what == "bound_children") {
 		Array children = p_value;
 
 		if (is_inside_tree()) {
@@ -104,7 +105,7 @@ bool Skeleton::_get(const StringName &p_path, Variant &r_ret) const {
 		r_ret = is_bone_enabled(which);
 	else if (what == "pose")
 		r_ret = get_bone_pose(which);
-	else if (what == "bound_childs") {
+	else if (what == "bound_children") {
 		Array children;
 
 		for (const List<uint32_t>::Element *E = bones[which].nodes_bound.front(); E; E = E->next()) {
@@ -133,7 +134,7 @@ void Skeleton::_get_property_list(List<PropertyInfo> *p_list) const {
 		p_list->push_back(PropertyInfo(Variant::TRANSFORM, prep + "rest"));
 		p_list->push_back(PropertyInfo(Variant::BOOL, prep + "enabled"));
 		p_list->push_back(PropertyInfo(Variant::TRANSFORM, prep + "pose", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR));
-		p_list->push_back(PropertyInfo(Variant::ARRAY, prep + "bound_childs"));
+		p_list->push_back(PropertyInfo(Variant::ARRAY, prep + "bound_children"));
 	}
 }
 
@@ -152,6 +153,24 @@ void Skeleton::_notification(int p_what) {
 		} break;
 		case NOTIFICATION_EXIT_WORLD: {
 
+		} break;
+		case NOTIFICATION_TRANSFORM_CHANGED: {
+
+			if (dirty)
+				break; //will be eventually updated
+
+			//if moved, just update transforms
+			VisualServer *vs = VisualServer::get_singleton();
+			const Bone *bonesptr = bones.ptr();
+			int len = bones.size();
+			Transform global_transform = get_global_transform();
+			Transform global_transform_inverse = global_transform.affine_inverse();
+
+			for (int i = 0; i < len; i++) {
+
+				const Bone &b = bonesptr[i];
+				vs->skeleton_bone_set_transform(skeleton, i, global_transform * (b.transform_final * global_transform_inverse));
+			}
 		} break;
 		case NOTIFICATION_UPDATE_SKELETON: {
 
@@ -179,6 +198,9 @@ void Skeleton::_notification(int p_what) {
 
 				rest_global_inverse_dirty = false;
 			}
+
+			Transform global_transform = get_global_transform();
+			Transform global_transform_inverse = global_transform.affine_inverse();
 
 			for (int i = 0; i < len; i++) {
 
@@ -239,7 +261,8 @@ void Skeleton::_notification(int p_what) {
 					}
 				}
 
-				vs->skeleton_bone_set_transform(skeleton, i, b.pose_global * b.rest_global_inverse);
+				b.transform_final = b.pose_global * b.rest_global_inverse;
+				vs->skeleton_bone_set_transform(skeleton, i, global_transform * (b.transform_final * global_transform_inverse));
 
 				for (List<uint32_t>::Element *E = b.nodes_bound.front(); E; E = E->next()) {
 
@@ -543,6 +566,7 @@ Skeleton::Skeleton() {
 	rest_global_inverse_dirty = true;
 	dirty = false;
 	skeleton = VisualServer::get_singleton()->skeleton_create();
+	set_notify_transform(true);
 }
 
 Skeleton::~Skeleton() {

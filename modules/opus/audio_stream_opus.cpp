@@ -5,10 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
-/*                                                                       */
-/* Author: George Marques <george@gmarqu.es>                             */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -29,7 +27,12 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "audio_stream_opus.h"
+
+/**
+	@author George Marques <george@gmarqu.es>
+*/
 
 const float AudioStreamPlaybackOpus::osrate = 48000.0f;
 
@@ -62,7 +65,7 @@ int AudioStreamPlaybackOpus::_op_seek_func(void *_stream, opus_int64 _offset, in
 			fa->seek_end(_offset);
 		} break;
 		default: {
-			ERR_PRINT("BUG, wtf was whence set to?\n");
+			ERR_PRINT("Opus seek function failure: Unexpected value in _whence\n");
 		}
 	}
 	int ret = fa->eof_reached() ? -1 : 0;
@@ -267,7 +270,7 @@ void AudioStreamPlaybackOpus::seek(float p_time) {
 	frames_mixed = osrate * p_time;
 }
 
-int AudioStreamPlaybackOpus::mix(int16_t *p_bufer, int p_frames) {
+int AudioStreamPlaybackOpus::mix(int16_t *p_buffer, int p_frames) {
 	if (!playing)
 		return 0;
 
@@ -281,7 +284,7 @@ int AudioStreamPlaybackOpus::mix(int16_t *p_bufer, int p_frames) {
 			break;
 		}
 
-		int ret = op_read(opus_file, (opus_int16 *)p_bufer, todo * stream_channels, &current_section);
+		int ret = op_read(opus_file, (opus_int16 *)p_buffer, todo * stream_channels, &current_section);
 		if (ret < 0) {
 			playing = false;
 			ERR_EXPLAIN("Error reading Opus File: " + file);
@@ -325,7 +328,7 @@ int AudioStreamPlaybackOpus::mix(int16_t *p_bufer, int p_frames) {
 
 		frames_mixed += ret;
 
-		p_bufer += ret * stream_channels;
+		p_buffer += ret * stream_channels;
 		p_frames -= ret;
 	}
 

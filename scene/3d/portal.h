@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef PORTAL_H
 #define PORTAL_H
 
@@ -39,7 +40,8 @@
    If a portal is placed next (very close to) a similar, opposing portal, they automatically connect,
    otherwise, a portal connects to the parent room
 */
-//this will be redone and replaced by area portals, left for reference since a new class with this name will have to exist and want to reuse the gizmos
+// FIXME: This will be redone and replaced by area portals, left for reference
+// since a new class with this name will have to exist and want to reuse the gizmos
 #if 0
 class Portal : public VisualInstance {
 
@@ -53,7 +55,7 @@ class Portal : public VisualInstance {
 	Color disabled_color;
 	float connect_range;
 
-	Rect3 aabb;
+	AABB aabb;
 
 protected:
 	bool _set(const StringName &p_name, const Variant &p_value);
@@ -63,7 +65,7 @@ protected:
 	static void _bind_methods();
 
 public:
-	virtual Rect3 get_aabb() const;
+	virtual AABB get_aabb() const;
 	virtual PoolVector<Face3> get_faces(uint32_t p_usage_flags) const;
 
 	void set_enabled(bool p_enabled);

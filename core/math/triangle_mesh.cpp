@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "triangle_mesh.h"
 #include "sort.h"
 
@@ -44,7 +45,7 @@ int TriangleMesh::_create_bvh(BVH *p_bvh, BVH **p_bb, int p_from, int p_size, in
 		return -1;
 	}
 
-	Rect3 aabb;
+	AABB aabb;
 	aabb = p_bb[p_from]->aabb;
 	for (int i = 1; i < p_size; i++) {
 
@@ -166,7 +167,7 @@ void TriangleMesh::create(const PoolVector<Vector3> &p_faces) {
 	valid = true;
 }
 
-Vector3 TriangleMesh::get_area_normal(const Rect3 &p_aabb) const {
+Vector3 TriangleMesh::get_area_normal(const AABB &p_aabb) const {
 
 	uint32_t *stack = (uint32_t *)alloca(sizeof(int) * max_depth);
 

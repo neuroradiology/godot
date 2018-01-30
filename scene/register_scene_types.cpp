@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "register_scene_types.h"
 
 #include "core/class_db.h"
@@ -83,10 +84,10 @@
 #include "scene/gui/link_button.h"
 #include "scene/gui/margin_container.h"
 #include "scene/gui/menu_button.h"
+#include "scene/gui/nine_patch_rect.h"
 #include "scene/gui/option_button.h"
 #include "scene/gui/panel.h"
 #include "scene/gui/panel_container.h"
-#include "scene/gui/patch_9_rect.h"
 #include "scene/gui/popup_menu.h"
 #include "scene/gui/progress_bar.h"
 #include "scene/gui/reference_rect.h"
@@ -152,10 +153,15 @@
 #include "scene/resources/world_2d.h"
 #include "scene/scene_string_names.h"
 
+#include "scene/3d/particles.h"
+#include "scene/3d/scenario_fx.h"
+#include "scene/3d/spatial.h"
+
 #ifndef _3D_DISABLED
 #include "scene/3d/area.h"
 #include "scene/3d/arvr_nodes.h"
 #include "scene/3d/audio_stream_player_3d.h"
+#include "scene/3d/baked_lightmap.h"
 #include "scene/3d/bone_attachment.h"
 #include "scene/3d/camera.h"
 #include "scene/3d/collision_polygon.h"
@@ -169,7 +175,6 @@
 #include "scene/3d/multimesh_instance.h"
 #include "scene/3d/navigation.h"
 #include "scene/3d/navigation_mesh.h"
-#include "scene/3d/particles.h"
 #include "scene/3d/path.h"
 #include "scene/3d/physics_body.h"
 #include "scene/3d/physics_joint.h"
@@ -180,9 +185,7 @@
 #include "scene/3d/reflection_probe.h"
 #include "scene/3d/remote_transform.h"
 #include "scene/3d/room_instance.h"
-#include "scene/3d/scenario_fx.h"
 #include "scene/3d/skeleton.h"
-#include "scene/3d/spatial.h"
 #include "scene/3d/sprite_3d.h"
 #include "scene/3d/vehicle_body.h"
 #include "scene/3d/visibility_notifier.h"
@@ -197,6 +200,11 @@ static ResourceFormatLoaderText *resource_loader_text = NULL;
 static ResourceFormatLoaderDynamicFont *resource_loader_dynamic_font = NULL;
 
 static ResourceFormatLoaderStreamTexture *resource_loader_stream_texture = NULL;
+
+static ResourceFormatLoaderBMFont *resource_loader_bmfont = NULL;
+
+static ResourceFormatSaverShader *resource_saver_shader = NULL;
+static ResourceFormatLoaderShader *resource_loader_shader = NULL;
 
 void register_scene_types() {
 
@@ -215,26 +223,20 @@ void register_scene_types() {
 	resource_loader_theme = memnew(ResourceFormatLoaderTheme);
 	ResourceLoader::add_resource_format_loader(resource_loader_theme);
 
-	bool default_theme_hidpi = GLOBAL_DEF("gui/theme/use_hidpi", false);
-	ProjectSettings::get_singleton()->set_custom_property_info("gui/theme/use_hidpi", PropertyInfo(Variant::BOOL, "gui/theme/use_hidpi", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_RESTART_IF_CHANGED));
-	String theme_path = GLOBAL_DEF("gui/theme/custom", "");
-	ProjectSettings::get_singleton()->set_custom_property_info("gui/theme/custom", PropertyInfo(Variant::STRING, "gui/theme/custom", PROPERTY_HINT_FILE, "*.tres,*.res", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_RESTART_IF_CHANGED));
-	String font_path = GLOBAL_DEF("gui/theme/custom_font", "");
-	ProjectSettings::get_singleton()->set_custom_property_info("gui/theme/custom_font", PropertyInfo(Variant::STRING, "gui/theme/custom_font", PROPERTY_HINT_FILE, "*.tres,*.res,*.font", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_RESTART_IF_CHANGED));
+	resource_saver_text = memnew(ResourceFormatSaverText);
+	ResourceSaver::add_resource_format_saver(resource_saver_text, true);
 
-	if (theme_path != String()) {
-		Ref<Theme> theme = ResourceLoader::load(theme_path);
-		if (theme.is_valid()) {
-			Theme::set_default(theme);
-		}
-	} else {
+	resource_loader_text = memnew(ResourceFormatLoaderText);
+	ResourceLoader::add_resource_format_loader(resource_loader_text, true);
 
-		Ref<Font> font;
-		if (font_path != String()) {
-			font = ResourceLoader::load(font_path);
-		}
-		make_default_theme(default_theme_hidpi, font);
-	}
+	resource_saver_shader = memnew(ResourceFormatSaverShader);
+	ResourceSaver::add_resource_format_saver(resource_saver_shader, true);
+
+	resource_loader_shader = memnew(ResourceFormatLoaderShader);
+	ResourceLoader::add_resource_format_loader(resource_loader_shader, true);
+
+	resource_loader_bmfont = memnew(ResourceFormatLoaderBMFont);
+	ResourceLoader::add_resource_format_loader(resource_loader_bmfont, true);
 
 	OS::get_singleton()->yield(); //may take time to init
 
@@ -261,9 +263,11 @@ void register_scene_types() {
 	ClassDB::register_class<Control>();
 	ClassDB::register_class<Button>();
 	ClassDB::register_class<Label>();
+	ClassDB::register_virtual_class<ScrollBar>();
 	ClassDB::register_class<HScrollBar>();
 	ClassDB::register_class<VScrollBar>();
 	ClassDB::register_class<ProgressBar>();
+	ClassDB::register_virtual_class<Slider>();
 	ClassDB::register_class<HSlider>();
 	ClassDB::register_class<VSlider>();
 	ClassDB::register_class<Popup>();
@@ -274,7 +278,7 @@ void register_scene_types() {
 	ClassDB::register_class<ToolButton>();
 	ClassDB::register_class<LinkButton>();
 	ClassDB::register_class<Panel>();
-	ClassDB::register_class<Range>();
+	ClassDB::register_virtual_class<Range>();
 
 	OS::get_singleton()->yield(); //may take time to init
 
@@ -347,6 +351,7 @@ void register_scene_types() {
 #ifndef _3D_DISABLED
 	ClassDB::register_class<BoneAttachment>();
 	ClassDB::register_virtual_class<VisualInstance>();
+	ClassDB::register_virtual_class<GeometryInstance>();
 	ClassDB::register_class<Camera>();
 	ClassDB::register_class<Listener>();
 	ClassDB::register_class<ARVRCamera>();
@@ -356,6 +361,7 @@ void register_scene_types() {
 	ClassDB::register_class<InterpolatedCamera>();
 	ClassDB::register_class<MeshInstance>();
 	ClassDB::register_class<ImmediateGeometry>();
+	ClassDB::register_virtual_class<SpriteBase3D>();
 	ClassDB::register_class<Sprite3D>();
 	ClassDB::register_class<AnimatedSprite3D>();
 	ClassDB::register_virtual_class<Light>();
@@ -365,6 +371,8 @@ void register_scene_types() {
 	ClassDB::register_class<ReflectionProbe>();
 	ClassDB::register_class<GIProbe>();
 	ClassDB::register_class<GIProbeData>();
+	ClassDB::register_class<BakedLightmap>();
+	ClassDB::register_class<BakedLightmapData>();
 	ClassDB::register_class<AnimationTreePlayer>();
 	ClassDB::register_class<Particles>();
 	ClassDB::register_class<Position3D>();
@@ -375,6 +383,7 @@ void register_scene_types() {
 	OS::get_singleton()->yield(); //may take time to init
 
 	ClassDB::register_virtual_class<CollisionObject>();
+	ClassDB::register_virtual_class<PhysicsBody>();
 	ClassDB::register_class<StaticBody>();
 	ClassDB::register_class<RigidBody>();
 	ClassDB::register_class<KinematicCollision>();
@@ -489,6 +498,7 @@ void register_scene_types() {
 
 	OS::get_singleton()->yield(); //may take time to init
 
+	ClassDB::register_virtual_class<Shape>();
 	ClassDB::register_class<RayShape>();
 	ClassDB::register_class<SphereShape>();
 	ClassDB::register_class<BoxShape>();
@@ -517,6 +527,7 @@ void register_scene_types() {
 	ClassDB::register_class<LargeTexture>();
 	ClassDB::register_class<CurveTexture>();
 	ClassDB::register_class<GradientTexture>();
+	ClassDB::register_class<ProxyTexture>();
 	ClassDB::register_class<CubeMap>();
 	ClassDB::register_class<Animation>();
 	ClassDB::register_virtual_class<Font>();
@@ -526,9 +537,13 @@ void register_scene_types() {
 	ClassDB::register_class<DynamicFontData>();
 	ClassDB::register_class<DynamicFont>();
 
+	DynamicFont::initialize_dynamic_fonts();
+
+	ClassDB::register_virtual_class<StyleBox>();
 	ClassDB::register_class<StyleBoxEmpty>();
 	ClassDB::register_class<StyleBoxTexture>();
 	ClassDB::register_class<StyleBoxFlat>();
+	ClassDB::register_class<StyleBoxLine>();
 	ClassDB::register_class<Theme>();
 
 	ClassDB::register_class<PolygonPathFinder>();
@@ -539,7 +554,9 @@ void register_scene_types() {
 
 	ClassDB::register_class<AudioStreamPlayer>();
 	ClassDB::register_class<AudioStreamPlayer2D>();
+#ifndef _3D_DISABLED
 	ClassDB::register_class<AudioStreamPlayer3D>();
+#endif
 	ClassDB::register_virtual_class<VideoStream>();
 	ClassDB::register_class<AudioStreamSample>();
 
@@ -579,17 +596,41 @@ void register_scene_types() {
 
 	OS::get_singleton()->yield(); //may take time to init
 
-	resource_saver_text = memnew(ResourceFormatSaverText);
-	ResourceSaver::add_resource_format_saver(resource_saver_text, true);
-
-	resource_loader_text = memnew(ResourceFormatLoaderText);
-	ResourceLoader::add_resource_format_loader(resource_loader_text, true);
-
 	for (int i = 0; i < 20; i++) {
 		GLOBAL_DEF("layer_names/2d_render/layer_" + itos(i + 1), "");
 		GLOBAL_DEF("layer_names/2d_physics/layer_" + itos(i + 1), "");
 		GLOBAL_DEF("layer_names/3d_render/layer_" + itos(i + 1), "");
 		GLOBAL_DEF("layer_names/3d_physics/layer_" + itos(i + 1), "");
+	}
+
+	bool default_theme_hidpi = GLOBAL_DEF("gui/theme/use_hidpi", false);
+	ProjectSettings::get_singleton()->set_custom_property_info("gui/theme/use_hidpi", PropertyInfo(Variant::BOOL, "gui/theme/use_hidpi", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_RESTART_IF_CHANGED));
+	String theme_path = GLOBAL_DEF("gui/theme/custom", "");
+	ProjectSettings::get_singleton()->set_custom_property_info("gui/theme/custom", PropertyInfo(Variant::STRING, "gui/theme/custom", PROPERTY_HINT_FILE, "*.tres,*.res,*.theme", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_RESTART_IF_CHANGED));
+	String font_path = GLOBAL_DEF("gui/theme/custom_font", "");
+	ProjectSettings::get_singleton()->set_custom_property_info("gui/theme/custom_font", PropertyInfo(Variant::STRING, "gui/theme/custom_font", PROPERTY_HINT_FILE, "*.tres,*.res,*.font", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_RESTART_IF_CHANGED));
+
+	Ref<Font> font;
+	if (font_path != String()) {
+		font = ResourceLoader::load(font_path);
+		if (!font.is_valid()) {
+			ERR_PRINTS("Error loading custom font '" + font_path + "'");
+		}
+	}
+
+	// Always make the default theme to avoid invalid default font/icon/style in the given theme
+	make_default_theme(default_theme_hidpi, font);
+
+	if (theme_path != String()) {
+		Ref<Theme> theme = ResourceLoader::load(theme_path);
+		if (theme.is_valid()) {
+			Theme::set_default(theme);
+			if (font.is_valid()) {
+				Theme::set_default_font(font);
+			}
+		} else {
+			ERR_PRINTS("Error loading custom theme '" + theme_path + "'");
+		}
 	}
 }
 
@@ -601,11 +642,23 @@ void unregister_scene_types() {
 	memdelete(resource_loader_stream_texture);
 	memdelete(resource_loader_theme);
 
+	DynamicFont::finish_dynamic_fonts();
+
 	if (resource_saver_text) {
 		memdelete(resource_saver_text);
 	}
 	if (resource_loader_text) {
 		memdelete(resource_loader_text);
+	}
+
+	if (resource_saver_shader) {
+		memdelete(resource_saver_shader);
+	}
+	if (resource_loader_shader) {
+		memdelete(resource_loader_shader);
+	}
+	if (resource_loader_bmfont) {
+		memdelete(resource_loader_bmfont);
 	}
 
 	SpatialMaterial::finish_shaders();

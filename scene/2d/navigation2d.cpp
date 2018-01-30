@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "navigation2d.h"
 
 #define USE_ENTRY_POINT
@@ -150,7 +151,7 @@ void Navigation2D::_navpoly_unlink(int p_id) {
 		Polygon &p = E->get();
 
 		int ec = p.edges.size();
-		Polygon::Edge *edges = p.edges.ptr();
+		Polygon::Edge *edges = p.edges.ptrw();
 
 		for (int i = 0; i < ec; i++) {
 			int next = (i + 1) % ec;
@@ -205,7 +206,7 @@ void Navigation2D::_navpoly_unlink(int p_id) {
 	nm.linked = false;
 }
 
-int Navigation2D::navpoly_create(const Ref<NavigationPolygon> &p_mesh, const Transform2D &p_xform, Object *p_owner) {
+int Navigation2D::navpoly_add(const Ref<NavigationPolygon> &p_mesh, const Transform2D &p_xform, Object *p_owner) {
 
 	int id = last_id++;
 	NavMesh nm;
@@ -708,7 +709,7 @@ Object *Navigation2D::get_closest_point_owner(const Vector2 &p_point) {
 
 void Navigation2D::_bind_methods() {
 
-	ClassDB::bind_method(D_METHOD("navpoly_create", "mesh", "xform", "owner"), &Navigation2D::navpoly_create, DEFVAL(Variant()));
+	ClassDB::bind_method(D_METHOD("navpoly_add", "mesh", "xform", "owner"), &Navigation2D::navpoly_add, DEFVAL(Variant()));
 	ClassDB::bind_method(D_METHOD("navpoly_set_transform", "id", "xform"), &Navigation2D::navpoly_set_transform);
 	ClassDB::bind_method(D_METHOD("navpoly_remove", "id"), &Navigation2D::navpoly_remove);
 

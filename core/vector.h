@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef VECTOR_H
 #define VECTOR_H
 
@@ -96,7 +97,7 @@ class Vector {
 	void _copy_on_write();
 
 public:
-	_FORCE_INLINE_ T *ptr() {
+	_FORCE_INLINE_ T *ptrw() {
 		if (!_ptr) return NULL;
 		_copy_on_write();
 		return (T *)_get_data();
@@ -361,7 +362,7 @@ template <class T>
 void Vector<T>::remove(int p_index) {
 
 	ERR_FAIL_INDEX(p_index, size());
-	T *p = ptr();
+	T *p = ptrw();
 	int len = size();
 	for (int i = p_index; i < len - 1; i++) {
 

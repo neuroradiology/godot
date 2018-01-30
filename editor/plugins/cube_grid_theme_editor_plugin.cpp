@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "cube_grid_theme_editor_plugin.h"
 
 #include "editor/editor_node.h"
@@ -289,8 +290,7 @@ MeshLibraryEditorPlugin::MeshLibraryEditorPlugin(EditorNode *p_node) {
 	theme_editor = memnew(MeshLibraryEditor(p_node));
 
 	p_node->get_viewport()->add_child(theme_editor);
-	theme_editor->set_anchors_and_margins_preset(Control::PRESET_WIDE);
-	theme_editor->set_anchor(MARGIN_BOTTOM, Control::ANCHOR_BEGIN);
+	theme_editor->set_anchors_and_margins_preset(Control::PRESET_TOP_WIDE);
 	theme_editor->set_end(Point2(0, 22));
 	theme_editor->hide();
 }

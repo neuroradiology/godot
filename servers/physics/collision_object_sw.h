@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef COLLISION_OBJECT_SW_H
 #define COLLISION_OBJECT_SW_H
 
@@ -61,7 +62,7 @@ private:
 		Transform xform;
 		Transform xform_inv;
 		BroadPhaseSW::ID bpid;
-		Rect3 aabb_cache; //for rayqueries
+		AABB aabb_cache; //for rayqueries
 		real_t area_cache;
 		ShapeSW *shape;
 		bool disabled;
@@ -123,7 +124,7 @@ public:
 	_FORCE_INLINE_ ShapeSW *get_shape(int p_index) const { return shapes[p_index].shape; }
 	_FORCE_INLINE_ const Transform &get_shape_transform(int p_index) const { return shapes[p_index].xform; }
 	_FORCE_INLINE_ const Transform &get_shape_inv_transform(int p_index) const { return shapes[p_index].xform_inv; }
-	_FORCE_INLINE_ const Rect3 &get_shape_aabb(int p_index) const { return shapes[p_index].aabb_cache; }
+	_FORCE_INLINE_ const AABB &get_shape_aabb(int p_index) const { return shapes[p_index].aabb_cache; }
 	_FORCE_INLINE_ const real_t get_shape_area(int p_index) const { return shapes[p_index].area_cache; }
 
 	_FORCE_INLINE_ Transform get_transform() const { return transform; }
