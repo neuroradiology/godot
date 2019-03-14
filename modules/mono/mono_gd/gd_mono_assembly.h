@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -34,10 +34,10 @@
 #include <mono/jit/jit.h>
 #include <mono/metadata/assembly.h>
 
+#include "core/hash_map.h"
+#include "core/map.h"
+#include "core/ustring.h"
 #include "gd_mono_utils.h"
-#include "hash_map.h"
-#include "map.h"
-#include "ustring.h"
 
 class GDMonoAssembly {
 
@@ -71,6 +71,7 @@ class GDMonoAssembly {
 	MonoAssembly *assembly;
 	MonoImage *image;
 
+	bool refonly;
 	bool loaded;
 
 	String name;
@@ -83,26 +84,32 @@ class GDMonoAssembly {
 	bool gdobject_class_cache_updated;
 	Map<StringName, GDMonoClass *> gdobject_class_cache;
 
-#ifdef DEBUG_ENABLED
-	Vector<uint8_t> pdb_data;
-#endif
-
 	static bool no_search;
+	static bool in_preload;
 	static Vector<String> search_dirs;
 
-	static MonoAssembly *_search_hook(MonoAssemblyName *aname, void *user_data);
-	static MonoAssembly *_preload_hook(MonoAssemblyName *aname, char **assemblies_path, void *user_data);
+	static void assembly_load_hook(MonoAssembly *assembly, void *user_data);
+	static MonoAssembly *assembly_search_hook(MonoAssemblyName *aname, void *user_data);
+	static MonoAssembly *assembly_refonly_search_hook(MonoAssemblyName *aname, void *user_data);
+	static MonoAssembly *assembly_preload_hook(MonoAssemblyName *aname, char **assemblies_path, void *user_data);
+	static MonoAssembly *assembly_refonly_preload_hook(MonoAssemblyName *aname, char **assemblies_path, void *user_data);
 
-	static MonoAssembly *_load_assembly_from(const String &p_name, const String &p_path);
+	static MonoAssembly *_search_hook(MonoAssemblyName *aname, void *user_data, bool refonly);
+	static MonoAssembly *_preload_hook(MonoAssemblyName *aname, char **assemblies_path, void *user_data, bool refonly);
+
+	static GDMonoAssembly *_load_assembly_from(const String &p_name, const String &p_path, bool p_refonly);
+	static GDMonoAssembly *_load_assembly_search(const String &p_name, const Vector<String> &p_search_dirs, bool p_refonly);
+	static void _wrap_mono_assembly(MonoAssembly *assembly);
 
 	friend class GDMono;
 	static void initialize();
 
 public:
-	Error load(MonoDomain *p_domain);
+	Error load(bool p_refonly);
 	Error wrapper_for_image(MonoImage *p_image);
 	void unload();
 
+	_FORCE_INLINE_ bool is_refonly() const { return refonly; }
 	_FORCE_INLINE_ bool is_loaded() const { return loaded; }
 	_FORCE_INLINE_ MonoImage *get_image() const { return image; }
 	_FORCE_INLINE_ MonoAssembly *get_assembly() const { return assembly; }
@@ -110,10 +117,14 @@ public:
 	_FORCE_INLINE_ String get_path() const { return path; }
 	_FORCE_INLINE_ uint64_t get_modified_time() const { return modified_time; }
 
-	GDMonoClass *get_class(const StringName &p_namespace, const StringName &p_class);
+	GDMonoClass *get_class(const StringName &p_namespace, const StringName &p_name);
 	GDMonoClass *get_class(MonoClass *p_mono_class);
 
 	GDMonoClass *get_object_derived_class(const StringName &p_class);
+
+	static void fill_search_dirs(Vector<String> &r_search_dirs, const String &p_custom_config = String());
+
+	static GDMonoAssembly *load_from(const String &p_name, const String &p_path, bool p_refonly);
 
 	GDMonoAssembly(const String &p_name, const String &p_path = String());
 	~GDMonoAssembly();

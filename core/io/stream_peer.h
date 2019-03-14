@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -31,7 +31,7 @@
 #ifndef STREAM_PEER_H
 #define STREAM_PEER_H
 
-#include "reference.h"
+#include "core/reference.h"
 
 class StreamPeer : public Reference {
 	GDCLASS(StreamPeer, Reference);
@@ -71,6 +71,7 @@ public:
 	void put_u64(uint64_t p_val);
 	void put_float(float p_val);
 	void put_double(double p_val);
+	void put_string(const String &p_string);
 	void put_utf8_string(const String &p_string);
 	void put_var(const Variant &p_variant);
 
@@ -83,9 +84,9 @@ public:
 	uint64_t get_u64();
 	int64_t get_64();
 	float get_float();
-	float get_double();
-	String get_string(int p_bytes);
-	String get_utf8_string(int p_bytes);
+	double get_double();
+	String get_string(int p_bytes = -1);
+	String get_utf8_string(int p_bytes = -1);
 	Variant get_var();
 
 	StreamPeer() { big_endian = false; }

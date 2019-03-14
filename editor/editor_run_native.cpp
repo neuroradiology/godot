@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -32,6 +32,7 @@
 
 #include "editor_export.h"
 #include "editor_node.h"
+#include "editor_scale.h"
 
 void EditorRunNative::_notification(int p_what) {
 
@@ -49,7 +50,7 @@ void EditorRunNative::_notification(int p_what) {
 				im->clear_mipmaps();
 				if (!im->empty()) {
 
-					im->resize(16, 16);
+					im->resize(16 * EDSCALE, 16 * EDSCALE);
 					Ref<ImageTexture> small_icon;
 					small_icon.instance();
 					small_icon->create_from_image(im, 0);

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -209,7 +209,7 @@ Vector<int> MeshLibrary::get_item_list() const {
 	int idx = 0;
 	for (Map<int, Item>::Element *E = item_map.front(); E; E = E->next()) {
 
-		ret[idx++] = E->key();
+		ret.write[idx++] = E->key();
 	}
 
 	return ret;

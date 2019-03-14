@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -30,7 +30,7 @@
 
 #include "position_2d.h"
 
-#include "engine.h"
+#include "core/engine.h"
 #include "scene/resources/texture.h"
 
 void Position2D::_draw_cross() {
@@ -42,6 +42,10 @@ void Position2D::_draw_cross() {
 Rect2 Position2D::_edit_get_rect() const {
 
 	return Rect2(Point2(-10, -10), Size2(20, 20));
+}
+
+bool Position2D::_edit_use_rect() const {
+	return false;
 }
 
 void Position2D::_notification(int p_what) {

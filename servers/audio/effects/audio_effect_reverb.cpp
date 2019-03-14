@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -96,7 +96,7 @@ void AudioEffectReverb::set_predelay_msec(float p_msec) {
 
 void AudioEffectReverb::set_predelay_feedback(float p_feedback) {
 
-	predelay_fb = p_feedback;
+	predelay_fb = CLAMP(p_feedback, 0, 0.98);
 }
 void AudioEffectReverb::set_room_size(float p_size) {
 
@@ -185,7 +185,7 @@ void AudioEffectReverb::_bind_methods() {
 
 	ADD_GROUP("Predelay", "predelay_");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "predelay_msec", PROPERTY_HINT_RANGE, "20,500,1"), "set_predelay_msec", "get_predelay_msec");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "predelay_feedback", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_predelay_feedback", "get_predelay_feedback");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "predelay_feedback", PROPERTY_HINT_RANGE, "0,0.98,0.01"), "set_predelay_feedback", "get_predelay_feedback");
 	ADD_GROUP("", "");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "room_size", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_room_size", "get_room_size");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "damping", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_damping", "get_damping");

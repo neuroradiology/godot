@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -31,7 +31,7 @@
 #ifndef EDITORFILEDIALOG_H
 #define EDITORFILEDIALOG_H
 
-#include "os/dir_access.h"
+#include "core/os/dir_access.h"
 #include "scene/gui/box_container.h"
 #include "scene/gui/dialogs.h"
 #include "scene/gui/item_list.h"
@@ -159,6 +159,7 @@ private:
 	void _recent_selected(int p_idx);
 
 	void _item_selected(int p_item);
+	void _multi_selected(int p_item, bool p_selected);
 	void _items_clear_selection();
 	void _item_dc_selected(int p_item);
 
@@ -189,8 +190,8 @@ private:
 	void _save_to_recent();
 	//callback function is callback(String p_path,Ref<Texture> preview,Variant udata) preview null if could not load
 
-	void _thumbnail_result(const String &p_path, const Ref<Texture> &p_preview, const Variant &p_udata);
-	void _thumbnail_done(const String &p_path, const Ref<Texture> &p_preview, const Variant &p_udata);
+	void _thumbnail_result(const String &p_path, const Ref<Texture> &p_preview, const Ref<Texture> &p_small_preview, const Variant &p_udata);
+	void _thumbnail_done(const String &p_path, const Ref<Texture> &p_preview, const Ref<Texture> &p_small_preview, const Variant &p_udata);
 	void _request_single_thumbnail(const String &p_path);
 
 	void _unhandled_input(const Ref<InputEvent> &p_event);
@@ -253,6 +254,7 @@ class EditorLineEditFileChooser : public HBoxContainer {
 	void _browse();
 
 protected:
+	void _notification(int p_what);
 	static void _bind_methods();
 
 public:

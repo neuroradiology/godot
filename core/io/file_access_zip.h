@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -34,7 +34,7 @@
 #define FILE_ACCESS_ZIP_H
 
 #include "core/io/file_access_pack.h"
-#include "map.h"
+#include "core/map.h"
 
 #include "thirdparty/minizip/unzip.h"
 
@@ -89,8 +89,6 @@ class FileAccessZip : public FileAccess {
 	unz_file_info64 file_info;
 
 	mutable bool at_eof;
-
-	ZipArchive *archive;
 
 public:
 	virtual Error _open(const String &p_path, int p_mode_flags); ///< open a file

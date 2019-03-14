@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -31,7 +31,8 @@
 #ifndef ARRAY_H
 #define ARRAY_H
 
-#include "typedefs.h"
+#include "core/typedefs.h"
+
 class Variant;
 class ArrayPrivate;
 class Object;
@@ -71,6 +72,7 @@ public:
 
 	Array &sort();
 	Array &sort_custom(Object *p_obj, const StringName &p_function);
+	void shuffle();
 	int bsearch(const Variant &p_value, bool p_before = true);
 	int bsearch_custom(const Variant &p_value, Object *p_obj, const StringName &p_function, bool p_before = true);
 	Array &invert();
@@ -87,7 +89,10 @@ public:
 	Variant pop_back();
 	Variant pop_front();
 
-	Array duplicate() const;
+	Array duplicate(bool p_deep = false) const;
+
+	Variant min() const;
+	Variant max() const;
 
 	Array(const Array &p_from);
 	Array();

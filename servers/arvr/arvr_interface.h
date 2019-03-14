@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -32,7 +32,7 @@
 #define ARVR_INTERFACE_H
 
 #include "core/math/camera_matrix.h"
-#include "os/thread_safe.h"
+#include "core/os/thread_safe.h"
 #include "scene/main/viewport.h"
 #include "servers/arvr_server.h"
 
@@ -88,7 +88,7 @@ public:
 	bool is_primary();
 	void set_is_primary(bool p_is_primary);
 
-	virtual bool is_initialized() = 0; /* returns true if we've initialized this interface */
+	virtual bool is_initialized() const = 0; /* returns true if we've initialized this interface */
 	void set_is_initialized(bool p_initialized); /* helper function, will call initialize or uninitialize */
 	virtual bool initialize() = 0; /* initialize this interface, if this has an HMD it becomes the primary interface */
 	virtual void uninitialize() = 0; /* deinitialize this interface */

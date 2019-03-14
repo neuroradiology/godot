@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -31,12 +31,14 @@
 #ifndef STYLE_BOX_H
 #define STYLE_BOX_H
 
-#include "resource.h"
+#include "core/resource.h"
 #include "scene/resources/texture.h"
 #include "servers/visual_server.h"
 /**
 	@author Juan Linietsky <reduzio@gmail.com>
 */
+class CanvasItem;
+
 class StyleBox : public Resource {
 
 	GDCLASS(StyleBox, Resource);
@@ -57,6 +59,8 @@ public:
 	virtual Size2 get_center_size() const;
 
 	virtual void draw(RID p_canvas_item, const Rect2 &p_rect) const = 0;
+
+	CanvasItem *get_current_item_drawn() const;
 
 	Size2 get_minimum_size() const;
 	Point2 get_offset() const;
@@ -112,11 +116,11 @@ public:
 	void set_region_rect(const Rect2 &p_region_rect);
 	Rect2 get_region_rect() const;
 
-	void set_texture(RES p_texture);
-	RES get_texture() const;
+	void set_texture(Ref<Texture> p_texture);
+	Ref<Texture> get_texture() const;
 
-	void set_normal_map(RES p_normal_map);
-	RES get_normal_map() const;
+	void set_normal_map(Ref<Texture> p_normal_map);
+	Ref<Texture> get_normal_map() const;
 
 	void set_draw_center(bool p_enabled);
 	bool is_draw_center_enabled() const;
@@ -236,7 +240,8 @@ class StyleBoxLine : public StyleBox {
 	Color color;
 	int thickness;
 	bool vertical;
-	float grow;
+	float grow_begin;
+	float grow_end;
 
 protected:
 	virtual float get_style_margin(Margin p_margin) const;
@@ -252,8 +257,11 @@ public:
 	void set_vertical(bool p_vertical);
 	bool is_vertical() const;
 
-	void set_grow(float p_grow);
-	float get_grow() const;
+	void set_grow_begin(float p_grow);
+	float get_grow_begin() const;
+
+	void set_grow_end(float p_grow);
+	float get_grow_end() const;
 
 	virtual Size2 get_center_size() const;
 

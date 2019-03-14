@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -30,9 +30,17 @@
 
 #include "translation.h"
 
-#include "io/resource_loader.h"
-#include "os/os.h"
-#include "project_settings.h"
+#include "core/io/resource_loader.h"
+#include "core/os/os.h"
+#include "core/project_settings.h"
+
+// ISO 639-1 language codes, with the addition of glibc locales with their
+// regional identifiers. This list must match the language names (in English)
+// of locale_names.
+//
+// References:
+// - https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes
+// - https://lh.2xlibre.net/locales/
 
 static const char *locale_list[] = {
 	"aa", //  Afar
@@ -756,8 +764,17 @@ static const char *locale_names[] = {
 	0
 };
 
+// Windows has some weird locale identifiers which do not honor the ISO 639-1
+// standardized nomenclature. Whenever those don't conflict with existing ISO
+// identifiers, we override them.
+//
+// Reference:
+// - https://msdn.microsoft.com/en-us/library/windows/desktop/ms693062(v=vs.85).aspx
+
 static const char *locale_renames[][2] = {
-	{ "no", "nb" },
+	{ "in", "id" }, //  Indonesian
+	{ "iw", "he" }, //  Hebrew
+	{ "no", "nb" }, //  Norwegian Bokmål
 	{ NULL, NULL }
 };
 
@@ -921,11 +938,14 @@ void TranslationServer::set_locale(const String &p_locale) {
 
 	if (!is_locale_valid(univ_locale)) {
 		String trimmed_locale = get_trimmed_locale(univ_locale);
+		print_verbose(vformat("Unsupported locale '%s', falling back to '%s'.", p_locale, trimmed_locale));
 
-		ERR_EXPLAIN("Invalid locale: " + trimmed_locale);
-		ERR_FAIL_COND(!is_locale_valid(trimmed_locale));
-
-		locale = trimmed_locale;
+		if (!is_locale_valid(trimmed_locale)) {
+			ERR_PRINTS(vformat("Unsupported locale '%s', falling back to 'en'.", trimmed_locale));
+			locale = "en";
+		} else {
+			locale = trimmed_locale;
+		}
 	} else {
 		locale = univ_locale;
 	}
@@ -1032,7 +1052,7 @@ StringName TranslationServer::translate(const StringName &p_message) const {
 		if (fallback.length() >= 2) {
 
 			const CharType *fptr = &fallback[0];
-			bool near_match = false;
+			near_match = false;
 			for (const Set<Ref<Translation> >::Element *E = translations.front(); E; E = E->next()) {
 
 				const Ref<Translation> &t = E->get();
@@ -1081,7 +1101,6 @@ bool TranslationServer::_load_translations(const String &p_from) {
 
 			for (int i = 0; i < tcount; i++) {
 
-				//print_line( "Loading translation from " + r[i] );
 				Ref<Translation> tr = ResourceLoader::load(r[i]);
 				if (tr.is_valid())
 					add_translation(tr);
@@ -1154,13 +1173,11 @@ void TranslationServer::_bind_methods() {
 void TranslationServer::load_translations() {
 
 	String locale = get_locale();
-	bool found = _load_translations("locale/translations"); //all
+	_load_translations("locale/translations"); //all
+	_load_translations("locale/translations_" + locale.substr(0, 2));
 
-	if (_load_translations("locale/translations_" + locale.substr(0, 2)))
-		found = true;
 	if (locale.substr(0, 2) != locale) {
-		if (_load_translations("locale/translations_" + locale))
-			found = true;
+		_load_translations("locale/translations_" + locale);
 	}
 }
 

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -30,10 +30,8 @@
 
 #include "image_loader_hdr.h"
 
-#include "os/os.h"
-#include "print_string.h"
-
-#include "thirdparty/tinyexr/tinyexr.h"
+#include "core/os/os.h"
+#include "core/print_string.h"
 
 Error ImageLoaderHDR::load_image(Ref<Image> p_image, FileAccess *f, bool p_force_linear, float p_scale) {
 
@@ -42,14 +40,18 @@ Error ImageLoaderHDR::load_image(Ref<Image> p_image, FileAccess *f, bool p_force
 	ERR_FAIL_COND_V(header != "#?RADIANCE" && header != "#?RGBE", ERR_FILE_UNRECOGNIZED);
 
 	while (true) {
-		String format = f->get_token();
+		String line = f->get_line();
 		ERR_FAIL_COND_V(f->eof_reached(), ERR_FILE_UNRECOGNIZED);
-		if (format.begins_with("FORMAT=") && format != "FORMAT=32-bit_rle_rgbe") {
-			ERR_EXPLAIN("Only 32-bit_rle_rgbe is supported for .hdr files.");
-			return ERR_FILE_UNRECOGNIZED;
-		}
-		if (format == "FORMAT=32-bit_rle_rgbe")
+		if (line == "") // empty line indicates end of header
 			break;
+		if (line.begins_with("FORMAT=")) { // leave option to implement other commands
+			if (line != "FORMAT=32-bit_rle_rgbe") {
+				ERR_EXPLAIN("Only 32-bit_rle_rgbe is supported for HDR files.");
+				return ERR_FILE_UNRECOGNIZED;
+			}
+		} else if (!line.begins_with("#")) { // not comment
+			WARN_PRINTS("Ignoring unsupported header information in HDR : " + line);
+		}
 	}
 
 	String token = f->get_token();

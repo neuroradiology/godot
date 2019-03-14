@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -31,7 +31,7 @@
 #include "arvr_server.h"
 #include "arvr/arvr_interface.h"
 #include "arvr/arvr_positional_tracker.h"
-#include "project_settings.h"
+#include "core/project_settings.h"
 
 ARVRServer *ARVRServer::singleton = NULL;
 
@@ -44,6 +44,7 @@ void ARVRServer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_world_scale"), &ARVRServer::set_world_scale);
 	ClassDB::bind_method(D_METHOD("get_reference_frame"), &ARVRServer::get_reference_frame);
 	ClassDB::bind_method(D_METHOD("center_on_hmd", "rotation_mode", "keep_height"), &ARVRServer::center_on_hmd);
+	ClassDB::bind_method(D_METHOD("get_hmd_transform"), &ARVRServer::get_hmd_transform);
 
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "world_scale"), "set_world_scale", "get_world_scale");
 
@@ -54,7 +55,14 @@ void ARVRServer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_tracker_count"), &ARVRServer::get_tracker_count);
 	ClassDB::bind_method(D_METHOD("get_tracker", "idx"), &ARVRServer::get_tracker);
 
+	ClassDB::bind_method(D_METHOD("get_primary_interface"), &ARVRServer::get_primary_interface);
 	ClassDB::bind_method(D_METHOD("set_primary_interface", "interface"), &ARVRServer::set_primary_interface);
+
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "primary_interface"), "set_primary_interface", "get_primary_interface");
+
+	ClassDB::bind_method(D_METHOD("get_last_process_usec"), &ARVRServer::get_last_process_usec);
+	ClassDB::bind_method(D_METHOD("get_last_commit_usec"), &ARVRServer::get_last_commit_usec);
+	ClassDB::bind_method(D_METHOD("get_last_frame_usec"), &ARVRServer::get_last_frame_usec);
 
 	BIND_ENUM_CONSTANT(TRACKER_CONTROLLER);
 	BIND_ENUM_CONSTANT(TRACKER_BASESTATION);
@@ -132,6 +140,14 @@ void ARVRServer::center_on_hmd(RotationMode p_rotation_mode, bool p_keep_height)
 	};
 };
 
+Transform ARVRServer::get_hmd_transform() {
+	Transform hmd_transform;
+	if (primary_interface != NULL) {
+		hmd_transform = primary_interface->get_transform_for_eye(ARVRInterface::EYE_MONO, hmd_transform);
+	};
+	return hmd_transform;
+};
+
 void ARVRServer::add_interface(const Ref<ARVRInterface> &p_interface) {
 	ERR_FAIL_COND(p_interface.is_null());
 
@@ -142,8 +158,6 @@ void ARVRServer::add_interface(const Ref<ARVRInterface> &p_interface) {
 			return;
 		};
 	};
-
-	print_line("ARVR: Registered interface: " + p_interface->get_name());
 
 	interfaces.push_back(p_interface);
 	emit_signal("interface_added", p_interface->get_name());
@@ -164,7 +178,7 @@ void ARVRServer::remove_interface(const Ref<ARVRInterface> &p_interface) {
 
 	ERR_FAIL_COND(idx == -1);
 
-	print_line("Removed interface" + p_interface->get_name());
+	print_verbose("ARVR: Removed interface" + p_interface->get_name());
 
 	emit_signal("interface_removed", p_interface->get_name());
 	interfaces.remove(idx);
@@ -306,14 +320,50 @@ Ref<ARVRInterface> ARVRServer::get_primary_interface() const {
 void ARVRServer::set_primary_interface(const Ref<ARVRInterface> &p_primary_interface) {
 	primary_interface = p_primary_interface;
 
-	print_line("Primary interface set to: " + primary_interface->get_name());
+	print_verbose("ARVR: Primary interface set to: " + primary_interface->get_name());
 };
 
 void ARVRServer::clear_primary_interface_if(const Ref<ARVRInterface> &p_primary_interface) {
 	if (primary_interface == p_primary_interface) {
-		print_line("Clearing primary interface");
+		print_verbose("ARVR: Clearing primary interface");
 		primary_interface.unref();
 	};
+};
+
+uint64_t ARVRServer::get_last_process_usec() {
+	return last_process_usec;
+};
+
+uint64_t ARVRServer::get_last_commit_usec() {
+	return last_commit_usec;
+};
+
+uint64_t ARVRServer::get_last_frame_usec() {
+	return last_frame_usec;
+};
+
+void ARVRServer::_process() {
+	/* called from visual_server_viewport.draw_viewports right before we start drawing our viewports */
+
+	/* mark for our frame timing */
+	last_process_usec = OS::get_singleton()->get_ticks_usec();
+
+	/* process all active interfaces */
+	for (int i = 0; i < interfaces.size(); i++) {
+		if (!interfaces[i].is_valid()) {
+			// ignore, not a valid reference
+		} else if (interfaces[i]->is_initialized()) {
+			interfaces.write[i]->process();
+		};
+	};
+};
+
+void ARVRServer::_mark_commit() {
+	/* time this */
+	last_commit_usec = OS::get_singleton()->get_ticks_usec();
+
+	/* now store our difference as we may overwrite last_process_usec before this is accessed */
+	last_frame_usec = last_commit_usec - last_process_usec;
 };
 
 ARVRServer::ARVRServer() {

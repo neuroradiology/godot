@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -33,12 +33,11 @@
 
 #include "servers/visual/rasterizer.h"
 
-#include "allocators.h"
-#include "geometry.h"
-#include "octree.h"
-#include "os/semaphore.h"
-#include "os/thread.h"
-#include "self_list.h"
+#include "core/math/geometry.h"
+#include "core/math/octree.h"
+#include "core/os/semaphore.h"
+#include "core/os/thread.h"
+#include "core/self_list.h"
 #include "servers/arvr/arvr_interface.h"
 
 class VisualServerScene {
@@ -120,7 +119,6 @@ public:
 
 		VS::ScenarioDebugMode debug;
 		RID self;
-		// well wtf, balloon allocator is slower?
 
 		Octree<Instance, true> octree;
 
@@ -192,14 +190,9 @@ public:
 			singleton->instance_set_base(self, RID());
 		}
 
-		virtual void base_changed() {
+		virtual void base_changed(bool p_aabb, bool p_materials) {
 
-			singleton->_instance_queue_update(this, true, true);
-		}
-
-		virtual void base_material_changed() {
-
-			singleton->_instance_queue_update(this, false, true);
+			singleton->_instance_queue_update(this, p_aabb, p_materials);
 		}
 
 		Instance() :
@@ -247,6 +240,7 @@ public:
 		List<Instance *> lighting;
 		bool lighting_dirty;
 		bool can_cast_shadows;
+		bool material_is_animated;
 
 		List<Instance *> reflection_probes;
 		bool reflection_dirty;
@@ -261,6 +255,7 @@ public:
 			lighting_dirty = false;
 			reflection_dirty = true;
 			can_cast_shadows = true;
+			material_is_animated = true;
 			gi_probes_dirty = true;
 		}
 	};
@@ -355,6 +350,11 @@ public:
 						visible == p_cache.visible);
 			}
 
+			bool operator!=(const LightCache &p_cache) {
+
+				return !operator==(p_cache);
+			}
+
 			LightCache() {
 
 				type = VS::LIGHT_DIRECTIONAL;
@@ -434,11 +434,13 @@ public:
 		}
 	};
 
+	int instance_cull_count;
 	Instance *instance_cull_result[MAX_INSTANCE_CULL];
 	Instance *instance_shadow_cull_result[MAX_INSTANCE_CULL]; //used for generating shadowmaps
 	Instance *light_cull_result[MAX_LIGHTS_CULLED];
 	RID light_instance_cull_result[MAX_LIGHTS_CULLED];
 	int light_cull_count;
+	int directional_light_count;
 	RID reflection_probe_instance_cull_result[MAX_REFLECTION_PROBES_CULLED];
 	int reflection_probe_cull_count;
 
@@ -457,7 +459,7 @@ public:
 	virtual void instance_set_visible(RID p_instance, bool p_visible);
 	virtual void instance_set_use_lightmap(RID p_instance, RID p_lightmap_instance, RID p_lightmap);
 
-	virtual void instance_set_custom_aabb(RID p_insatnce, AABB aabb);
+	virtual void instance_set_custom_aabb(RID p_instance, AABB p_aabb);
 
 	virtual void instance_attach_skeleton(RID p_instance, RID p_skeleton);
 	virtual void instance_set_exterior(RID p_instance, bool p_enabled);
@@ -481,9 +483,10 @@ public:
 	_FORCE_INLINE_ void _update_dirty_instance(Instance *p_instance);
 	_FORCE_INLINE_ void _update_instance_lightmap_captures(Instance *p_instance);
 
-	_FORCE_INLINE_ void _light_instance_update_shadow(Instance *p_instance, const Transform p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_orthogonal, RID p_shadow_atlas, Scenario *p_scenario);
+	_FORCE_INLINE_ bool _light_instance_update_shadow(Instance *p_instance, const Transform p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_orthogonal, RID p_shadow_atlas, Scenario *p_scenario);
 
-	void _render_scene(const Transform p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_orthogonal, RID p_force_environment, uint32_t p_visible_layers, RID p_scenario, RID p_shadow_atlas, RID p_reflection_probe, int p_reflection_probe_pass);
+	void _prepare_scene(const Transform p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_orthogonal, RID p_force_environment, uint32_t p_visible_layers, RID p_scenario, RID p_shadow_atlas, RID p_reflection_probe);
+	void _render_scene(const Transform p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_orthogonal, RID p_force_environment, RID p_scenario, RID p_shadow_atlas, RID p_reflection_probe, int p_reflection_probe_pass);
 	void render_empty_scene(RID p_scenario, RID p_shadow_atlas);
 
 	void render_camera(RID p_camera, RID p_scenario, Size2 p_viewport_size, RID p_shadow_atlas);
@@ -541,7 +544,7 @@ public:
 	bool free(RID p_rid);
 
 	VisualServerScene();
-	~VisualServerScene();
+	virtual ~VisualServerScene();
 };
 
 #endif // VISUALSERVERSCENE_H

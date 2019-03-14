@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -30,11 +30,11 @@
 
 #include "register_types.h"
 
+#include "core/io/resource_loader.h"
+#include "core/io/resource_saver.h"
+#include "core/os/dir_access.h"
+#include "core/os/os.h"
 #include "core/project_settings.h"
-#include "io/resource_loader.h"
-#include "io/resource_saver.h"
-#include "os/dir_access.h"
-#include "os/os.h"
 #include "scene/main/scene_tree.h"
 
 #include "pluginscript_language.h"
@@ -64,7 +64,7 @@ static Error _check_language_desc(const godot_pluginscript_language_desc *desc) 
 	// desc->make_function is not mandatory
 	// desc->complete_code is not mandatory
 	// desc->auto_indent_code is not mandatory
-	// desc->add_global_constant is not mandatory
+	ERR_FAIL_COND_V(!desc->add_global_constant, ERR_BUG);
 	// desc->debug_get_error is not mandatory
 	// desc->debug_get_stack_level_count is not mandatory
 	// desc->debug_get_stack_level_line is not mandatory
@@ -78,7 +78,7 @@ static Error _check_language_desc(const godot_pluginscript_language_desc *desc) 
 	// desc->profiling_stop is not mandatory
 	// desc->profiling_get_accumulated_data is not mandatory
 	// desc->profiling_get_frame_data is not mandatory
-	// desc->frame is not mandatory
+	// desc->profiling_frame is not mandatory
 
 	ERR_FAIL_COND_V(!desc->script_desc.init, ERR_BUG);
 	ERR_FAIL_COND_V(!desc->script_desc.finish, ERR_BUG);

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -53,7 +53,9 @@ private:
 	struct Item {
 
 		Ref<Texture> icon;
+		bool icon_transposed;
 		Rect2i icon_region;
+		Color icon_modulate;
 		Ref<Texture> tag_icon;
 		String text;
 		bool selectable;
@@ -106,6 +108,8 @@ private:
 
 	bool allow_rmb_select;
 
+	bool allow_reselect;
+
 	real_t icon_scale;
 
 	bool do_autoscroll_to_bottom;
@@ -130,8 +134,14 @@ public:
 	void set_item_icon(int p_idx, const Ref<Texture> &p_icon);
 	Ref<Texture> get_item_icon(int p_idx) const;
 
+	void set_item_icon_transposed(int p_idx, const bool transposed);
+	bool is_item_icon_transposed(int p_idx) const;
+
 	void set_item_icon_region(int p_idx, const Rect2 &p_region);
 	Rect2 get_item_icon_region(int p_idx) const;
+
+	void set_item_icon_modulate(int p_idx, const Color &p_modulate);
+	Color get_item_icon_modulate(int p_idx) const;
 
 	void set_item_selectable(int p_idx, bool p_selectable);
 	bool is_item_selectable(int p_idx) const;
@@ -167,7 +177,7 @@ public:
 	void set_current(int p_current);
 	int get_current() const;
 
-	void move_item(int p_item, int p_to_pos);
+	void move_item(int p_from_idx, int p_to_idx);
 
 	int get_item_count() const;
 	void remove_item(int p_idx);
@@ -197,6 +207,9 @@ public:
 
 	void set_allow_rmb_select(bool p_allow);
 	bool get_allow_rmb_select() const;
+
+	void set_allow_reselect(bool p_allow);
+	bool get_allow_reselect() const;
 
 	void ensure_current_is_visible();
 

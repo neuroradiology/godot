@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="SplitContainer" inherits="Container" category="Core" version="3.0-stable">
+<class name="SplitContainer" inherits="Container" category="Core" version="3.1">
 	<brief_description>
 		Container for splitting and adjusting.
 	</brief_description>
@@ -11,11 +11,18 @@
 	<demos>
 	</demos>
 	<methods>
+		<method name="clamp_split_offset">
+			<return type="void">
+			</return>
+			<description>
+			</description>
+		</method>
 	</methods>
 	<members>
 		<member name="collapsed" type="bool" setter="set_collapsed" getter="is_collapsed">
 		</member>
 		<member name="dragger_visibility" type="int" setter="set_dragger_visibility" getter="get_dragger_visibility" enum="SplitContainer.DraggerVisibility">
+			Determines whether the dragger is visible.
 		</member>
 		<member name="split_offset" type="int" setter="set_split_offset" getter="get_split_offset">
 		</member>

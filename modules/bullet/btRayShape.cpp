@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -30,7 +30,7 @@
 
 #include "btRayShape.h"
 
-#include "math/math_funcs.h"
+#include "core/math/math_funcs.h"
 
 #include <LinearMath/btAabbUtil2.h>
 
@@ -54,6 +54,11 @@ void btRayShape::setLength(btScalar p_length) {
 	reload_cache();
 }
 
+void btRayShape::setSlipsOnSlope(bool p_slipsOnSlope) {
+
+	slipsOnSlope = p_slipsOnSlope;
+}
+
 btVector3 btRayShape::localGetSupportingVertex(const btVector3 &vec) const {
 	return localGetSupportingVertexWithoutMargin(vec) + (m_shapeAxis * m_collisionMargin);
 }
@@ -74,7 +79,7 @@ void btRayShape::batchedUnitVectorGetSupportingVertexWithoutMargin(const btVecto
 void btRayShape::getAabb(const btTransform &t, btVector3 &aabbMin, btVector3 &aabbMax) const {
 #define MARGIN_BROADPHASE 0.1
 	btVector3 localAabbMin(0, 0, 0);
-	btVector3 localAabbMax(m_shapeAxis * m_length);
+	btVector3 localAabbMax(m_shapeAxis * (m_cacheScaledLength + m_collisionMargin));
 	btTransformAabb(localAabbMin, localAabbMax, MARGIN_BROADPHASE, t, aabbMin, aabbMax);
 }
 
@@ -92,8 +97,8 @@ void btRayShape::getPreferredPenetrationDirection(int index, btVector3 &penetrat
 
 void btRayShape::reload_cache() {
 
-	m_cacheScaledLength = m_length * m_localScaling[2] + m_collisionMargin;
+	m_cacheScaledLength = m_length * m_localScaling[2];
 
 	m_cacheSupportPoint.setIdentity();
-	m_cacheSupportPoint.setOrigin(m_shapeAxis * m_cacheScaledLength);
+	m_cacheSupportPoint.setOrigin(m_shapeAxis * (m_cacheScaledLength + m_collisionMargin));
 }

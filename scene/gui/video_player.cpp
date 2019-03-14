@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -29,8 +29,9 @@
 /*************************************************************************/
 
 #include "video_player.h"
+#include "scene/scene_string_names.h"
 
-#include "os/os.h"
+#include "core/os/os.h"
 #include "servers/audio_server.h"
 
 int VideoPlayer::sp_get_channel_count() const {
@@ -89,49 +90,32 @@ void VideoPlayer::_mix_audio() {
 
 	AudioFrame vol = AudioFrame(volume, volume);
 
-	// Copy to server's audio buffer
-	switch (AudioServer::get_singleton()->get_speaker_mode()) {
+	int cc = AudioServer::get_singleton()->get_channel_count();
 
-		case AudioServer::SPEAKER_MODE_STEREO: {
-			AudioFrame *target = AudioServer::get_singleton()->thread_get_channel_mix_buffer(bus_index, 0);
+	if (cc == 1) {
+		AudioFrame *target = AudioServer::get_singleton()->thread_get_channel_mix_buffer(bus_index, 0);
+		ERR_FAIL_COND(!target);
 
-			for (int j = 0; j < buffer_size; j++) {
+		for (int j = 0; j < buffer_size; j++) {
 
-				target[j] += buffer[j] * vol;
+			target[j] += buffer[j] * vol;
+		}
+
+	} else {
+		AudioFrame *targets[4];
+
+		for (int k = 0; k < cc; k++) {
+			targets[k] = AudioServer::get_singleton()->thread_get_channel_mix_buffer(bus_index, k);
+			ERR_FAIL_COND(!targets[k]);
+		}
+
+		for (int j = 0; j < buffer_size; j++) {
+
+			AudioFrame frame = buffer[j] * vol;
+			for (int k = 0; k < cc; k++) {
+				targets[k][j] += frame;
 			}
-
-		} break;
-		case AudioServer::SPEAKER_SURROUND_51: {
-
-			AudioFrame *targets[2] = {
-				AudioServer::get_singleton()->thread_get_channel_mix_buffer(bus_index, 1),
-				AudioServer::get_singleton()->thread_get_channel_mix_buffer(bus_index, 2),
-			};
-
-			for (int j = 0; j < buffer_size; j++) {
-
-				AudioFrame frame = buffer[j] * vol;
-				targets[0][j] = frame;
-				targets[1][j] = frame;
-			}
-		} break;
-		case AudioServer::SPEAKER_SURROUND_71: {
-
-			AudioFrame *targets[3] = {
-				AudioServer::get_singleton()->thread_get_channel_mix_buffer(bus_index, 1),
-				AudioServer::get_singleton()->thread_get_channel_mix_buffer(bus_index, 2),
-				AudioServer::get_singleton()->thread_get_channel_mix_buffer(bus_index, 3)
-			};
-
-			for (int j = 0; j < buffer_size; j++) {
-
-				AudioFrame frame = buffer[j] * vol;
-				targets[0][j] += frame;
-				targets[1][j] += frame;
-				targets[2][j] += frame;
-			}
-
-		} break;
+		}
 	}
 }
 
@@ -159,11 +143,7 @@ void VideoPlayer::_notification(int p_notification) {
 
 			bus_index = AudioServer::get_singleton()->thread_find_bus_index(bus);
 
-			if (stream.is_null())
-				return;
-			if (paused)
-				return;
-			if (!playback->is_playing())
+			if (stream.is_null() || paused || !playback->is_playing())
 				return;
 
 			double audio_time = USEC_TO_SEC(OS::get_singleton()->get_ticks_usec());
@@ -174,7 +154,11 @@ void VideoPlayer::_notification(int p_notification) {
 			if (delta == 0)
 				return;
 
-			playback->update(delta);
+			playback->update(delta); // playback->is_playing() returns false in the last video frame
+
+			if (!playback->is_playing()) {
+				emit_signal(SceneStringNames::get_singleton()->finished);
+			}
 
 		} break;
 
@@ -466,6 +450,8 @@ void VideoPlayer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_bus"), &VideoPlayer::get_bus);
 
 	ClassDB::bind_method(D_METHOD("get_video_texture"), &VideoPlayer::get_video_texture);
+
+	ADD_SIGNAL(MethodInfo("finished"));
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "audio_track", PROPERTY_HINT_RANGE, "0,128,1"), "set_audio_track", "get_audio_track");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "stream", PROPERTY_HINT_RESOURCE_TYPE, "VideoStream"), "set_stream", "get_stream");

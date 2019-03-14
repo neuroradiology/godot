@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -31,10 +31,11 @@
 #ifndef FILE_ACCESS_H
 #define FILE_ACCESS_H
 
-#include "math_defs.h"
-#include "os/memory.h"
-#include "typedefs.h"
-#include "ustring.h"
+#include "core/math/math_defs.h"
+#include "core/os/memory.h"
+#include "core/typedefs.h"
+#include "core/ustring.h"
+
 /**
  * Multi-Platform abstraction for accessing to files.
  */
@@ -89,6 +90,9 @@ public:
 	virtual void close() = 0; ///< close a file
 	virtual bool is_open() const = 0; ///< true when file is open
 
+	virtual String get_path() const { return ""; } /// returns the path for the current open file
+	virtual String get_path_absolute() const { return ""; } /// returns the absolute path for the current open file
+
 	virtual void seek(size_t p_position) = 0; ///< seek to a given position
 	virtual void seek_end(int64_t p_position = 0) = 0; ///< seek from the end of file
 	virtual size_t get_position() const = 0; ///< get position in the file
@@ -108,7 +112,8 @@ public:
 	virtual int get_buffer(uint8_t *p_dst, int p_length) const; ///< get an array of bytes
 	virtual String get_line() const;
 	virtual String get_token() const;
-	virtual Vector<String> get_csv_line(String delim = ",") const;
+	virtual Vector<String> get_csv_line(const String &p_delim = ",") const;
+	virtual String get_as_utf8_string() const;
 
 	/**< use this for files WRITTEN in _big_ endian machines (ie, amiga/mac)
 	 * It's not about the current CPU type but file formats.
@@ -132,6 +137,7 @@ public:
 
 	virtual void store_string(const String &p_string);
 	virtual void store_line(const String &p_line);
+	virtual void store_csv_line(const Vector<String> &p_values, const String &p_delim = ",");
 
 	virtual void store_pascal_string(const String &p_string);
 	virtual String get_pascal_string();

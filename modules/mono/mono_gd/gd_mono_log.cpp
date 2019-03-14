@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -33,8 +33,8 @@
 #include <mono/utils/mono-logger.h>
 #include <stdlib.h> // abort
 
-#include "os/dir_access.h"
-#include "os/os.h"
+#include "core/os/dir_access.h"
+#include "core/os/os.h"
 
 #include "../godotsharp_dirs.h"
 
@@ -52,7 +52,7 @@ static int log_level_get_id(const char *p_log_level) {
 	return -1;
 }
 
-void gdmono_MonoLogCallback(const char *log_domain, const char *log_level, const char *message, mono_bool fatal, void *user_data) {
+static void mono_log_callback(const char *log_domain, const char *log_level, const char *message, mono_bool fatal, void *user_data) {
 
 	FileAccess *f = GDMonoLog::get_singleton()->get_log_file();
 
@@ -152,9 +152,8 @@ void GDMonoLog::initialize() {
 	log_level_id = log_level_get_id(log_level);
 
 	if (log_file) {
-		if (OS::get_singleton()->is_stdout_verbose())
-			OS::get_singleton()->print(String("Mono: Logfile is " + log_file_path + "\n").utf8());
-		mono_trace_set_log_handler(gdmono_MonoLogCallback, this);
+		print_verbose("Mono: Logfile is " + log_file_path);
+		mono_trace_set_log_handler(mono_log_callback, this);
 	} else {
 		OS::get_singleton()->printerr("Mono: No log file, using default log handler\n");
 	}

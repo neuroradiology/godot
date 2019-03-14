@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -58,8 +58,7 @@ void AudioFilterSW::prepare_coefficients(Coeffs *p_coeffs) {
 	int sr_limit = (sampling_rate / 2) + 512;
 
 	double final_cutoff = (cutoff > sr_limit) ? sr_limit : cutoff;
-	if (final_cutoff < 1) //avoid crapness
-		final_cutoff = 1; //don't allow less than this
+	if (final_cutoff < 1) final_cutoff = 1; //don't allow less than this
 
 	double omega = 2.0 * Math_PI * final_cutoff / sampling_rate;
 

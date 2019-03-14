@@ -1,4 +1,4 @@
-def can_build(platform):
+def can_build(env, platform):
     return True
 
 def configure(env):
@@ -9,8 +9,13 @@ def get_doc_classes():
         "ARVRInterfaceGDNative",
         "GDNative",
         "GDNativeLibrary",
+        "MultiplayerPeerGDNative",
         "NativeScript",
+        "PacketPeerGDNative",
         "PluginScript",
+        "ResourceFormatLoaderVideoStreamGDNative",
+        "StreamPeerGDNative",
+        "VideoStreamGDNative",
     ]
 
 def get_doc_path():

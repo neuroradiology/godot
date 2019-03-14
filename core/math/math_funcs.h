@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -31,29 +31,23 @@
 #ifndef MATH_FUNCS_H
 #define MATH_FUNCS_H
 
-#include "math_defs.h"
-#include "typedefs.h"
+#include "core/math/math_defs.h"
+#include "core/math/random_pcg.h"
+#include "core/typedefs.h"
 
 #include "thirdparty/misc/pcg.h"
 
 #include <float.h>
 #include <math.h>
 
-#define Math_PI 3.14159265358979323846
-#define Math_TAU 6.28318530717958647692
-#define Math_SQRT12 0.7071067811865475244008443621048490
-#define Math_LN2 0.693147180559945309417
-#define Math_INF INFINITY
-#define Math_NAN NAN
-
 class Math {
 
-	static pcg32_random_t default_pcg;
+	static RandomPCG default_rand;
 
 public:
 	Math() {} // useless to instance
 
-	static const uint64_t RANDOM_MAX = 4294967295;
+	static const uint64_t RANDOM_MAX = 0xFFFFFFFF;
 
 	static _ALWAYS_INLINE_ double sin(double p_x) { return ::sin(p_x); }
 	static _ALWAYS_INLINE_ float sin(float p_x) { return ::sinf(p_x); }
@@ -182,8 +176,22 @@ public:
 	static _ALWAYS_INLINE_ float abs(float g) { return absf(g); }
 	static _ALWAYS_INLINE_ int abs(int g) { return g > 0 ? g : -g; }
 
-	static _ALWAYS_INLINE_ double fposmod(double p_x, double p_y) { return (p_x >= 0) ? Math::fmod(p_x, p_y) : p_y - Math::fmod(-p_x, p_y); }
-	static _ALWAYS_INLINE_ float fposmod(float p_x, float p_y) { return (p_x >= 0) ? Math::fmod(p_x, p_y) : p_y - Math::fmod(-p_x, p_y); }
+	static _ALWAYS_INLINE_ double fposmod(double p_x, double p_y) {
+		double value = Math::fmod(p_x, p_y);
+		if ((value < 0 && p_y > 0) || (value > 0 && p_y < 0)) {
+			value += p_y;
+		}
+		value += 0.0;
+		return value;
+	}
+	static _ALWAYS_INLINE_ float fposmod(float p_x, float p_y) {
+		float value = Math::fmod(p_x, p_y);
+		if ((value < 0 && p_y > 0) || (value > 0 && p_y < 0)) {
+			value += p_y;
+		}
+		value += 0.0;
+		return value;
+	}
 
 	static _ALWAYS_INLINE_ double deg2rad(double p_y) { return p_y * Math_PI / 180.0; }
 	static _ALWAYS_INLINE_ float deg2rad(float p_y) { return p_y * Math_PI / 180.0; }
@@ -209,8 +217,18 @@ public:
 	static _ALWAYS_INLINE_ double round(double p_val) { return (p_val >= 0) ? Math::floor(p_val + 0.5) : -Math::floor(-p_val + 0.5); }
 	static _ALWAYS_INLINE_ float round(float p_val) { return (p_val >= 0) ? Math::floor(p_val + 0.5) : -Math::floor(-p_val + 0.5); }
 
-	static int wrapi(int value, int min, int max);
-	static float wrapf(float value, float min, float max);
+	static _ALWAYS_INLINE_ int64_t wrapi(int64_t value, int64_t min, int64_t max) {
+		int64_t rng = max - min;
+		return (rng != 0) ? min + ((((value - min) % rng) + rng) % rng) : min;
+	}
+	static _ALWAYS_INLINE_ double wrapf(double value, double min, double max) {
+		double rng = max - min;
+		return (!is_equal_approx(rng, 0.0)) ? value - (rng * Math::floor((value - min) / rng)) : min;
+	}
+	static _ALWAYS_INLINE_ float wrapf(float value, float min, float max) {
+		float rng = max - min;
+		return (!is_equal_approx(rng, 0.0f)) ? value - (rng * Math::floor((value - min) / rng)) : min;
+	}
 
 	// double only, as these functions are mainly used by the editor and not performance-critical,
 	static double ease(double p_x, double p_c);
@@ -224,20 +242,32 @@ public:
 	static void randomize();
 	static uint32_t rand_from_seed(uint64_t *seed);
 	static uint32_t rand();
-	static _ALWAYS_INLINE_ double randf() { return (double)rand() / (double)Math::RANDOM_MAX; }
-	static _ALWAYS_INLINE_ float randd() { return (float)rand() / (float)Math::RANDOM_MAX; }
+	static _ALWAYS_INLINE_ double randd() { return (double)rand() / (double)Math::RANDOM_MAX; }
+	static _ALWAYS_INLINE_ float randf() { return (float)rand() / (float)Math::RANDOM_MAX; }
 
 	static double random(double from, double to);
 	static float random(float from, float to);
 	static real_t random(int from, int to) { return (real_t)random((real_t)from, (real_t)to); }
 
-	static _ALWAYS_INLINE_ bool is_equal_approx(real_t a, real_t b) {
+	static _ALWAYS_INLINE_ bool is_equal_approx_ratio(real_t a, real_t b, real_t epsilon = CMP_EPSILON) {
+		// this is an approximate way to check that numbers are close, as a ratio of their average size
+		// helps compare approximate numbers that may be very big or very small
+		real_t diff = abs(a - b);
+		if (diff == 0.0) {
+			return true;
+		}
+		real_t avg_size = (abs(a) + abs(b)) / 2.0;
+		diff /= avg_size;
+		return diff < epsilon;
+	}
+
+	static _ALWAYS_INLINE_ bool is_equal_approx(real_t a, real_t b, real_t epsilon = CMP_EPSILON) {
 		// TODO: Comparing floats for approximate-equality is non-trivial.
 		// Using epsilon should cover the typical cases in Godot (where a == b is used to compare two reals), such as matrix and vector comparison operators.
 		// A proper implementation in terms of ULPs should eventually replace the contents of this function.
 		// See https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/ for details.
 
-		return abs(a - b) < CMP_EPSILON;
+		return abs(a - b) < epsilon;
 	}
 
 	static _ALWAYS_INLINE_ float absf(float g) {
@@ -287,16 +317,6 @@ public:
 #endif
 		return b;
 	}
-
-#if defined(__GNUC__)
-
-	static _ALWAYS_INLINE_ int64_t dtoll(double p_double) { return (int64_t)p_double; } ///@TODO OPTIMIZE
-	static _ALWAYS_INLINE_ int64_t dtoll(float p_float) { return (int64_t)p_float; } ///@TODO OPTIMIZE and rename
-#else
-
-	static _ALWAYS_INLINE_ int64_t dtoll(double p_double) { return (int64_t)p_double; } ///@TODO OPTIMIZE
-	static _ALWAYS_INLINE_ int64_t dtoll(float p_float) { return (int64_t)p_float; } ///@TODO OPTIMIZE and rename
-#endif
 
 	static _ALWAYS_INLINE_ uint32_t halfbits_to_floatbits(uint16_t h) {
 		uint16_t h_exp, h_sig;

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -194,6 +194,7 @@ MAKE_TEMPLATE_TYPE_INFO(Vector, Color, Variant::POOL_COLOR_ARRAY)
 MAKE_TEMPLATE_TYPE_INFO(Vector, Variant, Variant::ARRAY)
 MAKE_TEMPLATE_TYPE_INFO(Vector, RID, Variant::ARRAY)
 MAKE_TEMPLATE_TYPE_INFO(Vector, Plane, Variant::ARRAY)
+MAKE_TEMPLATE_TYPE_INFO(Vector, StringName, Variant::POOL_STRING_ARRAY)
 
 MAKE_TEMPLATE_TYPE_INFO(PoolVector, Plane, Variant::ARRAY)
 MAKE_TEMPLATE_TYPE_INFO(PoolVector, Face3, Variant::POOL_VECTOR3_ARRAY)

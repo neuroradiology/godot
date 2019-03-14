@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -30,7 +30,7 @@
 
 #include "light_occluder_2d.h"
 
-#include "engine.h"
+#include "core/engine.h"
 
 void OccluderPolygon2D::set_polygon(const PoolVector<Vector2> &p_polygon) {
 
@@ -107,12 +107,12 @@ OccluderPolygon2D::~OccluderPolygon2D() {
 	VS::get_singleton()->free(occ_polygon);
 }
 
-#ifdef DEBUG_ENABLED
 void LightOccluder2D::_poly_changed() {
 
+#ifdef DEBUG_ENABLED
 	update();
-}
 #endif
+}
 
 void LightOccluder2D::_notification(int p_what) {
 
@@ -221,9 +221,7 @@ void LightOccluder2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_occluder_light_mask", "mask"), &LightOccluder2D::set_occluder_light_mask);
 	ClassDB::bind_method(D_METHOD("get_occluder_light_mask"), &LightOccluder2D::get_occluder_light_mask);
 
-#ifdef DEBUG_ENABLED
 	ClassDB::bind_method("_poly_changed", &LightOccluder2D::_poly_changed);
-#endif
 
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "occluder", PROPERTY_HINT_RESOURCE_TYPE, "OccluderPolygon2D"), "set_occluder_polygon", "get_occluder_polygon");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "light_mask", PROPERTY_HINT_LAYERS_2D_RENDER), "set_occluder_light_mask", "get_occluder_light_mask");

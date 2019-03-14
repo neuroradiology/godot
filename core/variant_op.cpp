@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -30,9 +30,9 @@
 
 #include "variant.h"
 
-#include "core_string_names.h"
-#include "object.h"
-#include "script_language.h"
+#include "core/core_string_names.h"
+#include "core/object.h"
+#include "core/script_language.h"
 
 #define CASE_TYPE_ALL(PREFIX, OP) \
 	CASE_TYPE(PREFIX, OP, INT)    \
@@ -147,7 +147,7 @@ Variant::operator bool() const {
 	return booleanize();
 }
 
-// We consider all unitialized or empty types to be false based on the type's
+// We consider all uninitialized or empty types to be false based on the type's
 // zeroiness.
 bool Variant::booleanize() const {
 	return !is_zero();
@@ -177,7 +177,7 @@ bool Variant::booleanize() const {
 	CASE_TYPE(m_prefix, m_op_name, m_name) {                                  \
 		if (p_b.type == INT) _RETURN(p_a._data.m_type m_op p_b._data._int);   \
 		if (p_b.type == REAL) _RETURN(p_a._data.m_type m_op p_b._data._real); \
-		if (p_b.type == NIL) _RETURN(!p_b.type m_op NIL);                     \
+		if (p_b.type == NIL) _RETURN(!(p_b.type m_op NIL));                   \
                                                                               \
 		_RETURN_FAIL                                                          \
 	};
@@ -252,7 +252,7 @@ bool Variant::booleanize() const {
 	CASE_TYPE(m_prefix, m_op_name, m_name) {                                                                                                            \
 		if (p_b.type == STRING) _RETURN(*reinterpret_cast<const m_type *>(p_a._data._mem) m_op *reinterpret_cast<const String *>(p_b._data._mem));      \
 		if (p_b.type == NODE_PATH) _RETURN(*reinterpret_cast<const m_type *>(p_a._data._mem) m_op *reinterpret_cast<const NodePath *>(p_b._data._mem)); \
-		if (p_b.type == NIL) _RETURN(!p_b.type m_op NIL);                                                                                               \
+		if (p_b.type == NIL) _RETURN(!(p_b.type m_op NIL));                                                                                             \
                                                                                                                                                         \
 		_RETURN_FAIL                                                                                                                                    \
 	};
@@ -278,7 +278,7 @@ bool Variant::booleanize() const {
 		if (p_b.type == m_name)                                                                                                \
 			_RETURN(*reinterpret_cast<const m_type *>(p_a._data._mem) m_op *reinterpret_cast<const m_type *>(p_b._data._mem)); \
 		if (p_b.type == NIL)                                                                                                   \
-			_RETURN(!p_b.type m_op NIL);                                                                                       \
+			_RETURN(!(p_b.type m_op NIL));                                                                                     \
                                                                                                                                \
 		_RETURN_FAIL                                                                                                           \
 	};
@@ -323,7 +323,7 @@ bool Variant::booleanize() const {
 		if (p_b.type == m_name)                                          \
 			_RETURN(*p_a._data.m_sub m_op *p_b._data.m_sub);             \
 		if (p_b.type == NIL)                                             \
-			_RETURN(!p_b.type m_op NIL);                                 \
+			_RETURN(!(p_b.type m_op NIL));                               \
                                                                          \
 		_RETURN_FAIL                                                     \
 	}
@@ -521,7 +521,7 @@ void Variant::evaluate(const Operator &p_op, const Variant &p_a,
 				const Dictionary *arr_a = reinterpret_cast<const Dictionary *>(p_a._data._mem);
 				const Dictionary *arr_b = reinterpret_cast<const Dictionary *>(p_b._data._mem);
 
-				_RETURN((*arr_a == *arr_b) == false);
+				_RETURN(*arr_a != *arr_b);
 			}
 
 			CASE_TYPE(math, OP_NOT_EQUAL, ARRAY) {
@@ -1459,13 +1459,13 @@ void Variant::set_named(const StringName &p_index, const Variant &p_value, bool 
 					v->a = p_value._data._int / 255.0;
 					valid = true;
 				} else if (p_index == CoreStringNames::singleton->h) {
-					v->set_hsv(p_value._data._int, v->get_s(), v->get_v());
+					v->set_hsv(p_value._data._int, v->get_s(), v->get_v(), v->a);
 					valid = true;
 				} else if (p_index == CoreStringNames::singleton->s) {
-					v->set_hsv(v->get_h(), p_value._data._int, v->get_v());
+					v->set_hsv(v->get_h(), p_value._data._int, v->get_v(), v->a);
 					valid = true;
 				} else if (p_index == CoreStringNames::singleton->v) {
-					v->set_hsv(v->get_h(), v->get_v(), p_value._data._int);
+					v->set_hsv(v->get_h(), v->get_v(), p_value._data._int, v->a);
 					valid = true;
 				}
 			} else if (p_value.type == Variant::REAL) {
@@ -1495,13 +1495,13 @@ void Variant::set_named(const StringName &p_index, const Variant &p_value, bool 
 					v->a = p_value._data._real / 255.0;
 					valid = true;
 				} else if (p_index == CoreStringNames::singleton->h) {
-					v->set_hsv(p_value._data._real, v->get_s(), v->get_v());
+					v->set_hsv(p_value._data._real, v->get_s(), v->get_v(), v->a);
 					valid = true;
 				} else if (p_index == CoreStringNames::singleton->s) {
-					v->set_hsv(v->get_h(), p_value._data._real, v->get_v());
+					v->set_hsv(v->get_h(), p_value._data._real, v->get_v(), v->a);
 					valid = true;
 				} else if (p_index == CoreStringNames::singleton->v) {
-					v->set_hsv(v->get_h(), v->get_v(), p_value._data._real);
+					v->set_hsv(v->get_h(), v->get_s(), p_value._data._real, v->a);
 					valid = true;
 				}
 			}
@@ -1656,13 +1656,13 @@ Variant Variant::get_named(const StringName &p_index, bool *r_valid) const {
 			} else if (p_index == CoreStringNames::singleton->a) {
 				return v->a;
 			} else if (p_index == CoreStringNames::singleton->r8) {
-				return int(v->r * 255.0);
+				return int(Math::round(v->r * 255.0));
 			} else if (p_index == CoreStringNames::singleton->g8) {
-				return int(v->g * 255.0);
+				return int(Math::round(v->g * 255.0));
 			} else if (p_index == CoreStringNames::singleton->b8) {
-				return int(v->b * 255.0);
+				return int(Math::round(v->b * 255.0));
 			} else if (p_index == CoreStringNames::singleton->a8) {
-				return int(v->a * 255.0);
+				return int(Math::round(v->a * 255.0));
 			} else if (p_index == CoreStringNames::singleton->h) {
 				return v->get_h();
 			} else if (p_index == CoreStringNames::singleton->s) {
@@ -2117,15 +2117,15 @@ void Variant::set(const Variant &p_index, const Variant &p_value, bool *r_valid)
 					return;
 				} else if (*str == "h") {
 					valid = true;
-					v->set_hsv(p_value, v->get_s(), v->get_v());
+					v->set_hsv(p_value, v->get_s(), v->get_v(), v->a);
 					return;
 				} else if (*str == "s") {
 					valid = true;
-					v->set_hsv(v->get_h(), p_value, v->get_v());
+					v->set_hsv(v->get_h(), p_value, v->get_v(), v->a);
 					return;
 				} else if (*str == "v") {
 					valid = true;
-					v->set_hsv(v->get_h(), v->get_s(), p_value);
+					v->set_hsv(v->get_h(), v->get_s(), p_value, v->a);
 					return;
 				} else if (*str == "r8") {
 					valid = true;
@@ -2149,7 +2149,7 @@ void Variant::set(const Variant &p_index, const Variant &p_value, bool *r_valid)
 				int idx = p_index;
 				if (idx < 0)
 					idx += 4;
-				if (idx >= 0 || idx < 4) {
+				if (idx >= 0 && idx < 4) {
 					Color *v = reinterpret_cast<Color *>(_data._mem);
 					(*v)[idx] = p_value;
 					valid = true;
@@ -2524,7 +2524,7 @@ Variant Variant::get(const Variant &p_index, bool *r_valid) const {
 				int idx = p_index;
 				if (idx < 0)
 					idx += 4;
-				if (idx >= 0 || idx < 4) {
+				if (idx >= 0 && idx < 4) {
 					const Color *v = reinterpret_cast<const Color *>(_data._mem);
 					valid = true;
 					return (*v)[idx];
@@ -3415,6 +3415,28 @@ Variant Variant::iter_get(const Variant &r_iter, bool &r_valid) const {
 	return Variant();
 }
 
+Variant Variant::duplicate(bool deep) const {
+	switch (type) {
+		case OBJECT: {
+			/*  breaks stuff :(
+			if (deep && !_get_obj().ref.is_null()) {
+				Ref<Resource> resource = _get_obj().ref;
+				if (resource.is_valid()) {
+					return resource->duplicate(true);
+				}
+			}
+			*/
+			return *this;
+		} break;
+		case DICTIONARY:
+			return operator Dictionary().duplicate(deep);
+		case ARRAY:
+			return operator Array().duplicate(deep);
+		default:
+			return *this;
+	}
+}
+
 void Variant::blend(const Variant &a, const Variant &b, float c, Variant &r_dst) {
 	if (a.type != b.type) {
 		if (a.is_num() && b.is_num()) {
@@ -3474,15 +3496,15 @@ void Variant::blend(const Variant &a, const Variant &b, float c, Variant &r_dst)
 		case COLOR: {
 			const Color *ca = reinterpret_cast<const Color *>(a._data._mem);
 			const Color *cb = reinterpret_cast<const Color *>(b._data._mem);
-			float r = ca->r + cb->r * c;
-			float g = ca->g + cb->g * c;
-			float b = ca->b + cb->b * c;
-			float a = ca->a + cb->a * c;
-			r = r > 1.0 ? 1.0 : r;
-			g = g > 1.0 ? 1.0 : g;
-			b = b > 1.0 ? 1.0 : b;
-			a = a > 1.0 ? 1.0 : a;
-			r_dst = Color(r, g, b, a);
+			float new_r = ca->r + cb->r * c;
+			float new_g = ca->g + cb->g * c;
+			float new_b = ca->b + cb->b * c;
+			float new_a = ca->a + cb->a * c;
+			new_r = new_r > 1.0 ? 1.0 : new_r;
+			new_g = new_g > 1.0 ? 1.0 : new_g;
+			new_b = new_b > 1.0 ? 1.0 : new_b;
+			new_a = new_a > 1.0 ? 1.0 : new_a;
+			r_dst = Color(new_r, new_g, new_b, new_a);
 		}
 			return;
 		default: {
@@ -3499,7 +3521,7 @@ void Variant::interpolate(const Variant &a, const Variant &b, float c, Variant &
 			//not as efficient but..
 			real_t va = a;
 			real_t vb = b;
-			r_dst = (1.0 - c) * va + vb * c;
+			r_dst = va + (vb - va) * c;
 
 		} else {
 			r_dst = a;
@@ -3520,13 +3542,13 @@ void Variant::interpolate(const Variant &a, const Variant &b, float c, Variant &
 		case INT: {
 			int64_t va = a._data._int;
 			int64_t vb = b._data._int;
-			r_dst = int((1.0 - c) * va + vb * c);
+			r_dst = int(va + (vb - va) * c);
 		}
 			return;
 		case REAL: {
 			real_t va = a._data._real;
 			real_t vb = b._data._real;
-			r_dst = (1.0 - c) * va + vb * c;
+			r_dst = va + (vb - va) * c;
 		}
 			return;
 		case STRING: {
@@ -3534,7 +3556,9 @@ void Variant::interpolate(const Variant &a, const Variant &b, float c, Variant &
 			String sa = *reinterpret_cast<const String *>(a._data._mem);
 			String sb = *reinterpret_cast<const String *>(b._data._mem);
 			String dst;
-			int csize = sb.length() * c + sa.length() * (1.0 - c);
+			int sa_len = sa.length();
+			int sb_len = sb.length();
+			int csize = sa_len + (sb_len - sa_len) * c;
 			if (csize == 0) {
 				r_dst = "";
 				return;
@@ -3632,11 +3656,55 @@ void Variant::interpolate(const Variant &a, const Variant &b, float c, Variant &
 		}
 			return;
 		case POOL_INT_ARRAY: {
-			r_dst = a;
+			const PoolVector<int> *arr_a = reinterpret_cast<const PoolVector<int> *>(a._data._mem);
+			const PoolVector<int> *arr_b = reinterpret_cast<const PoolVector<int> *>(b._data._mem);
+			int sz = arr_a->size();
+			if (sz == 0 || arr_b->size() != sz) {
+
+				r_dst = a;
+			} else {
+
+				PoolVector<int> v;
+				v.resize(sz);
+				{
+					PoolVector<int>::Write vw = v.write();
+					PoolVector<int>::Read ar = arr_a->read();
+					PoolVector<int>::Read br = arr_b->read();
+
+					Variant va;
+					for (int i = 0; i < sz; i++) {
+						Variant::interpolate(ar[i], br[i], c, va);
+						vw[i] = va;
+					}
+				}
+				r_dst = v;
+			}
 		}
 			return;
 		case POOL_REAL_ARRAY: {
-			r_dst = a;
+			const PoolVector<real_t> *arr_a = reinterpret_cast<const PoolVector<real_t> *>(a._data._mem);
+			const PoolVector<real_t> *arr_b = reinterpret_cast<const PoolVector<real_t> *>(b._data._mem);
+			int sz = arr_a->size();
+			if (sz == 0 || arr_b->size() != sz) {
+
+				r_dst = a;
+			} else {
+
+				PoolVector<real_t> v;
+				v.resize(sz);
+				{
+					PoolVector<real_t>::Write vw = v.write();
+					PoolVector<real_t>::Read ar = arr_a->read();
+					PoolVector<real_t>::Read br = arr_b->read();
+
+					Variant va;
+					for (int i = 0; i < sz; i++) {
+						Variant::interpolate(ar[i], br[i], c, va);
+						vw[i] = va;
+					}
+				}
+				r_dst = v;
+			}
 		}
 			return;
 		case POOL_STRING_ARRAY: {
@@ -3693,7 +3761,27 @@ void Variant::interpolate(const Variant &a, const Variant &b, float c, Variant &
 		}
 			return;
 		case POOL_COLOR_ARRAY: {
-			r_dst = a;
+			const PoolVector<Color> *arr_a = reinterpret_cast<const PoolVector<Color> *>(a._data._mem);
+			const PoolVector<Color> *arr_b = reinterpret_cast<const PoolVector<Color> *>(b._data._mem);
+			int sz = arr_a->size();
+			if (sz == 0 || arr_b->size() != sz) {
+
+				r_dst = a;
+			} else {
+
+				PoolVector<Color> v;
+				v.resize(sz);
+				{
+					PoolVector<Color>::Write vw = v.write();
+					PoolVector<Color>::Read ar = arr_a->read();
+					PoolVector<Color>::Read br = arr_b->read();
+
+					for (int i = 0; i < sz; i++) {
+						vw[i] = ar[i].linear_interpolate(br[i], c);
+					}
+				}
+				r_dst = v;
+			}
 		}
 			return;
 		default: {
@@ -3715,8 +3803,9 @@ static const char *_op_names[Variant::OP_MAX] = {
 	"*",
 	"/",
 	"- (negation)",
+	"+ (positive)",
 	"%",
-	"..",
+	"+ (concatenation)",
 	"<<",
 	">>",
 	"&",

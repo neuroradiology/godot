@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="File" inherits="Reference" category="Core" version="3.0-stable">
+<class name="File" inherits="Reference" category="Core" version="3.1">
 	<brief_description>
 		Type to handle file reading and writing operations.
 	</brief_description>
@@ -9,20 +9,20 @@
 		[codeblock]
 		func save(content):
 		    var file = File.new()
-		    file.open("user://save_game.dat", file.WRITE)
+		    file.open("user://save_game.dat", File.WRITE)
 		    file.store_string(content)
 		    file.close()
 
 		func load():
 		    var file = File.new()
-		    file.open("user://save_game.dat", file.READ)
+		    file.open("user://save_game.dat", File.READ)
 		    var content = file.get_as_text()
 		    file.close()
 		    return content
 		[/codeblock]
 	</description>
 	<tutorials>
-		http://docs.godotengine.org/en/3.0/getting_started/step_by_step/filesystem.html
+		<link>https://docs.godotengine.org/en/latest/getting_started/step_by_step/filesystem.html</link>
 	</tutorials>
 	<demos>
 	</demos>
@@ -38,7 +38,7 @@
 			<return type="bool">
 			</return>
 			<description>
-				Returns [code]true[/code] if the file cursor has reached the end of the file.
+				Returns [code]true[/code] if the file cursor has read past the end of the file. Note that this function will still return [code]false[/code] while at the end of the file and only activates when reading past it. This can be confusing but it conforms to how low level file access works in all operating systems. There is always [method get_len] and [method get_position] to implement a custom logic.
 			</description>
 		</method>
 		<method name="file_exists" qualifiers="const">
@@ -48,6 +48,7 @@
 			</argument>
 			<description>
 				Returns [code]true[/code] if the file exists in the given path.
+				Note that many resources types are imported (e.g. textures or sound files), and that their source asset will not be included in the exported game, as only the imported version is used (in the [code]res://.import[/code] folder). To check for the existence of such resources while taking into account the remapping to their imported location, use [method ResourceLoader.exists]. Typically, using [code]File.file_exists[/code] on an imported resource would work while you are developing in the editor (the source asset is present in [code]res://[/code], but fail when exported).
 			</description>
 		</method>
 		<method name="get_16" qualifiers="const">
@@ -100,7 +101,7 @@
 			<argument index="0" name="delim" type="String" default="&quot;,&quot;">
 			</argument>
 			<description>
-				Returns the next value of the file in CSV (Comma Separated Values) format. You can pass a different delimiter to use other than the default "," (comma).
+				Returns the next value of the file in CSV (Comma Separated Values) format. You can pass a different delimiter to use other than the default "," (comma), it should be one character long.
 			</description>
 		</method>
 		<method name="get_double" qualifiers="const">
@@ -161,6 +162,20 @@
 			</return>
 			<description>
 				Returns a [String] saved in Pascal format from the file.
+			</description>
+		</method>
+		<method name="get_path" qualifiers="const">
+			<return type="String">
+			</return>
+			<description>
+				Returns the path as a [String] for the current open file.
+			</description>
+		</method>
+		<method name="get_path_absolute" qualifiers="const">
+			<return type="String">
+			</return>
+			<description>
+				Returns the absolute path as a [String] for the current open file.
 			</description>
 		</method>
 		<method name="get_position" qualifiers="const">
@@ -313,6 +328,17 @@
 				Stores the given array of bytes in the file.
 			</description>
 		</method>
+		<method name="store_csv_line">
+			<return type="void">
+			</return>
+			<argument index="0" name="values" type="PoolStringArray">
+			</argument>
+			<argument index="1" name="delim" type="String" default="&quot;,&quot;">
+			</argument>
+			<description>
+				Store the given [PoolStringArray] in the file as a line formatted in the CSV (Comma Separated Values) format. You can pass a different delimiter to use other than the default "," (comma), it should be one character long.
+			</description>
+		</method>
 		<method name="store_double">
 			<return type="void">
 			</return>
@@ -379,8 +405,8 @@
 	</methods>
 	<members>
 		<member name="endian_swap" type="bool" setter="set_endian_swap" getter="get_endian_swap">
-			If [code]true[/code] the file's endianness is swapped. Use this if you're dealing with files written in big endian machines.
-			Note that this is about the file format, not CPU type. This is always reseted to [code]false[/code] whenever you open the file.
+			If [code]true[/code], the file's endianness is swapped. Use this if you're dealing with files written in big endian machines.
+			Note that this is about the file format, not CPU type. This is always reset to [code]false[/code] whenever you open the file.
 		</member>
 	</members>
 	<constants>

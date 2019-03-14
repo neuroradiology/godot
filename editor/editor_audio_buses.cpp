@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -30,17 +30,41 @@
 
 #include "editor_audio_buses.h"
 
+#include "core/io/resource_saver.h"
+#include "core/os/keyboard.h"
 #include "editor_node.h"
 #include "filesystem_dock.h"
-#include "io/resource_saver.h"
-#include "os/keyboard.h"
 #include "servers/audio_server.h"
+
+void EditorAudioBus::_update_visible_channels() {
+
+	int i = 0;
+	for (; i < cc; i++) {
+
+		if (!channel[i].vu_l->is_visible()) {
+			channel[i].vu_l->show();
+		}
+		if (!channel[i].vu_r->is_visible()) {
+			channel[i].vu_r->show();
+		}
+	}
+
+	for (; i < CHANNELS_MAX; i++) {
+
+		if (channel[i].vu_l->is_visible()) {
+			channel[i].vu_l->hide();
+		}
+		if (channel[i].vu_r->is_visible()) {
+			channel[i].vu_r->hide();
+		}
+	}
+}
 
 void EditorAudioBus::_notification(int p_what) {
 
 	if (p_what == NOTIFICATION_READY) {
 
-		for (int i = 0; i < cc; i++) {
+		for (int i = 0; i < CHANNELS_MAX; i++) {
 			channel[i].vu_l->set_under_texture(get_icon("BusVuEmpty", "EditorIcons"));
 			channel[i].vu_l->set_progress_texture(get_icon("BusVuFull", "EditorIcons"));
 			channel[i].vu_r->set_under_texture(get_icon("BusVuEmpty", "EditorIcons"));
@@ -51,9 +75,16 @@ void EditorAudioBus::_notification(int p_what) {
 
 		disabled_vu = get_icon("BusVuFrozen", "EditorIcons");
 
+		Color solo_color = Color::html(EditorSettings::get_singleton()->is_dark_theme() ? "#ffe337" : "#ffeb70");
+		Color mute_color = Color::html(EditorSettings::get_singleton()->is_dark_theme() ? "#ff2929" : "#ff7070");
+		Color bypass_color = Color::html(EditorSettings::get_singleton()->is_dark_theme() ? "#22ccff" : "#70deff");
+
 		solo->set_icon(get_icon("AudioBusSolo", "EditorIcons"));
+		solo->add_color_override("icon_color_pressed", solo_color);
 		mute->set_icon(get_icon("AudioBusMute", "EditorIcons"));
+		mute->add_color_override("icon_color_pressed", mute_color);
 		bypass->set_icon(get_icon("AudioBusBypass", "EditorIcons"));
+		bypass->add_color_override("icon_color_pressed", bypass_color);
 
 		bus_options->set_icon(get_icon("GuiMiniTabMenu", "EditorIcons"));
 
@@ -71,6 +102,11 @@ void EditorAudioBus::_notification(int p_what) {
 	}
 
 	if (p_what == NOTIFICATION_PROCESS) {
+
+		if (cc != AudioServer::get_singleton()->get_bus_channels(get_index())) {
+			cc = AudioServer::get_singleton()->get_bus_channels(get_index());
+			_update_visible_channels();
+		}
 
 		for (int i = 0; i < cc; i++) {
 			float real_peak[2] = { -100, -100 };
@@ -113,13 +149,33 @@ void EditorAudioBus::_notification(int p_what) {
 
 	if (p_what == NOTIFICATION_VISIBILITY_CHANGED) {
 
-		for (int i = 0; i < 4; i++) {
+		for (int i = 0; i < CHANNELS_MAX; i++) {
 			channel[i].peak_l = -100;
 			channel[i].peak_r = -100;
 			channel[i].prev_active = true;
 		}
 
 		set_process(is_visible_in_tree());
+	}
+
+	if (p_what == NOTIFICATION_THEME_CHANGED) {
+
+		for (int i = 0; i < CHANNELS_MAX; i++) {
+			channel[i].vu_l->set_under_texture(get_icon("BusVuEmpty", "EditorIcons"));
+			channel[i].vu_l->set_progress_texture(get_icon("BusVuFull", "EditorIcons"));
+			channel[i].vu_r->set_under_texture(get_icon("BusVuEmpty", "EditorIcons"));
+			channel[i].vu_r->set_progress_texture(get_icon("BusVuFull", "EditorIcons"));
+			channel[i].prev_active = true;
+		}
+		scale->set_texture(get_icon("BusVuDb", "EditorIcons"));
+
+		disabled_vu = get_icon("BusVuFrozen", "EditorIcons");
+
+		solo->set_icon(get_icon("AudioBusSolo", "EditorIcons"));
+		mute->set_icon(get_icon("AudioBusMute", "EditorIcons"));
+		bypass->set_icon(get_icon("AudioBusBypass", "EditorIcons"));
+
+		bus_options->set_icon(get_icon("GuiMiniTabMenu", "EditorIcons"));
 	}
 }
 
@@ -309,7 +365,7 @@ void EditorAudioBus::_send_selected(int p_which) {
 	updating_bus = true;
 
 	UndoRedo *ur = EditorNode::get_singleton()->get_undo_redo();
-	ur->create_action("Select Audio Bus Send");
+	ur->create_action(TTR("Select Audio Bus Send"));
 	ur->add_do_method(AudioServer::get_singleton(), "set_bus_send", get_index(), send->get_item_text(p_which));
 	ur->add_undo_method(AudioServer::get_singleton(), "set_bus_send", get_index(), AudioServer::get_singleton()->get_bus_send(get_index()));
 	ur->add_do_method(buses, "_update_bus", get_index());
@@ -329,9 +385,9 @@ void EditorAudioBus::_effect_selected() {
 	if (effect->get_metadata(0) != Variant()) {
 
 		int index = effect->get_metadata(0);
-		Ref<AudioEffect> effect = AudioServer::get_singleton()->get_bus_effect(get_index(), index);
-		if (effect.is_valid()) {
-			EditorNode::get_singleton()->push_item(effect.ptr());
+		Ref<AudioEffect> effect2 = AudioServer::get_singleton()->get_bus_effect(get_index(), index);
+		if (effect2.is_valid()) {
+			EditorNode::get_singleton()->push_item(effect2.ptr());
 		}
 	}
 
@@ -462,10 +518,8 @@ void EditorAudioBus::drop_data(const Point2 &p_point, const Variant &p_data) {
 
 Variant EditorAudioBus::get_drag_data_fw(const Point2 &p_point, Control *p_from) {
 
-	print_line("drag fw");
 	TreeItem *item = effects->get_item_at_position(p_point);
 	if (!item) {
-		print_line("no item");
 		return Variant();
 	}
 
@@ -691,9 +745,8 @@ EditorAudioBus::EditorAudioBus(EditorAudioBuses *p_buses, bool p_is_master) {
 	slider->connect("value_changed", this, "_volume_db_changed");
 	hb->add_child(slider);
 
-	cc = AudioServer::get_singleton()->get_channel_count();
-
-	for (int i = 0; i < cc; i++) {
+	cc = 0;
+	for (int i = 0; i < CHANNELS_MAX; i++) {
 		channel[i].vu_l = memnew(TextureProgress);
 		channel[i].vu_l->set_fill_mode(TextureProgress::FILL_BOTTOM_TO_TOP);
 		hb->add_child(channel[i].vu_l);
@@ -707,6 +760,9 @@ EditorAudioBus::EditorAudioBus(EditorAudioBuses *p_buses, bool p_is_master) {
 		channel[i].vu_r->set_min(-80);
 		channel[i].vu_r->set_max(24);
 		channel[i].vu_r->set_step(0.1);
+
+		channel[i].peak_l = 0.0f;
+		channel[i].peak_r = 0.0f;
 	}
 
 	scale = memnew(TextureRect);
@@ -716,6 +772,7 @@ EditorAudioBus::EditorAudioBus(EditorAudioBuses *p_buses, bool p_is_master) {
 	effects->set_hide_root(true);
 	effects->set_custom_minimum_size(Size2(0, 100) * EDSCALE);
 	effects->set_hide_folding(true);
+	effects->set_v_size_flags(SIZE_EXPAND_FILL);
 	vb->add_child(effects);
 	effects->connect("item_edited", this, "_effect_edited");
 	effects->connect("cell_selected", this, "_effect_selected");
@@ -743,10 +800,7 @@ EditorAudioBus::EditorAudioBus(EditorAudioBuses *p_buses, bool p_is_master) {
 		if (!ClassDB::can_instance(E->get()))
 			continue;
 
-		Ref<Texture> icon;
-		if (has_icon(E->get(), "EditorIcons")) {
-			icon = get_icon(E->get(), "EditorIcons");
-		}
+		Ref<Texture> icon = EditorNode::get_singleton()->get_class_icon(E->get());
 		String name = E->get().operator String().replace("AudioEffect", "");
 		effect_options->add_item(name);
 		effect_options->set_item_metadata(effect_options->get_item_count() - 1, E->get());
@@ -997,7 +1051,7 @@ void EditorAudioBuses::_select_layout() {
 void EditorAudioBuses::_save_as_layout() {
 
 	file_dialog->set_mode(EditorFileDialog::MODE_SAVE_FILE);
-	file_dialog->set_title(TTR("Save Audio Bus Layout As.."));
+	file_dialog->set_title(TTR("Save Audio Bus Layout As..."));
 	file_dialog->set_current_path(edited_path);
 	file_dialog->popup_centered_ratio();
 	new_layout = false;
@@ -1006,7 +1060,7 @@ void EditorAudioBuses::_save_as_layout() {
 void EditorAudioBuses::_new_layout() {
 
 	file_dialog->set_mode(EditorFileDialog::MODE_SAVE_FILE);
-	file_dialog->set_title(TTR("Location for New Layout.."));
+	file_dialog->set_title(TTR("Location for New Layout..."));
 	file_dialog->set_current_path(edited_path);
 	file_dialog->popup_centered_ratio();
 	new_layout = true;
@@ -1111,7 +1165,7 @@ EditorAudioBuses::EditorAudioBuses() {
 	add = memnew(Button);
 	top_hb->add_child(add);
 	add->set_text(TTR("Add Bus"));
-	add->set_tooltip(TTR("Create a new Bus Layout."));
+	add->set_tooltip(TTR("Add a new Audio Bus to this layout."));
 
 	add->connect("pressed", this, "_add_bus");
 
@@ -1148,6 +1202,7 @@ EditorAudioBuses::EditorAudioBuses() {
 	bus_scroll->set_enable_v_scroll(false);
 	add_child(bus_scroll);
 	bus_hb = memnew(HBoxContainer);
+	bus_hb->set_v_size_flags(SIZE_EXPAND_FILL);
 	bus_scroll->add_child(bus_hb);
 
 	save_timer = memnew(Timer);

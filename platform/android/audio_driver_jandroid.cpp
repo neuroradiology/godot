@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -30,11 +30,9 @@
 
 #include "audio_driver_jandroid.h"
 
-#include "os/os.h"
-#include "project_settings.h"
+#include "core/os/os.h"
+#include "core/project_settings.h"
 #include "thread_jandroid.h"
-
-#ifndef ANDROID_NATIVE_ACTIVITY
 
 AudioDriverAndroid *AudioDriverAndroid::s_ad = NULL;
 
@@ -78,15 +76,12 @@ Error AudioDriverAndroid::init() {
 	//        __android_log_print(ANDROID_LOG_VERBOSE, "SDL", "SDL audio: opening device");
 
 	JNIEnv *env = ThreadAndroid::get_env();
-	int mix_rate = GLOBAL_DEF("audio/mix_rate", 44100);
+	int mix_rate = GLOBAL_DEF_RST("audio/mix_rate", 44100);
 
-	int latency = GLOBAL_DEF("audio/output_latency", 25);
+	int latency = GLOBAL_DEF_RST("audio/output_latency", 25);
 	unsigned int buffer_size = next_power_of_2(latency * mix_rate / 1000);
-	if (OS::get_singleton()->is_stdout_verbose()) {
-		print_line("audio buffer size: " + itos(buffer_size));
-	}
+	print_verbose("Audio buffer size: " + itos(buffer_size));
 
-	__android_log_print(ANDROID_LOG_INFO, "godot", "Initializing audio! params: %i,%i ", mix_rate, buffer_size);
 	audioBuffer = env->CallObjectMethod(io, _init_audio, mix_rate, buffer_size);
 
 	ERR_FAIL_COND_V(audioBuffer == NULL, ERR_INVALID_PARAMETER);
@@ -113,29 +108,10 @@ void AudioDriverAndroid::setup(jobject p_io) {
 	jclass c = env->GetObjectClass(io);
 	cls = (jclass)env->NewGlobalRef(c);
 
-	__android_log_print(ANDROID_LOG_INFO, "godot", "starting to attempt get methods");
-
 	_init_audio = env->GetMethodID(cls, "audioInit", "(II)Ljava/lang/Object;");
-	if (_init_audio != 0) {
-		__android_log_print(ANDROID_LOG_INFO, "godot", "*******GOT METHOD _init_audio ok!!");
-	} else {
-		__android_log_print(ANDROID_LOG_INFO, "godot", "audioinit ok!");
-	}
-
 	_write_buffer = env->GetMethodID(cls, "audioWriteShortBuffer", "([S)V");
-	if (_write_buffer != 0) {
-		__android_log_print(ANDROID_LOG_INFO, "godot", "*******GOT METHOD _write_buffer ok!!");
-	}
-
 	_quit = env->GetMethodID(cls, "audioQuit", "()V");
-	if (_quit != 0) {
-		__android_log_print(ANDROID_LOG_INFO, "godot", "*******GOT METHOD _quit ok!!");
-	}
-
 	_pause = env->GetMethodID(cls, "audioPause", "(Z)V");
-	if (_quit != 0) {
-		__android_log_print(ANDROID_LOG_INFO, "godot", "*******GOT METHOD _pause ok!!");
-	}
 }
 
 void AudioDriverAndroid::thread_func(JNIEnv *env) {
@@ -144,7 +120,6 @@ void AudioDriverAndroid::thread_func(JNIEnv *env) {
 	if (cls) {
 
 		cls = (jclass)env->NewGlobalRef(cls);
-		__android_log_print(ANDROID_LOG_INFO, "godot", "*******CLASS FOUND!!!");
 	}
 	jfieldID fid = env->GetStaticFieldID(cls, "io", "Lorg/godotengine/godot/GodotIO;");
 	jobject ob = env->GetStaticObjectField(cls, fid);
@@ -152,9 +127,6 @@ void AudioDriverAndroid::thread_func(JNIEnv *env) {
 	jclass c = env->GetObjectClass(gob);
 	jclass lcls = (jclass)env->NewGlobalRef(c);
 	_write_buffer = env->GetMethodID(lcls, "audioWriteShortBuffer", "([S)V");
-	if (_write_buffer != 0) {
-		__android_log_print(ANDROID_LOG_INFO, "godot", "*******GOT METHOD _write_buffer ok!!");
-	}
 
 	while (!quit) {
 
@@ -230,5 +202,3 @@ AudioDriverAndroid::AudioDriverAndroid() {
 	s_ad = this;
 	active = false;
 }
-
-#endif

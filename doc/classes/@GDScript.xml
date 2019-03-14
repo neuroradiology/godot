@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="@GDScript" category="Core" version="3.0-stable">
+<class name="@GDScript" category="Core" version="3.1">
 	<brief_description>
 		Built-in GDScript functions.
 	</brief_description>
 	<description>
-		This contains the list of built-in gdscript functions. Mostly math functions and other utilities. Everything else is expanded by objects.
+		List of core built-in GDScript functions. Math functions and other utilities. Everything else is provided by objects. (Keywords: builtin, built in, global functions.)
 	</description>
 	<tutorials>
 	</tutorials>
@@ -20,7 +20,7 @@
 			</argument>
 			<argument index="2" name="b8" type="int">
 			</argument>
-			<argument index="3" name="a8" type="int">
+			<argument index="3" name="a8" type="int" default="255">
 			</argument>
 			<description>
 				Returns a 32 bit color with red, green, blue and alpha channels. Each channel has 8 bits of information ranging from 0 to 255.
@@ -38,7 +38,7 @@
 			</return>
 			<argument index="0" name="name" type="String">
 			</argument>
-			<argument index="1" name="alpha" type="float">
+			<argument index="1" name="alpha" type="float" default="1.0">
 			</argument>
 			<description>
 				Returns a color according to the standardised [code]name[/code] with [code]alpha[/code] ranging from 0 to 1.
@@ -55,7 +55,7 @@
 			<argument index="0" name="s" type="float">
 			</argument>
 			<description>
-				Returns the absolute value of parameter [code]s[/code]  (i.e. unsigned value, works for integer and float).
+				Returns the absolute value of parameter [code]s[/code] (i.e. unsigned value, works for integer and float).
 				[codeblock]
 				# a is 1
 				a = abs(-1)
@@ -120,14 +120,14 @@
 		<method name="atan2">
 			<return type="float">
 			</return>
-			<argument index="0" name="x" type="float">
+			<argument index="0" name="y" type="float">
 			</argument>
-			<argument index="1" name="y" type="float">
+			<argument index="1" name="x" type="float">
 			</argument>
 			<description>
 				Returns the arc tangent of [code]y/x[/code] in radians. Use to get the angle of tangent [code]y/x[/code]. To compute the value, the method takes into account the sign of both arguments in order to determine the quadrant.
 				[codeblock]
-				a = atan(0,-1) # a is 3.141593
+				a = atan(0, -1) # a is 3.141593
 				[/codeblock]
 			</description>
 		</method>
@@ -175,7 +175,7 @@
 				# a is 'A'
 				a = char(65)
 				# a is 'a'
-				a = char(65+32)
+				a = char(65 + 32)
 				[/codeblock]
 			</description>
 		</method>
@@ -202,7 +202,7 @@
 			</description>
 		</method>
 		<method name="convert">
-			<return type="Object">
+			<return type="Variant">
 			</return>
 			<argument index="0" name="what" type="Variant">
 			</argument>
@@ -230,7 +230,7 @@
 				Returns the cosine of angle [code]s[/code] in radians.
 				[codeblock]
 				# prints 1 and -1
-				print(cos(PI*2))
+				print(cos(PI * 2))
 				print(cos(PI))
 				[/codeblock]
 			</description>
@@ -326,7 +326,8 @@
 			<argument index="0" name="s" type="float">
 			</argument>
 			<description>
-				Raises the Euler's constant [b]e[/b] to the power of [code]s[/code] and returns it. [b]e[/b] has an approximate value of 2.71828.
+				The natural exponential function. It raises the mathematical constant [b]e[/b] to the power of [code]s[/code] and returns it.
+				[b]e[/b] has an approximate value of 2.71828.
 				[codeblock]
 				a = exp(2) # approximately 7.39
 				[/codeblock]
@@ -372,7 +373,7 @@
 			<description>
 				Returns the floating-point remainder of [code]x/y[/code] that wraps equally in positive and negative.
 				[codeblock]
-				var i = -10;
+				var i = -10
 				while i &lt; 0:
 				    prints(i, fposmod(i, 10))
 				    i += 1
@@ -393,7 +394,7 @@
 			</description>
 		</method>
 		<method name="funcref">
-			<return type="Object">
+			<return type="FuncRef">
 			</return>
 			<argument index="0" name="instance" type="Object">
 			</argument>
@@ -407,6 +408,27 @@
 
 				a = funcref(self, "foo")
 				print(a.call_func()) # prints bar
+				[/codeblock]
+			</description>
+		</method>
+		<method name="get_stack">
+			<return type="Array">
+			</return>
+			<description>
+				Returns an array of dictionaries representing the current call stack.
+				[codeblock]
+				func _ready():
+				    foo()
+
+				func foo():
+				    bar()
+
+				func bar():
+				    print(get_stack())
+				[/codeblock]
+				would print
+				[codeblock]
+				[{function:bar, line:12, source:res://script.gd}, {function:foo, line:9, source:res://script.gd}, {function:_ready, line:6, source:res://script.gd}]
 				[/codeblock]
 			</description>
 		</method>
@@ -481,7 +503,16 @@
 			<argument index="0" name="s" type="float">
 			</argument>
 			<description>
-				Returns True/False whether [code]s[/code] is an infinity value (either positive infinity or negative infinity).
+				Returns whether [code]s[/code] is an infinity value (either positive infinity or negative infinity).
+			</description>
+		</method>
+		<method name="is_instance_valid">
+			<return type="bool">
+			</return>
+			<argument index="0" name="instance" type="Object">
+			</argument>
+			<description>
+				Returns whether [code]instance[/code] is a valid object (e.g. has not been deleted from memory).
 			</description>
 		</method>
 		<method name="is_nan">
@@ -490,7 +521,7 @@
 			<argument index="0" name="s" type="float">
 			</argument>
 			<description>
-				Returns True/False whether [code]s[/code] is a NaN (Not-A-Number) value.
+				Returns whether [code]s[/code] is a NaN (Not-A-Number) value.
 			</description>
 		</method>
 		<method name="len">
@@ -499,7 +530,8 @@
 			<argument index="0" name="var" type="Variant">
 			</argument>
 			<description>
-				Returns length of Variant [code]var[/code]. Length is the character count of String, element count of Array, size of Dictionary, etc. Note: Generates a fatal error if Variant can not provide a length.
+				Returns length of Variant [code]var[/code]. Length is the character count of String, element count of Array, size of Dictionary, etc.
+				[b]Note:[/b] Generates a fatal error if Variant can not provide a length.
 				[codeblock]
 				a = [1, 2, 3, 4]
 				len(a) # returns 4
@@ -507,18 +539,21 @@
 			</description>
 		</method>
 		<method name="lerp">
-			<return type="float">
+			<return type="Variant">
 			</return>
-			<argument index="0" name="from" type="float">
+			<argument index="0" name="from" type="Variant">
 			</argument>
-			<argument index="1" name="to" type="float">
+			<argument index="1" name="to" type="Variant">
 			</argument>
 			<argument index="2" name="weight" type="float">
 			</argument>
 			<description>
 				Linearly interpolates between two values by a normalized value.
+				If the [code]from[/code] and [code]to[/code] arguments are of type [int] or [float], the return value is a [float].
+				If both are of the same vector type ([Vector2], [Vector3] or [Color]), the return value will be of the same type ([code]lerp[/code] then calls the vector type's [code]linear_interpolate[/code] method).
 				[codeblock]
-				lerp(1, 3, 0.5) # returns 2
+				lerp(0, 4, 0.75) # returns 3.0
+				lerp(Vector2(1, 5), Vector2(3, 2), 0.5) # returns Vector2(2, 3.5)
 				[/codeblock]
 			</description>
 		</method>
@@ -532,12 +567,13 @@
 			</description>
 		</method>
 		<method name="load">
-			<return type="Object">
+			<return type="Resource">
 			</return>
 			<argument index="0" name="path" type="String">
 			</argument>
 			<description>
-				Loads a resource from the filesystem located at [code]path[/code]. Note: resource paths can be obtained by right clicking on a resource in the Assets Panel and choosing "Copy Path".
+				Loads a resource from the filesystem located at [code]path[/code].
+				[b]Note:[/b] Resource paths can be obtained by right clicking on a resource in the Assets Panel and choosing "Copy Path".
 				[codeblock]
 				# load a scene called main located in the root of the project directory
 				var main = load("res://main.tscn")
@@ -550,7 +586,8 @@
 			<argument index="0" name="s" type="float">
 			</argument>
 			<description>
-				Natural logarithm. The amount of time needed to reach a certain level of continuous growth. Note: This is not the same as the log function on your calculator which is a base 10 logarithm.
+				Natural logarithm. The amount of time needed to reach a certain level of continuous growth.
+				[b]Note:[/b] This is not the same as the log function on your calculator which is a base 10 logarithm.
 				[codeblock]
 				log(10) # returns 2.302585
 				[/codeblock]
@@ -566,7 +603,7 @@
 			<description>
 				Returns the maximum of two values.
 				[codeblock]
-				max(1,2) # returns 2
+				max(1, 2) # returns 2
 				max(-3.99, -4) # returns -3.99
 				[/codeblock]
 			</description>
@@ -581,7 +618,7 @@
 			<description>
 				Returns the minimum of two values.
 				[codeblock]
-				min(1,2) # returns 1
+				min(1, 2) # returns 1
 				min(-3.99, -4) # returns -4
 				[/codeblock]
 			</description>
@@ -608,6 +645,7 @@
 			<description>
 				Parse JSON text to a Variant (use [method typeof] to check if it is what you expect).
 				Be aware that the JSON specification does not define integer or float types, but only a number type. Therefore, parsing a JSON text will convert all numerical values to [float] types.
+				Note that JSON objects do not preserve key order like Godot dictionaries, thus you should not rely on keys being in a certain order if a dictionary is constructed from JSON. In contrast, JSON arrays retain the order of their elements:
 				[codeblock]
 				p = parse_json('["a", "b", "c"]')
 				if typeof(p) == TYPE_ARRAY:
@@ -638,7 +676,7 @@
 			<description>
 				Returns the result of [code]x[/code] raised to the power of [code]y[/code].
 				[codeblock]
-				pow(2,5) # returns 32
+				pow(2, 5) # returns 32
 				[/codeblock]
 			</description>
 		</method>
@@ -648,7 +686,8 @@
 			<argument index="0" name="path" type="String">
 			</argument>
 			<description>
-				Returns a resource from the filesystem that is loaded during script parsing. Note: resource paths can be obtained by right clicking on a resource in the Assets Panel and choosing "Copy Path".
+				Returns a resource from the filesystem that is loaded during script parsing.
+				[b]Note:[/b] Resource paths can be obtained by right clicking on a resource in the Assets Panel and choosing "Copy Path".
 				[codeblock]
 				# load a scene called main located in the root of the project directory
 				var main = preload("res://main.tscn")
@@ -661,9 +700,16 @@
 			<description>
 				Converts one or more arguments to strings in the best way possible and prints them to the console.
 				[codeblock]
-				a = [1,2,3]
-				print("a","b",a) # prints ab[1, 2, 3]
+				a = [1, 2, 3]
+				print("a", "b", a) # prints ab[1, 2, 3]
 				[/codeblock]
+			</description>
+		</method>
+		<method name="print_debug" qualifiers="vararg">
+			<return type="void">
+			</return>
+			<description>
+				Like [method print], but prints only when used in debug mode.
 			</description>
 		</method>
 		<method name="print_stack">
@@ -719,6 +765,30 @@
 				[/codeblock]
 			</description>
 		</method>
+		<method name="push_error">
+			<return type="void">
+			</return>
+			<argument index="0" name="message" type="String">
+			</argument>
+			<description>
+				Pushes an error message to Godot's built-in debugger and to the OS terminal.
+				[codeblock]
+				push_error("test error") # prints "test error" to debugger and terminal as error call
+				[/codeblock]
+			</description>
+		</method>
+		<method name="push_warning">
+			<return type="void">
+			</return>
+			<argument index="0" name="message" type="String">
+			</argument>
+			<description>
+				Pushes a warning message to Godot's built-in debugger and to the OS terminal.
+				[codeblock]
+				push_warning("test warning") # prints "test warning" to debugger and terminal as warning call
+				[/codeblock]
+			</description>
+		</method>
 		<method name="rad2deg">
 			<return type="float">
 			</return>
@@ -741,7 +811,7 @@
 			<description>
 				Random range, any floating point value between [code]from[/code] and [code]to[/code].
 				[codeblock]
-				prints(rand_range(0, 1), rand_range(0, 1)) # prints 0.135591 0.405263
+				prints(rand_range(0, 1), rand_range(0, 1)) # prints e.g. 0.135591 0.405263
 				[/codeblock]
 			</description>
 		</method>
@@ -758,9 +828,9 @@
 			<return type="float">
 			</return>
 			<description>
-				Returns a random floating point value between 0 and 1.
+				Returns a random floating point value on the interval [code][0, 1][/code].
 				[codeblock]
-				randf() # returns 0.375671
+				randf() # returns e.g. 0.375671
 				[/codeblock]
 			</description>
 		</method>
@@ -768,11 +838,12 @@
 			<return type="int">
 			</return>
 			<description>
-				Returns a random 32 bit integer. Use remainder to obtain a random value between 0 and N (where N is smaller than 2^32 -1).
+				Returns a random unsigned 32 bit integer. Use remainder to obtain a random value in the interval [code][0, N][/code] (where N is smaller than 2^32 -1).
 				[codeblock]
-				randi() % 20      # returns random number between 0 and 19
-				randi() % 100     # returns random number between 0 and 99
-				randi() % 100 + 1 # returns random number between 1 and 100
+				randi()           # returns random integer between 0 and 2^32 - 1
+				randi() % 20      # returns random integer between 0 and 19
+				randi() % 100     # returns random integer between 0 and 99
+				randi() % 100 + 1 # returns random integer between 1 and 100
 				[/codeblock]
 			</description>
 		</method>
@@ -959,7 +1030,7 @@
 			<description>
 				Returns the tangent of angle [code]s[/code] in radians.
 				[codeblock]
-				tan( deg2rad(45) ) # returns 1
+				tan(deg2rad(45)) # returns 1
 				[/codeblock]
 			</description>
 		</method>
@@ -1066,7 +1137,7 @@
 			</description>
 		</method>
 		<method name="weakref">
-			<return type="Object">
+			<return type="WeakRef">
 			</return>
 			<argument index="0" name="obj" type="Object">
 			</argument>
@@ -1130,13 +1201,14 @@
 		<method name="yield">
 			<return type="GDScriptFunctionState">
 			</return>
-			<argument index="0" name="object" type="Object">
+			<argument index="0" name="object" type="Object" default="null">
 			</argument>
-			<argument index="1" name="signal" type="String">
+			<argument index="1" name="signal" type="String" default="&quot;&quot;">
 			</argument>
 			<description>
-				Stops the function execution and returns the current state. Call [method GDScriptFunctionState.resume] on the state to resume execution. This invalidates the state.
-				Returns anything that was passed to the resume function call. If passed an object and a signal, the execution is resumed when the object's signal is emitted.
+				Stops the function execution and returns the current suspended state to the calling function.
+				From the caller, call [method GDScriptFunctionState.resume] on the state to resume execution. This invalidates the state. Within the resumed function, [code]yield()[/code] returns whatever was passed to the [code]resume()[/code] function call.
+				If passed an object and a signal, the execution is resumed when the object emits the given signal. In this case, [code]yield()[/code] returns the argument passed to [code]emit_signal()[/code] if the signal takes only one argument, or an array containing all the arguments passed to [code]emit_signal()[/code] if the signal takes multiple arguments.
 			</description>
 		</method>
 	</methods>

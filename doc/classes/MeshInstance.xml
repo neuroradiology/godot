@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="MeshInstance" inherits="GeometryInstance" category="Core" version="3.0-stable">
+<class name="MeshInstance" inherits="GeometryInstance" category="Core" version="3.1">
 	<brief_description>
 		Node that instances meshes into a scenario.
 	</brief_description>
@@ -39,6 +39,12 @@
 			</argument>
 			<description>
 				Returns the [Material] for a surface of the [Mesh] resource.
+			</description>
+		</method>
+		<method name="get_surface_material_count" qualifiers="const">
+			<return type="int">
+			</return>
+			<description>
 			</description>
 		</method>
 		<method name="set_surface_material">

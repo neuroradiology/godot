@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -30,7 +30,7 @@
 
 #include "node_2d.h"
 
-#include "message_queue.h"
+#include "core/message_queue.h"
 #include "scene/gui/control.h"
 #include "scene/main/viewport.h"
 #include "servers/visual_server.h"
@@ -46,10 +46,9 @@ Dictionary Node2D::_edit_get_state() const {
 }
 void Node2D::_edit_set_state(const Dictionary &p_state) {
 
-	Dictionary state = p_state;
-	pos = state["position"];
-	angle = state["rotation"];
-	_scale = state["scale"];
+	pos = p_state["position"];
+	angle = p_state["rotation"];
+	_scale = p_state["scale"];
 
 	_update_transform();
 	_change_notify("rotation");
@@ -59,45 +58,19 @@ void Node2D::_edit_set_state(const Dictionary &p_state) {
 }
 
 void Node2D::_edit_set_position(const Point2 &p_position) {
-	pos = p_position;
+	set_position(p_position);
 }
 
 Point2 Node2D::_edit_get_position() const {
 	return pos;
 }
 
-void Node2D::_edit_set_rect(const Rect2 &p_edit_rect) {
-	Rect2 r = _edit_get_rect();
-
-	Vector2 zero_offset;
-	if (r.size.x != 0)
-		zero_offset.x = -r.position.x / r.size.x;
-	if (r.size.y != 0)
-		zero_offset.y = -r.position.y / r.size.y;
-
-	Size2 new_scale(1, 1);
-
-	if (r.size.x != 0)
-		new_scale.x = p_edit_rect.size.x / r.size.x;
-	if (r.size.y != 0)
-		new_scale.y = p_edit_rect.size.y / r.size.y;
-
-	Point2 new_pos = p_edit_rect.position + p_edit_rect.size * zero_offset; //p_edit_rect.pos - r.pos;
-
-	Transform2D postxf;
-	postxf.set_rotation_and_scale(angle, _scale);
-	new_pos = postxf.xform(new_pos);
-
-	pos += new_pos;
-	_scale *= new_scale;
-
-	_update_transform();
-	_change_notify("scale");
-	_change_notify("position");
+void Node2D::_edit_set_scale(const Size2 &p_scale) {
+	set_scale(p_scale);
 }
 
-bool Node2D::_edit_use_rect() const {
-	return true;
+Size2 Node2D::_edit_get_scale() const {
+	return _scale;
 }
 
 void Node2D::_edit_set_rotation(float p_rotation) {
@@ -115,6 +88,38 @@ bool Node2D::_edit_use_rotation() const {
 	return true;
 }
 
+void Node2D::_edit_set_rect(const Rect2 &p_edit_rect) {
+	ERR_FAIL_COND(!_edit_use_rect());
+
+	Rect2 r = _edit_get_rect();
+
+	Vector2 zero_offset;
+	if (r.size.x != 0)
+		zero_offset.x = -r.position.x / r.size.x;
+	if (r.size.y != 0)
+		zero_offset.y = -r.position.y / r.size.y;
+
+	Size2 new_scale(1, 1);
+
+	if (r.size.x != 0)
+		new_scale.x = p_edit_rect.size.x / r.size.x;
+	if (r.size.y != 0)
+		new_scale.y = p_edit_rect.size.y / r.size.y;
+
+	Point2 new_pos = p_edit_rect.position + p_edit_rect.size * zero_offset;
+
+	Transform2D postxf;
+	postxf.set_rotation_and_scale(angle, _scale);
+	new_pos = postxf.xform(new_pos);
+
+	pos += new_pos;
+	_scale *= new_scale;
+
+	_update_transform();
+	_change_notify("scale");
+	_change_notify("position");
+}
+
 void Node2D::_update_xform_values() {
 
 	pos = _mat.elements[2];
@@ -125,7 +130,6 @@ void Node2D::_update_xform_values() {
 
 void Node2D::_update_transform() {
 
-	Transform2D mat(angle, pos);
 	_mat.set_rotation_and_scale(angle, _scale);
 	_mat.elements[2] = pos;
 
@@ -198,12 +202,6 @@ Size2 Node2D::get_scale() const {
 		((Node2D *)this)->_update_xform_values();
 
 	return _scale;
-}
-
-void Node2D::_notification(int p_what) {
-
-	switch (p_what) {
-	}
 }
 
 Transform2D Node2D::get_transform() const {
@@ -378,7 +376,7 @@ void Node2D::look_at(const Vector2 &p_pos) {
 
 float Node2D::get_angle_to(const Vector2 &p_pos) const {
 
-	return (get_global_transform().affine_inverse().xform(p_pos)).angle();
+	return (to_local(p_pos) * get_scale()).angle();
 }
 
 Point2 Node2D::to_local(Point2 p_global) const {
@@ -437,21 +435,21 @@ void Node2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_relative_transform_to_parent", "parent"), &Node2D::get_relative_transform_to_parent);
 
 	ADD_GROUP("Transform", "");
-	ADD_PROPERTYNZ(PropertyInfo(Variant::VECTOR2, "position"), "set_position", "get_position");
-	ADD_PROPERTYNZ(PropertyInfo(Variant::REAL, "rotation", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "set_rotation", "get_rotation");
-	ADD_PROPERTYNZ(PropertyInfo(Variant::REAL, "rotation_degrees", PROPERTY_HINT_RANGE, "-1440,1440,0.1", PROPERTY_USAGE_EDITOR), "set_rotation_degrees", "get_rotation_degrees");
-	ADD_PROPERTYNO(PropertyInfo(Variant::VECTOR2, "scale"), "set_scale", "get_scale");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "position"), "set_position", "get_position");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "rotation", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "set_rotation", "get_rotation");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "rotation_degrees", PROPERTY_HINT_RANGE, "-1080,1080,0.1,or_lesser,or_greater", PROPERTY_USAGE_EDITOR), "set_rotation_degrees", "get_rotation_degrees");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "scale"), "set_scale", "get_scale");
 	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM2D, "transform", PROPERTY_HINT_NONE, "", 0), "set_transform", "get_transform");
 
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "global_position", PROPERTY_HINT_NONE, "", 0), "set_global_position", "get_global_position");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "global_position", PROPERTY_HINT_NONE, "", 0), "set_global_position", "get_global_position");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "global_rotation", PROPERTY_HINT_NONE, "", 0), "set_global_rotation", "get_global_rotation");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "global_rotation_degrees", PROPERTY_HINT_NONE, "", 0), "set_global_rotation_degrees", "get_global_rotation_degrees");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "global_scale", PROPERTY_HINT_NONE, "", 0), "set_global_scale", "get_global_scale");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "global_scale", PROPERTY_HINT_NONE, "", 0), "set_global_scale", "get_global_scale");
 	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM2D, "global_transform", PROPERTY_HINT_NONE, "", 0), "set_global_transform", "get_global_transform");
 
 	ADD_GROUP("Z Index", "");
-	ADD_PROPERTYNZ(PropertyInfo(Variant::INT, "z_index", PROPERTY_HINT_RANGE, itos(VS::CANVAS_ITEM_Z_MIN) + "," + itos(VS::CANVAS_ITEM_Z_MAX) + ",1"), "set_z_index", "get_z_index");
-	ADD_PROPERTYNO(PropertyInfo(Variant::BOOL, "z_as_relative"), "set_z_as_relative", "is_z_relative");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "z_index", PROPERTY_HINT_RANGE, itos(VS::CANVAS_ITEM_Z_MIN) + "," + itos(VS::CANVAS_ITEM_Z_MAX) + ",1"), "set_z_index", "get_z_index");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "z_as_relative"), "set_z_as_relative", "is_z_relative");
 }
 
 Node2D::Node2D() {

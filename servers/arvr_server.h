@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -31,10 +31,11 @@
 #ifndef ARVR_SERVER_H
 #define ARVR_SERVER_H
 
-#include "os/thread_safe.h"
-#include "reference.h"
-#include "rid.h"
-#include "variant.h"
+#include "core/os/os.h"
+#include "core/os/thread_safe.h"
+#include "core/reference.h"
+#include "core/rid.h"
+#include "core/variant.h"
 
 class ARVRInterface;
 class ARVRPositionalTracker;
@@ -49,7 +50,7 @@ class ARVRPositionalTracker;
 	Also each positioning tracker is accessible from here.
 
 	I've added some additional info into this header file that should move
-	into the documention, I will do so when we're close to accepting this PR
+	into the documentation, I will do so when we're close to accepting this PR
 	or as a separate PR once this has been merged into the master branch.
 **/
 
@@ -83,6 +84,10 @@ private:
 	real_t world_scale; /* scale by which we multiply our tracker positions */
 	Transform world_origin; /* our world origin point, maps a location in our virtual world to the origin point in our real world tracking volume */
 	Transform reference_frame; /* our reference frame */
+
+	uint64_t last_process_usec; /* for frame timing, usec when we did our processing */
+	uint64_t last_commit_usec; /* for frame timing, usec when we finished committing both eyes */
+	uint64_t last_frame_usec; /* time it took between process and committing, we should probably average this over the last x frames */
 
 protected:
 	static ARVRServer *singleton;
@@ -134,6 +139,11 @@ public:
 	void center_on_hmd(RotationMode p_rotation_mode, bool p_keep_height);
 
 	/*
+		get_hmd_transform gets our hmd transform (centered between eyes) with most up to date tracking, relative to the origin
+	*/
+	Transform get_hmd_transform();
+
+	/*
 		Interfaces are objects that 'glue' Godot to an AR or VR SDK such as the Oculus SDK, OpenVR, OpenHMD, etc.
 	*/
 	void add_interface(const Ref<ARVRInterface> &p_interface);
@@ -162,6 +172,13 @@ public:
 	int get_tracker_count() const;
 	ARVRPositionalTracker *get_tracker(int p_index) const;
 	ARVRPositionalTracker *find_by_type_and_id(TrackerType p_tracker_type, int p_tracker_id) const;
+
+	uint64_t get_last_process_usec();
+	uint64_t get_last_commit_usec();
+	uint64_t get_last_frame_usec();
+
+	void _process();
+	void _mark_commit();
 
 	ARVRServer();
 	~ARVRServer();

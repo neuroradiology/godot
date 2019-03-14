@@ -29,7 +29,7 @@
 	#define HAVE_MMX 1
 	#define HAVE_SSE2 1
 	#define HAVE_SSSE3 1
-	#define HAVE_AVX2 1
+	#define HAVE_AVX2 0
 #elif defined(__x86_64) || defined(__x86_64__) || defined(__amd64) || defined(_M_X64)
 	#define ARCH_X86 0
 	#define ARCH_X86_64 1
@@ -41,14 +41,21 @@
 	#define HAVE_MMX 1
 	#define HAVE_SSE2 1
 	#define HAVE_SSSE3 1
-	#define HAVE_AVX2 1
-#elif defined(__arm__) || defined(__TARGET_ARCH_ARM) || defined(_M_ARM) || defined(__aarch64__)
+	#define HAVE_AVX2 0
+#elif defined(__arm__) || defined(__TARGET_ARCH_ARM) || defined(_M_ARM)
 	#define ARCH_X86 0
 	#define ARCH_X86_64 0
 
 	#define ARCH_ARM 1
 	#define HAVE_NEON 1
 	#define HAVE_NEON_ASM 1
+#elif defined(__aarch64__)
+	#define ARCH_X86 0
+	#define ARCH_X86_64 0
+
+	#define ARCH_ARM 1
+	#define HAVE_NEON 0
+	#define HAVE_NEON_ASM 0
 #else
 	#define ARCH_X86 0
 	#define ARCH_X86_64 0
@@ -59,6 +66,12 @@
 #endif
 
 #define CONFIG_BIG_ENDIAN 0 //TODO: Autodetect
+
+#ifdef __EMSCRIPTEN__
+#define CONFIG_MULTITHREAD 0
+#else
+#define CONFIG_MULTITHREAD 1
+#endif
 
 #ifdef _WIN32
 	#define HAVE_PTHREAD_H 0
@@ -88,7 +101,6 @@
 #define CONFIG_RUNTIME_CPU_DETECT 1
 #define CONFIG_POSTPROC 0
 #define CONFIG_VP9_POSTPROC 0
-#define CONFIG_MULTITHREAD 1
 #define CONFIG_INTERNAL_STATS 0
 #define CONFIG_VP8_ENCODER 0
 #define CONFIG_VP8_DECODER 1

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -31,7 +31,7 @@
 #ifndef TRIANGULATE_H
 #define TRIANGULATE_H
 
-#include "math_2d.h"
+#include "core/math/vector2.h"
 
 /*
 http://www.flipcode.com/archives/Efficient_Polygon_Triangulation.shtml
@@ -51,10 +51,11 @@ public:
 	static bool is_inside_triangle(real_t Ax, real_t Ay,
 			real_t Bx, real_t By,
 			real_t Cx, real_t Cy,
-			real_t Px, real_t Py);
+			real_t Px, real_t Py,
+			bool include_edges);
 
 private:
-	static bool snip(const Vector<Vector2> &p_contour, int u, int v, int w, int n, const Vector<int> &V);
+	static bool snip(const Vector<Vector2> &p_contour, int u, int v, int w, int n, const Vector<int> &V, bool relaxed);
 };
 
 #endif

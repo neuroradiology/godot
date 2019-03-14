@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -35,7 +35,7 @@ void CanvasLayer::set_layer(int p_xform) {
 
 	layer = p_xform;
 	if (viewport.is_valid())
-		VisualServer::get_singleton()->viewport_set_canvas_layer(viewport, canvas->get_canvas(), layer);
+		VisualServer::get_singleton()->viewport_set_canvas_stacking(viewport, canvas, layer, get_position_in_parent());
 }
 
 int CanvasLayer::get_layer() const {
@@ -48,7 +48,7 @@ void CanvasLayer::set_transform(const Transform2D &p_xform) {
 	transform = p_xform;
 	locrotscale_dirty = true;
 	if (viewport.is_valid())
-		VisualServer::get_singleton()->viewport_set_canvas_transform(viewport, canvas->get_canvas(), transform);
+		VisualServer::get_singleton()->viewport_set_canvas_transform(viewport, canvas, transform);
 }
 
 Transform2D CanvasLayer::get_transform() const {
@@ -61,7 +61,7 @@ void CanvasLayer::_update_xform() {
 	transform.set_rotation_and_scale(rot, scale);
 	transform.set_origin(ofs);
 	if (viewport.is_valid())
-		VisualServer::get_singleton()->viewport_set_canvas_transform(viewport, canvas->get_canvas(), transform);
+		VisualServer::get_singleton()->viewport_set_canvas_transform(viewport, canvas, transform);
 }
 
 void CanvasLayer::_update_locrotscale() {
@@ -133,11 +133,6 @@ Vector2 CanvasLayer::get_scale() const {
 	return scale;
 }
 
-Ref<World2D> CanvasLayer::get_world_2d() const {
-
-	return canvas;
-}
-
 void CanvasLayer::_notification(int p_what) {
 
 	switch (p_what) {
@@ -151,17 +146,26 @@ void CanvasLayer::_notification(int p_what) {
 				vp = Node::get_viewport();
 			}
 			ERR_FAIL_COND(!vp);
+
+			vp->_canvas_layer_add(this);
 			viewport = vp->get_viewport_rid();
 
-			VisualServer::get_singleton()->viewport_attach_canvas(viewport, canvas->get_canvas());
-			VisualServer::get_singleton()->viewport_set_canvas_layer(viewport, canvas->get_canvas(), layer);
-			VisualServer::get_singleton()->viewport_set_canvas_transform(viewport, canvas->get_canvas(), transform);
+			VisualServer::get_singleton()->viewport_attach_canvas(viewport, canvas);
+			VisualServer::get_singleton()->viewport_set_canvas_stacking(viewport, canvas, layer, get_position_in_parent());
+			VisualServer::get_singleton()->viewport_set_canvas_transform(viewport, canvas, transform);
 
 		} break;
 		case NOTIFICATION_EXIT_TREE: {
 
-			VisualServer::get_singleton()->viewport_remove_canvas(viewport, canvas->get_canvas());
+			vp->_canvas_layer_remove(this);
+			VisualServer::get_singleton()->viewport_remove_canvas(viewport, canvas);
 			viewport = RID();
+
+		} break;
+		case NOTIFICATION_MOVED_IN_PARENT: {
+
+			if (is_inside_tree())
+				VisualServer::get_singleton()->viewport_set_canvas_stacking(viewport, canvas, layer, get_position_in_parent());
 
 		} break;
 	}
@@ -184,7 +188,8 @@ RID CanvasLayer::get_viewport() const {
 void CanvasLayer::set_custom_viewport(Node *p_viewport) {
 	ERR_FAIL_NULL(p_viewport);
 	if (is_inside_tree()) {
-		VisualServer::get_singleton()->viewport_remove_canvas(viewport, canvas->get_canvas());
+		vp->_canvas_layer_remove(this);
+		VisualServer::get_singleton()->viewport_remove_canvas(viewport, canvas);
 		viewport = RID();
 	}
 
@@ -203,11 +208,12 @@ void CanvasLayer::set_custom_viewport(Node *p_viewport) {
 		else
 			vp = Node::get_viewport();
 
+		vp->_canvas_layer_add(this);
 		viewport = vp->get_viewport_rid();
 
-		VisualServer::get_singleton()->viewport_attach_canvas(viewport, canvas->get_canvas());
-		VisualServer::get_singleton()->viewport_set_canvas_layer(viewport, canvas->get_canvas(), layer);
-		VisualServer::get_singleton()->viewport_set_canvas_transform(viewport, canvas->get_canvas(), transform);
+		VisualServer::get_singleton()->viewport_attach_canvas(viewport, canvas);
+		VisualServer::get_singleton()->viewport_set_canvas_stacking(viewport, canvas, layer, get_position_in_parent());
+		VisualServer::get_singleton()->viewport_set_canvas_transform(viewport, canvas, transform);
 	}
 }
 
@@ -225,6 +231,10 @@ int CanvasLayer::get_sort_index() {
 	return sort_index++;
 }
 
+RID CanvasLayer::get_canvas() const {
+
+	return canvas;
+}
 void CanvasLayer::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_layer", "layer"), &CanvasLayer::set_layer);
@@ -248,13 +258,11 @@ void CanvasLayer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_custom_viewport", "viewport"), &CanvasLayer::set_custom_viewport);
 	ClassDB::bind_method(D_METHOD("get_custom_viewport"), &CanvasLayer::get_custom_viewport);
 
-	ClassDB::bind_method(D_METHOD("get_world_2d"), &CanvasLayer::get_world_2d);
-	//ClassDB::bind_method(D_METHOD("get_viewport"),&CanvasLayer::get_viewport);
+	ClassDB::bind_method(D_METHOD("get_canvas"), &CanvasLayer::get_canvas);
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "layer", PROPERTY_HINT_RANGE, "-128,128,1"), "set_layer", "get_layer");
-	//ADD_PROPERTY( PropertyInfo(Variant::MATRIX32,"transform",PROPERTY_HINT_RANGE),"set_transform","get_transform") ;
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "offset"), "set_offset", "get_offset");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "rotation_degrees", PROPERTY_HINT_RANGE, "-1440,1440,0.1", PROPERTY_USAGE_EDITOR), "set_rotation_degrees", "get_rotation_degrees");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "rotation_degrees", PROPERTY_HINT_RANGE, "-1080,1080,0.1,or_lesser,or_greater", PROPERTY_USAGE_EDITOR), "set_rotation_degrees", "get_rotation_degrees");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "rotation", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "set_rotation", "get_rotation");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "scale"), "set_scale", "get_scale");
 	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM2D, "transform"), "set_transform", "get_transform");
@@ -268,8 +276,13 @@ CanvasLayer::CanvasLayer() {
 	rot = 0;
 	locrotscale_dirty = false;
 	layer = 1;
-	canvas = Ref<World2D>(memnew(World2D));
+	canvas = VS::get_singleton()->canvas_create();
 	custom_viewport = NULL;
 	custom_viewport_id = 0;
 	sort_index = 0;
+}
+
+CanvasLayer::~CanvasLayer() {
+
+	VS::get_singleton()->free(canvas);
 }

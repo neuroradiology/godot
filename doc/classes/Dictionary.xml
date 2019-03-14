@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="Dictionary" category="Built-In Types" version="3.0-stable">
+<class name="Dictionary" category="Built-In Types" version="3.1">
 	<brief_description>
 		Dictionary type.
 	</brief_description>
 	<description>
 		Dictionary type. Associative container which contains values referenced by unique keys. Dictionaries are always passed by reference.
+		Erasing elements while iterating over them [b]is not supported[/b].
 	</description>
 	<tutorials>
 	</tutorials>
@@ -19,7 +20,10 @@
 		<method name="duplicate">
 			<return type="Dictionary">
 			</return>
+			<argument index="0" name="deep" type="bool" default="False">
+			</argument>
 			<description>
+				Creates a copy of the dictionary, and returns it.
 			</description>
 		</method>
 		<method name="empty">
@@ -30,16 +34,29 @@
 			</description>
 		</method>
 		<method name="erase">
-			<argument index="0" name="key" type="var">
+			<return type="bool">
+			</return>
+			<argument index="0" name="key" type="Variant">
 			</argument>
 			<description>
-				Erase a dictionary key/value pair by key.
+				Erase a dictionary key/value pair by key. Do not erase elements while iterating over the dictionary.
+			</description>
+		</method>
+		<method name="get">
+			<return type="Variant">
+			</return>
+			<argument index="0" name="key" type="Variant">
+			</argument>
+			<argument index="1" name="default" type="Variant" default="Null">
+			</argument>
+			<description>
+				Returns the current value for the specified key in the [code]Dictionary[/code]. If the key does not exist, the method returns the value of the optional default argument, or Null if it is omitted.
 			</description>
 		</method>
 		<method name="has">
 			<return type="bool">
 			</return>
-			<argument index="0" name="key" type="var">
+			<argument index="0" name="key" type="Variant">
 			</argument>
 			<description>
 				Return true if the dictionary has a given key.

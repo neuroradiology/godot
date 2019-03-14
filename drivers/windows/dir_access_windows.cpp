@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -32,9 +32,9 @@
 
 #include "dir_access_windows.h"
 
-#include "os/memory.h"
+#include "core/os/memory.h"
+#include "core/print_string.h"
 
-#include "print_string.h"
 #include <stdio.h>
 #include <wchar.h>
 #include <windows.h>
@@ -261,13 +261,30 @@ Error DirAccessWindows::rename(String p_path, String p_new_path) {
 
 	p_new_path = fix_path(p_new_path);
 
-	if (file_exists(p_new_path)) {
-		if (remove(p_new_path) != OK) {
-			return FAILED;
-		};
-	};
+	// If we're only changing file name case we need to do a little juggling
+	if (p_path.to_lower() == p_new_path.to_lower()) {
+		WCHAR tmpfile[MAX_PATH];
 
-	return ::_wrename(p_path.c_str(), p_new_path.c_str()) == 0 ? OK : FAILED;
+		if (!GetTempFileNameW(fix_path(get_current_dir()).c_str(), NULL, 0, tmpfile)) {
+			return FAILED;
+		}
+
+		if (!::ReplaceFileW(tmpfile, p_path.c_str(), NULL, 0, NULL, NULL)) {
+			DeleteFileW(tmpfile);
+			return FAILED;
+		}
+
+		return ::_wrename(tmpfile, p_new_path.c_str()) == 0 ? OK : FAILED;
+
+	} else {
+		if (file_exists(p_new_path)) {
+			if (remove(p_new_path) != OK) {
+				return FAILED;
+			}
+		}
+
+		return ::_wrename(p_path.c_str(), p_new_path.c_str()) == 0 ? OK : FAILED;
+	}
 }
 
 Error DirAccessWindows::remove(String p_path) {
@@ -327,6 +344,34 @@ size_t DirAccessWindows::get_space_left() {
 
 	//this is either 0 or a value in bytes.
 	return (size_t)bytes;
+}
+
+String DirAccessWindows::get_filesystem_type() const {
+	String path = fix_path(const_cast<DirAccessWindows *>(this)->get_current_dir());
+
+	int unit_end = path.find(":");
+	ERR_FAIL_COND_V(unit_end == -1, String());
+	String unit = path.substr(0, unit_end + 1) + "\\";
+
+	WCHAR szVolumeName[100];
+	WCHAR szFileSystemName[10];
+	DWORD dwSerialNumber = 0;
+	DWORD dwMaxFileNameLength = 0;
+	DWORD dwFileSystemFlags = 0;
+
+	if (::GetVolumeInformationW(unit.c_str(),
+				szVolumeName,
+				sizeof(szVolumeName),
+				&dwSerialNumber,
+				&dwMaxFileNameLength,
+				&dwFileSystemFlags,
+				szFileSystemName,
+				sizeof(szFileSystemName)) == TRUE) {
+
+		return String(szFileSystemName);
+	}
+
+	ERR_FAIL_V("");
 }
 
 DirAccessWindows::DirAccessWindows() {

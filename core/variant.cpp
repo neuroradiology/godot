@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -30,14 +30,14 @@
 
 #include "variant.h"
 
-#include "core_string_names.h"
-#include "io/marshalls.h"
-#include "math_funcs.h"
-#include "print_string.h"
-#include "resource.h"
+#include "core/core_string_names.h"
+#include "core/io/marshalls.h"
+#include "core/math/math_funcs.h"
+#include "core/print_string.h"
+#include "core/resource.h"
+#include "core/variant_parser.h"
 #include "scene/gui/control.h"
 #include "scene/main/node.h"
-#include "variant_parser.h"
 
 String Variant::get_type_name(Variant::Type p_type) {
 
@@ -858,7 +858,7 @@ bool Variant::is_one() const {
 		// atomic types
 		case BOOL: {
 
-			return _data._bool == true;
+			return _data._bool;
 		} break;
 		case INT: {
 
@@ -1192,7 +1192,7 @@ Variant::operator int64_t() const {
 		case BOOL: return _data._bool ? 1 : 0;
 		case INT: return _data._int;
 		case REAL: return _data._real;
-		case STRING: return operator String().to_int();
+		case STRING: return operator String().to_int64();
 		default: {
 
 			return 0;
@@ -1460,7 +1460,7 @@ Variant::operator String() const {
 
 			const Dictionary &d = *reinterpret_cast<const Dictionary *>(_data._mem);
 			//const String *K=NULL;
-			String str;
+			String str("{");
 			List<Variant> keys;
 			d.get_key_list(&keys);
 
@@ -1479,8 +1479,9 @@ Variant::operator String() const {
 			for (int i = 0; i < pairs.size(); i++) {
 				if (i > 0)
 					str += ", ";
-				str += "(" + pairs[i].key + ":" + pairs[i].value + ")";
+				str += pairs[i].key + ":" + pairs[i].value;
 			}
+			str += "}";
 
 			return str;
 		} break;
@@ -1607,6 +1608,8 @@ Variant::operator Vector3() const {
 
 	if (type == VECTOR3)
 		return *reinterpret_cast<const Vector3 *>(_data._mem);
+	else if (type == VECTOR2)
+		return Vector3(reinterpret_cast<const Vector2 *>(_data._mem)->x, reinterpret_cast<const Vector2 *>(_data._mem)->y, 0.0);
 	else
 		return Vector3();
 }
@@ -1659,7 +1662,17 @@ Variant::operator Transform() const {
 		return Transform(*_data._basis, Vector3());
 	else if (type == QUAT)
 		return Transform(Basis(*reinterpret_cast<const Quat *>(_data._mem)), Vector3());
-	else
+	else if (type == TRANSFORM2D) {
+		const Transform2D &t = *_data._transform2d;
+		Transform m;
+		m.basis.elements[0][0] = t.elements[0][0];
+		m.basis.elements[1][0] = t.elements[0][1];
+		m.basis.elements[0][1] = t.elements[1][0];
+		m.basis.elements[1][1] = t.elements[1][1];
+		m.origin[0] = t.elements[2][0];
+		m.origin[1] = t.elements[2][1];
+		return m;
+	} else
 		return Transform();
 }
 
@@ -1718,6 +1731,14 @@ Variant::operator RID() const {
 	else if (type == OBJECT && !_get_obj().ref.is_null()) {
 		return _get_obj().ref.get_rid();
 	} else if (type == OBJECT && _get_obj().obj) {
+#ifdef DEBUG_ENABLED
+		if (ScriptDebugger::get_singleton()) {
+			if (!ObjectDB::instance_validate(_get_obj().obj)) {
+				ERR_EXPLAIN("Invalid pointer (object was deleted)");
+				ERR_FAIL_V(RID());
+			};
+		};
+#endif
 		Variant::CallError ce;
 		Variant ret = _get_obj().obj->call(CoreStringNames::get_singleton()->get_rid, NULL, 0, ce);
 		if (ce.error == Variant::CallError::CALL_OK && ret.get_type() == Variant::_RID) {
@@ -1876,7 +1897,7 @@ Variant::operator Vector<RID>() const {
 	Vector<RID> rids;
 	rids.resize(va.size());
 	for (int i = 0; i < rids.size(); i++)
-		rids[i] = va[i];
+		rids.write[i] = va[i];
 	return rids;
 }
 
@@ -1889,7 +1910,7 @@ Variant::operator Vector<Vector2>() const {
 		return Vector<Vector2>();
 	to.resize(len);
 	PoolVector<Vector2>::Read r = from.read();
-	Vector2 *w = &to[0];
+	Vector2 *w = to.ptrw();
 	for (int i = 0; i < len; i++) {
 
 		w[i] = r[i];
@@ -1943,7 +1964,7 @@ Variant::operator Vector<Plane>() const {
 	planes.resize(va_size);
 
 	for (int i = 0; i < va_size; i++)
-		planes[i] = va[i];
+		planes.write[i] = va[i];
 
 	return planes;
 }
@@ -1956,7 +1977,7 @@ Variant::operator Vector<Variant>() const {
 	to.resize(len);
 	for (int i = 0; i < len; i++) {
 
-		to[i] = from[i];
+		to.write[i] = from[i];
 	}
 	return to;
 }
@@ -1969,7 +1990,7 @@ Variant::operator Vector<uint8_t>() const {
 	to.resize(len);
 	for (int i = 0; i < len; i++) {
 
-		to[i] = from[i];
+		to.write[i] = from[i];
 	}
 	return to;
 }
@@ -1981,7 +2002,7 @@ Variant::operator Vector<int>() const {
 	to.resize(len);
 	for (int i = 0; i < len; i++) {
 
-		to[i] = from[i];
+		to.write[i] = from[i];
 	}
 	return to;
 }
@@ -1993,7 +2014,7 @@ Variant::operator Vector<real_t>() const {
 	to.resize(len);
 	for (int i = 0; i < len; i++) {
 
-		to[i] = from[i];
+		to.write[i] = from[i];
 	}
 	return to;
 }
@@ -2006,10 +2027,23 @@ Variant::operator Vector<String>() const {
 	to.resize(len);
 	for (int i = 0; i < len; i++) {
 
-		to[i] = from[i];
+		to.write[i] = from[i];
 	}
 	return to;
 }
+Variant::operator Vector<StringName>() const {
+
+	PoolVector<String> from = operator PoolVector<String>();
+	Vector<StringName> to;
+	int len = from.size();
+	to.resize(len);
+	for (int i = 0; i < len; i++) {
+
+		to.write[i] = from[i];
+	}
+	return to;
+}
+
 Variant::operator Vector<Vector3>() const {
 
 	PoolVector<Vector3> from = operator PoolVector<Vector3>();
@@ -2019,7 +2053,7 @@ Variant::operator Vector<Vector3>() const {
 		return Vector<Vector3>();
 	to.resize(len);
 	PoolVector<Vector3>::Read r = from.read();
-	Vector3 *w = &to[0];
+	Vector3 *w = to.ptrw();
 	for (int i = 0; i < len; i++) {
 
 		w[i] = r[i];
@@ -2035,7 +2069,7 @@ Variant::operator Vector<Color>() const {
 		return Vector<Color>();
 	to.resize(len);
 	PoolVector<Color>::Read r = from.read();
-	Color *w = &to[0];
+	Color *w = to.ptrw();
 	for (int i = 0; i < len; i++) {
 
 		w[i] = r[i];
@@ -2442,6 +2476,17 @@ Variant::Variant(const Vector<String> &p_array) {
 	*this = v;
 }
 
+Variant::Variant(const Vector<StringName> &p_array) {
+
+	type = NIL;
+	PoolVector<String> v;
+	int len = p_array.size();
+	v.resize(len);
+	for (int i = 0; i < len; i++)
+		v.set(i, p_array[i]);
+	*this = v;
+}
+
 Variant::Variant(const Vector<Vector3> &p_array) {
 
 	type = NIL;
@@ -2771,27 +2816,37 @@ uint32_t Variant::hash() const {
 
 			const PoolVector<uint8_t> &arr = *reinterpret_cast<const PoolVector<uint8_t> *>(_data._mem);
 			int len = arr.size();
-			PoolVector<uint8_t>::Read r = arr.read();
-
-			return hash_djb2_buffer((uint8_t *)&r[0], len);
+			if (likely(len)) {
+				PoolVector<uint8_t>::Read r = arr.read();
+				return hash_djb2_buffer((uint8_t *)&r[0], len);
+			} else {
+				return hash_djb2_one_64(0);
+			}
 
 		} break;
 		case POOL_INT_ARRAY: {
 
 			const PoolVector<int> &arr = *reinterpret_cast<const PoolVector<int> *>(_data._mem);
 			int len = arr.size();
-			PoolVector<int>::Read r = arr.read();
-
-			return hash_djb2_buffer((uint8_t *)&r[0], len * sizeof(int));
+			if (likely(len)) {
+				PoolVector<int>::Read r = arr.read();
+				return hash_djb2_buffer((uint8_t *)&r[0], len * sizeof(int));
+			} else {
+				return hash_djb2_one_64(0);
+			}
 
 		} break;
 		case POOL_REAL_ARRAY: {
 
 			const PoolVector<real_t> &arr = *reinterpret_cast<const PoolVector<real_t> *>(_data._mem);
 			int len = arr.size();
-			PoolVector<real_t>::Read r = arr.read();
 
-			return hash_djb2_buffer((uint8_t *)&r[0], len * sizeof(real_t));
+			if (likely(len)) {
+				PoolVector<real_t>::Read r = arr.read();
+				return hash_djb2_buffer((uint8_t *)&r[0], len * sizeof(real_t));
+			} else {
+				return hash_djb2_one_float(0.0);
+			}
 
 		} break;
 		case POOL_STRING_ARRAY: {
@@ -2799,10 +2854,13 @@ uint32_t Variant::hash() const {
 			uint32_t hash = 5831;
 			const PoolVector<String> &arr = *reinterpret_cast<const PoolVector<String> *>(_data._mem);
 			int len = arr.size();
-			PoolVector<String>::Read r = arr.read();
 
-			for (int i = 0; i < len; i++) {
-				hash = hash_djb2_one_32(r[i].hash(), hash);
+			if (likely(len)) {
+				PoolVector<String>::Read r = arr.read();
+
+				for (int i = 0; i < len; i++) {
+					hash = hash_djb2_one_32(r[i].hash(), hash);
+				}
 			}
 
 			return hash;
@@ -2812,48 +2870,54 @@ uint32_t Variant::hash() const {
 			uint32_t hash = 5831;
 			const PoolVector<Vector2> &arr = *reinterpret_cast<const PoolVector<Vector2> *>(_data._mem);
 			int len = arr.size();
-			PoolVector<Vector2>::Read r = arr.read();
 
-			for (int i = 0; i < len; i++) {
-				hash = hash_djb2_one_float(r[i].x, hash);
-				hash = hash_djb2_one_float(r[i].y, hash);
+			if (likely(len)) {
+				PoolVector<Vector2>::Read r = arr.read();
+
+				for (int i = 0; i < len; i++) {
+					hash = hash_djb2_one_float(r[i].x, hash);
+					hash = hash_djb2_one_float(r[i].y, hash);
+				}
 			}
 
 			return hash;
-
 		} break;
 		case POOL_VECTOR3_ARRAY: {
 
 			uint32_t hash = 5831;
 			const PoolVector<Vector3> &arr = *reinterpret_cast<const PoolVector<Vector3> *>(_data._mem);
 			int len = arr.size();
-			PoolVector<Vector3>::Read r = arr.read();
 
-			for (int i = 0; i < len; i++) {
-				hash = hash_djb2_one_float(r[i].x, hash);
-				hash = hash_djb2_one_float(r[i].y, hash);
-				hash = hash_djb2_one_float(r[i].z, hash);
+			if (likely(len)) {
+				PoolVector<Vector3>::Read r = arr.read();
+
+				for (int i = 0; i < len; i++) {
+					hash = hash_djb2_one_float(r[i].x, hash);
+					hash = hash_djb2_one_float(r[i].y, hash);
+					hash = hash_djb2_one_float(r[i].z, hash);
+				}
 			}
 
 			return hash;
-
 		} break;
 		case POOL_COLOR_ARRAY: {
 
 			uint32_t hash = 5831;
 			const PoolVector<Color> &arr = *reinterpret_cast<const PoolVector<Color> *>(_data._mem);
 			int len = arr.size();
-			PoolVector<Color>::Read r = arr.read();
 
-			for (int i = 0; i < len; i++) {
-				hash = hash_djb2_one_float(r[i].r, hash);
-				hash = hash_djb2_one_float(r[i].g, hash);
-				hash = hash_djb2_one_float(r[i].b, hash);
-				hash = hash_djb2_one_float(r[i].a, hash);
+			if (likely(len)) {
+				PoolVector<Color>::Read r = arr.read();
+
+				for (int i = 0; i < len; i++) {
+					hash = hash_djb2_one_float(r[i].r, hash);
+					hash = hash_djb2_one_float(r[i].g, hash);
+					hash = hash_djb2_one_float(r[i].b, hash);
+					hash = hash_djb2_one_float(r[i].a, hash);
+				}
 			}
 
 			return hash;
-
 		} break;
 		default: {}
 	}
@@ -3165,7 +3229,11 @@ String Variant::get_call_error_text(Object *p_base, const StringName &p_method, 
 
 	if (ce.error == Variant::CallError::CALL_ERROR_INVALID_ARGUMENT) {
 		int errorarg = ce.argument;
-		err_text = "Cannot convert argument " + itos(errorarg + 1) + " from " + Variant::get_type_name(p_argptrs[errorarg]->get_type()) + " to " + Variant::get_type_name(ce.expected) + ".";
+		if (p_argptrs) {
+			err_text = "Cannot convert argument " + itos(errorarg + 1) + " from " + Variant::get_type_name(p_argptrs[errorarg]->get_type()) + " to " + Variant::get_type_name(ce.expected) + ".";
+		} else {
+			err_text = "Cannot convert argument " + itos(errorarg + 1) + " from [missing argptr, type unknown] to " + Variant::get_type_name(ce.expected) + ".";
+		}
 	} else if (ce.error == Variant::CallError::CALL_ERROR_TOO_MANY_ARGUMENTS) {
 		err_text = "Method expected " + itos(ce.argument) + " arguments, but called with " + itos(p_argcount) + ".";
 	} else if (ce.error == Variant::CallError::CALL_ERROR_TOO_FEW_ARGUMENTS) {

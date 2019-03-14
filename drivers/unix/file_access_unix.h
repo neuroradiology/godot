@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -31,8 +31,9 @@
 #ifndef FILE_ACCESS_UNIX_H
 #define FILE_ACCESS_UNIX_H
 
-#include "os/file_access.h"
-#include "os/memory.h"
+#include "core/os/file_access.h"
+#include "core/os/memory.h"
+
 #include <stdio.h>
 
 #if defined(UNIX_ENABLED) || defined(LIBC_FILEIO_ENABLED)
@@ -51,6 +52,7 @@ class FileAccessUnix : public FileAccess {
 	mutable Error last_error;
 	String save_path;
 	String path;
+	String path_src;
 
 	static FileAccess *create_libc();
 
@@ -60,6 +62,9 @@ public:
 	virtual Error _open(const String &p_path, int p_mode_flags); ///< open a file
 	virtual void close(); ///< close a file
 	virtual bool is_open() const; ///< true when file is open
+
+	virtual String get_path() const; /// returns the path for the current open file
+	virtual String get_path_absolute() const; /// returns the absolute path for the current open file
 
 	virtual void seek(size_t p_position); ///< seek to a given position
 	virtual void seek_end(int64_t p_position = 0); ///< seek from the end of file
@@ -75,6 +80,7 @@ public:
 
 	virtual void flush();
 	virtual void store_8(uint8_t p_dest); ///< store a byte
+	virtual void store_buffer(const uint8_t *p_src, int p_length); ///< store an array of bytes
 
 	virtual bool file_exists(const String &p_path); ///< return true if a file exists
 

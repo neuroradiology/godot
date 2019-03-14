@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -198,14 +198,14 @@ void MeshInstanceEditor::_menu_option(int p_option) {
 		} break;
 		case MENU_OPTION_CREATE_UV2: {
 
-			Ref<ArrayMesh> mesh = node->get_mesh();
-			if (!mesh.is_valid()) {
+			Ref<ArrayMesh> mesh2 = node->get_mesh();
+			if (!mesh2.is_valid()) {
 				err_dialog->set_text(TTR("Contained Mesh is not of type ArrayMesh."));
 				err_dialog->popup_centered_minsize();
 				return;
 			}
 
-			Error err = mesh->lightmap_unwrap(node->get_global_transform());
+			Error err = mesh2->lightmap_unwrap(node->get_global_transform());
 			if (err != OK) {
 				err_dialog->set_text(TTR("UV Unwrap failed, mesh may not be manifold?"));
 				err_dialog->popup_centered_minsize();
@@ -214,8 +214,8 @@ void MeshInstanceEditor::_menu_option(int p_option) {
 
 		} break;
 		case MENU_OPTION_DEBUG_UV1: {
-			Ref<Mesh> mesh = node->get_mesh();
-			if (!mesh.is_valid()) {
+			Ref<Mesh> mesh2 = node->get_mesh();
+			if (!mesh2.is_valid()) {
 				err_dialog->set_text(TTR("No mesh to debug."));
 				err_dialog->popup_centered_minsize();
 				return;
@@ -223,8 +223,8 @@ void MeshInstanceEditor::_menu_option(int p_option) {
 			_create_uv_lines(0);
 		} break;
 		case MENU_OPTION_DEBUG_UV2: {
-			Ref<Mesh> mesh = node->get_mesh();
-			if (!mesh.is_valid()) {
+			Ref<Mesh> mesh2 = node->get_mesh();
+			if (!mesh2.is_valid()) {
 				err_dialog->set_text(TTR("No mesh to debug."));
 				err_dialog->popup_centered_minsize();
 				return;
@@ -344,6 +344,10 @@ void MeshInstanceEditor::_create_outline_mesh() {
 		err_dialog->set_text(TTR("Mesh has not surface to create outlines from!"));
 		err_dialog->popup_centered_minsize();
 		return;
+	} else if (mesh->get_surface_count() == 1 && mesh->surface_get_primitive_type(0) != Mesh::PRIMITIVE_TRIANGLES) {
+		err_dialog->set_text(TTR("Mesh primitive type is not PRIMITIVE_TRIANGLES!"));
+		err_dialog->popup_centered_minsize();
+		return;
 	}
 
 	Ref<Mesh> mesho = mesh->create_outline(outline_size->get_value());
@@ -396,7 +400,7 @@ MeshInstanceEditor::MeshInstanceEditor() {
 	options->get_popup()->add_separator();
 	options->get_popup()->add_item(TTR("Create Navigation Mesh"), MENU_OPTION_CREATE_NAVMESH);
 	options->get_popup()->add_separator();
-	options->get_popup()->add_item(TTR("Create Outline Mesh.."), MENU_OPTION_CREATE_OUTLINE_MESH);
+	options->get_popup()->add_item(TTR("Create Outline Mesh..."), MENU_OPTION_CREATE_OUTLINE_MESH);
 	options->get_popup()->add_separator();
 	options->get_popup()->add_item(TTR("View UV1"), MENU_OPTION_DEBUG_UV1);
 	options->get_popup()->add_item(TTR("View UV2"), MENU_OPTION_DEBUG_UV2);

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -36,6 +36,7 @@ class RayShape : public Shape {
 
 	GDCLASS(RayShape, Shape);
 	float length;
+	bool slips_on_slope;
 
 protected:
 	static void _bind_methods();
@@ -45,6 +46,9 @@ protected:
 public:
 	void set_length(float p_length);
 	float get_length() const;
+
+	void set_slips_on_slope(bool p_active);
+	bool get_slips_on_slope() const;
 
 	RayShape();
 };

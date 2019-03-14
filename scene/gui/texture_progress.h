@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -52,7 +52,10 @@ public:
 		FILL_TOP_TO_BOTTOM,
 		FILL_BOTTOM_TO_TOP,
 		FILL_CLOCKWISE,
-		FILL_COUNTER_CLOCKWISE
+		FILL_COUNTER_CLOCKWISE,
+		FILL_BILINEAR_LEFT_AND_RIGHT,
+		FILL_BILINEAR_TOP_AND_BOTTOM,
+		FILL_CLOCKWISE_AND_COUNTER_CLOCKWISE
 	};
 
 	void set_fill_mode(int p_fill);
@@ -82,6 +85,15 @@ public:
 	void set_nine_patch_stretch(bool p_stretch);
 	bool get_nine_patch_stretch() const;
 
+	void set_tint_under(const Color &p_tint);
+	Color get_tint_under() const;
+
+	void set_tint_progress(const Color &p_tint);
+	Color get_tint_progress() const;
+
+	void set_tint_over(const Color &p_tint);
+	Color get_tint_over() const;
+
 	Size2 get_minimum_size() const;
 
 	TextureProgress();
@@ -93,10 +105,11 @@ private:
 	Point2 rad_center_off;
 	bool nine_patch_stretch;
 	int stretch_margin[4];
+	Color tint_under, tint_progress, tint_over;
 
 	Point2 unit_val_to_uv(float val);
 	Point2 get_relative_center();
-	void draw_nine_patch_stretched(const Ref<Texture> &p_texture, FillMode p_mode, double p_ratio);
+	void draw_nine_patch_stretched(const Ref<Texture> &p_texture, FillMode p_mode, double p_ratio, const Color &p_modulate);
 };
 
 VARIANT_ENUM_CAST(TextureProgress::FillMode);

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -30,6 +30,7 @@
 
 #include "editor_sub_scene.h"
 
+#include "editor/editor_node.h"
 #include "scene/gui/margin_container.h"
 #include "scene/resources/packed_scene.h"
 
@@ -84,9 +85,7 @@ void EditorSubScene::_fill_tree(Node *p_node, TreeItem *p_parent) {
 	it->set_text(0, p_node->get_name());
 	it->set_editable(0, false);
 	it->set_selectable(0, true);
-	if (has_icon(p_node->get_class(), "EditorIcons")) {
-		it->set_icon(0, get_icon(p_node->get_class(), "EditorIcons"));
-	}
+	it->set_icon(0, EditorNode::get_singleton()->get_object_icon(p_node, "Node"));
 
 	for (int i = 0; i < p_node->get_child_count(); i++) {
 
@@ -121,10 +120,10 @@ void EditorSubScene::_item_multi_selected(Object *p_object, int p_cell, bool p_s
 	}
 }
 
-void EditorSubScene::_remove_selection_child(Node *n) {
-	if (n->get_child_count() > 0) {
-		for (int i = 0; i < n->get_child_count(); i++) {
-			Node *c = n->get_child(i);
+void EditorSubScene::_remove_selection_child(Node *p_node) {
+	if (p_node->get_child_count() > 0) {
+		for (int i = 0; i < p_node->get_child_count(); i++) {
+			Node *c = p_node->get_child(i);
 			List<Node *>::Element *E = selection.find(c);
 			if (E) {
 				selection.move_to_back(E);
@@ -188,8 +187,8 @@ void EditorSubScene::move(Node *p_new_parent, Node *p_new_owner) {
 		}
 
 		p_new_parent->add_child(selnode);
-		for (List<Node *>::Element *E = to_reown.front(); E; E = E->next()) {
-			E->get()->set_owner(p_new_owner);
+		for (List<Node *>::Element *F = to_reown.front(); F; F = F->next()) {
+			F->get()->set_owner(p_new_owner);
 		}
 	}
 	if (!is_root) {

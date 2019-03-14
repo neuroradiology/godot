@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2018 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2018 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -56,9 +56,12 @@ class ScrollContainer : public Container {
 	bool drag_touching;
 	bool drag_touching_deaccel;
 	bool click_handled;
+	bool beyond_deadzone;
 
 	bool scroll_h;
 	bool scroll_v;
+
+	int deadzone;
 
 	void _cancel_drag();
 
@@ -85,6 +88,12 @@ public:
 
 	void set_enable_v_scroll(bool p_enable);
 	bool is_v_scroll_enabled() const;
+
+	int get_deadzone() const;
+	void set_deadzone(int p_deadzone);
+
+	HScrollBar *get_h_scrollbar();
+	VScrollBar *get_v_scrollbar();
 
 	virtual bool clips_input() const;
 
