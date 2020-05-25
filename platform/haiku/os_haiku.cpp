@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -28,14 +28,13 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#include "drivers/gles3/rasterizer_gles3.h"
-
 #include "os_haiku.h"
 
+#include "drivers/gles2/rasterizer_gles2.h"
 #include "main/main.h"
-#include "servers/physics/physics_server_sw.h"
-#include "servers/visual/visual_server_raster.h"
-#include "servers/visual/visual_server_wrap_mt.h"
+#include "servers/physics_3d/physics_server_3d_sw.h"
+#include "servers/rendering/rendering_server_raster.h"
+#include "servers/rendering/rendering_server_wrap_mt.h"
 
 #include <Screen.h>
 
@@ -69,7 +68,7 @@ void OS_Haiku::run() {
 	main_loop->finish();
 }
 
-String OS_Haiku::get_name() {
+String OS_Haiku::get_name() const {
 	return "Haiku";
 }
 
@@ -78,7 +77,7 @@ int OS_Haiku::get_video_driver_count() const {
 }
 
 const char *OS_Haiku::get_video_driver_name(int p_driver) const {
-	return "GLES3";
+	return "GLES2";
 }
 
 int OS_Haiku::get_current_video_driver() const {
@@ -86,7 +85,7 @@ int OS_Haiku::get_current_video_driver() const {
 }
 
 Error OS_Haiku::initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver) {
-	main_loop = NULL;
+	main_loop = nullptr;
 	current_video_mode = p_desired;
 
 	app = new HaikuApplication();
@@ -112,18 +111,18 @@ Error OS_Haiku::initialize(const VideoMode &p_desired, int p_video_driver, int p
 	context_gl->initialize();
 	context_gl->make_current();
 	context_gl->set_use_vsync(current_video_mode.use_vsync);
-	RasterizerGLES3::register_config();
-	RasterizerGLES3::make_current();
-
+	// FIXME: That's not how the rasterizer setup should happen.
+	RasterizerGLES2::register_config();
+	RasterizerGLES2::make_current();
 #endif
 
-	visual_server = memnew(VisualServerRaster);
+	rendering_server = memnew(RenderingServerRaster);
 	// FIXME: Reimplement threaded rendering
 	if (get_render_thread_mode() != RENDER_THREAD_UNSAFE) {
-		visual_server = memnew(VisualServerWrapMT(visual_server, false));
+		rendering_server = memnew(RenderingServerWrapMT(rendering_server, false));
 	}
 
-	ERR_FAIL_COND_V(!visual_server, ERR_UNAVAILABLE);
+	ERR_FAIL_COND_V(!rendering_server, ERR_UNAVAILABLE);
 
 	video_driver_index = p_video_driver;
 
@@ -131,7 +130,7 @@ Error OS_Haiku::initialize(const VideoMode &p_desired, int p_video_driver, int p
 	window->SetInput(input);
 
 	window->Show();
-	visual_server->init();
+	rendering_server->init();
 
 	AudioDriverManager::initialize(p_audio_driver);
 
@@ -143,10 +142,10 @@ void OS_Haiku::finalize() {
 		memdelete(main_loop);
 	}
 
-	main_loop = NULL;
+	main_loop = nullptr;
 
-	visual_server->finish();
-	memdelete(visual_server);
+	rendering_server->finish();
+	memdelete(rendering_server);
 
 	memdelete(input);
 
@@ -170,8 +169,8 @@ void OS_Haiku::delete_main_loop() {
 		memdelete(main_loop);
 	}
 
-	main_loop = NULL;
-	window->SetMainLoop(NULL);
+	main_loop = nullptr;
+	window->SetMainLoop(nullptr);
 }
 
 void OS_Haiku::release_rendering_thread() {
@@ -201,6 +200,10 @@ int OS_Haiku::get_mouse_button_state() const {
 
 void OS_Haiku::set_cursor_shape(CursorShape p_shape) {
 	//ERR_PRINT("set_cursor_shape() NOT IMPLEMENTED");
+}
+
+OS::CursorShape OS_Haiku::get_cursor_shape() const {
+	// TODO: implement get_cursor_shape
 }
 
 void OS_Haiku::set_custom_mouse_cursor(const RES &p_cursor, CursorShape p_shape, const Vector2 &p_hotspot) {
@@ -264,7 +267,7 @@ void OS_Haiku::set_window_position(const Point2 &p_position) {
 void OS_Haiku::set_window_fullscreen(bool p_enabled) {
 	window->SetFullScreen(p_enabled);
 	current_video_mode.fullscreen = p_enabled;
-	visual_server->init();
+	rendering_server->init();
 }
 
 bool OS_Haiku::is_window_fullscreen() const {
@@ -321,12 +324,10 @@ String OS_Haiku::get_executable_path() const {
 }
 
 bool OS_Haiku::_check_internal_feature_support(const String &p_feature) {
-
 	return p_feature == "pc";
 }
 
 String OS_Haiku::get_config_path() const {
-
 	if (has_environment("XDG_CONFIG_HOME")) {
 		return get_environment("XDG_CONFIG_HOME");
 	} else if (has_environment("HOME")) {
@@ -337,7 +338,6 @@ String OS_Haiku::get_config_path() const {
 }
 
 String OS_Haiku::get_data_path() const {
-
 	if (has_environment("XDG_DATA_HOME")) {
 		return get_environment("XDG_DATA_HOME");
 	} else if (has_environment("HOME")) {
@@ -348,7 +348,6 @@ String OS_Haiku::get_data_path() const {
 }
 
 String OS_Haiku::get_cache_path() const {
-
 	if (has_environment("XDG_CACHE_HOME")) {
 		return get_environment("XDG_CACHE_HOME");
 	} else if (has_environment("HOME")) {
@@ -356,19 +355,4 @@ String OS_Haiku::get_cache_path() const {
 	} else {
 		return get_config_path();
 	}
-}
-
-OS::PowerState OS_Haiku::get_power_state() {
-	WARN_PRINT("Power management is not implemented on this platform, defaulting to POWERSTATE_UNKNOWN");
-	return OS::POWERSTATE_UNKNOWN;
-}
-
-int OS_Haiku::get_power_seconds_left() {
-	WARN_PRINT("Power management is not implemented on this platform, defaulting to -1");
-	return -1;
-}
-
-int OS_Haiku::get_power_percent_left() {
-	WARN_PRINT("Power management is not implemented on this platform, defaulting to -1");
-	return -1;
 }

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -102,6 +102,8 @@ godot_bool GDAPI godot_string_begins_with_char_array(const godot_string *p_self,
 godot_array GDAPI godot_string_bigrams(const godot_string *p_self);
 godot_string GDAPI godot_string_chr(wchar_t p_character);
 godot_bool GDAPI godot_string_ends_with(const godot_string *p_self, const godot_string *p_string);
+godot_int GDAPI godot_string_count(const godot_string *p_self, godot_string p_what, godot_int p_from, godot_int p_to);
+godot_int GDAPI godot_string_countn(const godot_string *p_self, godot_string p_what, godot_int p_from, godot_int p_to);
 godot_int GDAPI godot_string_find(const godot_string *p_self, godot_string p_what);
 godot_int GDAPI godot_string_find_from(const godot_string *p_self, godot_string p_what, godot_int p_from);
 godot_int GDAPI godot_string_findmk(const godot_string *p_self, const godot_array *p_keys);
@@ -207,9 +209,9 @@ uint32_t GDAPI godot_string_hash_chars(const char *p_cstr);
 uint32_t GDAPI godot_string_hash_chars_with_len(const char *p_cstr, godot_int p_len);
 uint32_t GDAPI godot_string_hash_utf8_chars(const wchar_t *p_str);
 uint32_t GDAPI godot_string_hash_utf8_chars_with_len(const wchar_t *p_str, godot_int p_len);
-godot_pool_byte_array GDAPI godot_string_md5_buffer(const godot_string *p_self);
+godot_packed_byte_array GDAPI godot_string_md5_buffer(const godot_string *p_self);
 godot_string GDAPI godot_string_md5_text(const godot_string *p_self);
-godot_pool_byte_array GDAPI godot_string_sha256_buffer(const godot_string *p_self);
+godot_packed_byte_array GDAPI godot_string_sha256_buffer(const godot_string *p_self);
 godot_string GDAPI godot_string_sha256_text(const godot_string *p_self);
 
 godot_bool godot_string_empty(const godot_string *p_self);
@@ -250,7 +252,7 @@ godot_string GDAPI godot_string_dedent(const godot_string *p_self);
 godot_string GDAPI godot_string_trim_prefix(const godot_string *p_self, const godot_string *p_prefix);
 godot_string GDAPI godot_string_trim_suffix(const godot_string *p_self, const godot_string *p_suffix);
 godot_string GDAPI godot_string_rstrip(const godot_string *p_self, const godot_string *p_chars);
-godot_pool_string_array GDAPI godot_string_rsplit(const godot_string *p_self, const godot_string *p_divisor, const godot_bool p_allow_empty, const godot_int p_maxsplit);
+godot_packed_string_array GDAPI godot_string_rsplit(const godot_string *p_self, const godot_string *p_divisor, const godot_bool p_allow_empty, const godot_int p_maxsplit);
 
 void GDAPI godot_string_destroy(godot_string *p_self);
 

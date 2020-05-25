@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -32,11 +32,8 @@
 #define TEXTURE_FRAME_H
 
 #include "scene/gui/control.h"
-/**
-	@author Juan Linietsky <reduzio@gmail.com>
-*/
-class TextureRect : public Control {
 
+class TextureRect : public Control {
 	GDCLASS(TextureRect, Control);
 
 public:
@@ -53,8 +50,12 @@ public:
 
 private:
 	bool expand;
-	Ref<Texture> texture;
+	bool hflip;
+	bool vflip;
+	Ref<Texture2D> texture;
 	StretchMode stretch_mode;
+
+	void _texture_changed();
 
 protected:
 	void _notification(int p_what);
@@ -62,14 +63,20 @@ protected:
 	static void _bind_methods();
 
 public:
-	void set_texture(const Ref<Texture> &p_tex);
-	Ref<Texture> get_texture() const;
+	void set_texture(const Ref<Texture2D> &p_tex);
+	Ref<Texture2D> get_texture() const;
 
 	void set_expand(bool p_expand);
 	bool has_expand() const;
 
 	void set_stretch_mode(StretchMode p_mode);
 	StretchMode get_stretch_mode() const;
+
+	void set_flip_h(bool p_flip);
+	bool is_flipped_h() const;
+
+	void set_flip_v(bool p_flip);
+	bool is_flipped_v() const;
 
 	TextureRect();
 	~TextureRect();

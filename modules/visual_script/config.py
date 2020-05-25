@@ -1,15 +1,19 @@
 def can_build(env, platform):
     return True
 
+
 def configure(env):
     pass
 
+
 def get_doc_classes():
     return [
+        "@VisualScript",
         "VisualScriptBasicTypeConstant",
         "VisualScriptBuiltinFunc",
         "VisualScriptClassConstant",
         "VisualScriptComment",
+        "VisualScriptComposeArray",
         "VisualScriptCondition",
         "VisualScriptConstant",
         "VisualScriptConstructor",
@@ -27,6 +31,7 @@ def get_doc_classes():
         "VisualScriptIndexSet",
         "VisualScriptInputAction",
         "VisualScriptIterator",
+        "VisualScriptLists",
         "VisualScriptLocalVarSet",
         "VisualScriptLocalVar",
         "VisualScriptMathConstant",
@@ -52,6 +57,7 @@ def get_doc_classes():
         "VisualScriptYieldSignal",
         "VisualScriptYield",
     ]
+
 
 def get_doc_path():
     return "doc_classes"

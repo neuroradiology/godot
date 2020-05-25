@@ -17,7 +17,6 @@ attribute vec2 uv_in; // attrib:4
 varying vec2 uv_interp;
 
 void main() {
-
 	uv_interp = uv_in;
 	gl_Position = vertex_attrib;
 }
@@ -30,8 +29,13 @@ void main() {
 #define mediump
 #define highp
 #else
+#if defined(USE_HIGHP_PRECISION)
+precision highp float;
+precision highp int;
+#else
 precision mediump float;
 precision mediump int;
+#endif
 #endif
 
 uniform highp samplerCube source_cube; //texunit:0
@@ -44,7 +48,6 @@ uniform highp float z_near;
 uniform highp float bias;
 
 void main() {
-
 	highp vec3 normal = vec3(uv_interp * 2.0 - 1.0, 0.0);
 	/*
 	if (z_flip) {

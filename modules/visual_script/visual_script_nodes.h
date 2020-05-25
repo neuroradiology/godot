@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -34,8 +34,7 @@
 #include "visual_script.h"
 
 class VisualScriptFunction : public VisualScriptNode {
-
-	GDCLASS(VisualScriptFunction, VisualScriptNode)
+	GDCLASS(VisualScriptFunction, VisualScriptNode);
 
 	struct Argument {
 		String name;
@@ -103,9 +102,103 @@ public:
 	VisualScriptFunction();
 };
 
-class VisualScriptOperator : public VisualScriptNode {
+class VisualScriptLists : public VisualScriptNode {
+	GDCLASS(VisualScriptLists, VisualScriptNode)
 
-	GDCLASS(VisualScriptOperator, VisualScriptNode)
+	struct Port {
+		String name;
+		Variant::Type type;
+	};
+
+protected:
+	Vector<Port> inputports;
+	Vector<Port> outputports;
+
+	enum {
+		OUTPUT_EDITABLE = 0x0001,
+		OUTPUT_NAME_EDITABLE = 0x0002,
+		OUTPUT_TYPE_EDITABLE = 0x0004,
+		INPUT_EDITABLE = 0x0008,
+		INPUT_NAME_EDITABLE = 0x000F,
+		INPUT_TYPE_EDITABLE = 0x0010,
+	};
+
+	int flags;
+
+	bool sequenced;
+
+	bool _set(const StringName &p_name, const Variant &p_value);
+	bool _get(const StringName &p_name, Variant &r_ret) const;
+	void _get_property_list(List<PropertyInfo> *p_list) const;
+
+	static void _bind_methods();
+
+public:
+	virtual bool is_output_port_editable() const;
+	virtual bool is_output_port_name_editable() const;
+	virtual bool is_output_port_type_editable() const;
+
+	virtual bool is_input_port_editable() const;
+	virtual bool is_input_port_name_editable() const;
+	virtual bool is_input_port_type_editable() const;
+
+	virtual int get_output_sequence_port_count() const;
+	virtual bool has_input_sequence_port() const;
+
+	virtual String get_output_sequence_port_text(int p_port) const;
+
+	virtual int get_input_value_port_count() const;
+	virtual int get_output_value_port_count() const;
+
+	virtual PropertyInfo get_input_value_port_info(int p_idx) const;
+	virtual PropertyInfo get_output_value_port_info(int p_idx) const;
+
+	virtual String get_caption() const = 0;
+	virtual String get_text() const = 0;
+	virtual String get_category() const = 0;
+
+	void add_input_data_port(Variant::Type p_type, const String &p_name, int p_index = -1);
+	void set_input_data_port_type(int p_idx, Variant::Type p_type);
+	void set_input_data_port_name(int p_idx, const String &p_name);
+	void remove_input_data_port(int p_argidx);
+
+	void add_output_data_port(Variant::Type p_type, const String &p_name, int p_index = -1);
+	void set_output_data_port_type(int p_idx, Variant::Type p_type);
+	void set_output_data_port_name(int p_idx, const String &p_name);
+	void remove_output_data_port(int p_argidx);
+
+	void set_sequenced(bool p_enable);
+	bool is_sequenced() const;
+
+	VisualScriptLists();
+};
+
+class VisualScriptComposeArray : public VisualScriptLists {
+	GDCLASS(VisualScriptComposeArray, VisualScriptLists)
+
+public:
+	virtual int get_output_sequence_port_count() const;
+	virtual bool has_input_sequence_port() const;
+
+	virtual String get_output_sequence_port_text(int p_port) const;
+
+	virtual int get_input_value_port_count() const;
+	virtual int get_output_value_port_count() const;
+
+	virtual PropertyInfo get_input_value_port_info(int p_idx) const;
+	virtual PropertyInfo get_output_value_port_info(int p_idx) const;
+
+	virtual String get_caption() const;
+	virtual String get_text() const;
+	virtual String get_category() const { return "functions"; }
+
+	virtual VisualScriptNodeInstance *instance(VisualScriptInstance *p_instance);
+
+	VisualScriptComposeArray();
+};
+
+class VisualScriptOperator : public VisualScriptNode {
+	GDCLASS(VisualScriptOperator, VisualScriptNode);
 
 	Variant::Type typed;
 	Variant::Operator op;
@@ -140,8 +233,7 @@ public:
 };
 
 class VisualScriptSelect : public VisualScriptNode {
-
-	GDCLASS(VisualScriptSelect, VisualScriptNode)
+	GDCLASS(VisualScriptSelect, VisualScriptNode);
 
 	Variant::Type typed;
 
@@ -173,8 +265,7 @@ public:
 };
 
 class VisualScriptVariableGet : public VisualScriptNode {
-
-	GDCLASS(VisualScriptVariableGet, VisualScriptNode)
+	GDCLASS(VisualScriptVariableGet, VisualScriptNode);
 
 	StringName variable;
 
@@ -206,8 +297,7 @@ public:
 };
 
 class VisualScriptVariableSet : public VisualScriptNode {
-
-	GDCLASS(VisualScriptVariableSet, VisualScriptNode)
+	GDCLASS(VisualScriptVariableSet, VisualScriptNode);
 
 	StringName variable;
 
@@ -239,8 +329,7 @@ public:
 };
 
 class VisualScriptConstant : public VisualScriptNode {
-
-	GDCLASS(VisualScriptConstant, VisualScriptNode)
+	GDCLASS(VisualScriptConstant, VisualScriptNode);
 
 	Variant::Type type;
 	Variant value;
@@ -276,8 +365,7 @@ public:
 };
 
 class VisualScriptPreload : public VisualScriptNode {
-
-	GDCLASS(VisualScriptPreload, VisualScriptNode)
+	GDCLASS(VisualScriptPreload, VisualScriptNode);
 
 	Ref<Resource> preload;
 
@@ -308,8 +396,7 @@ public:
 };
 
 class VisualScriptIndexGet : public VisualScriptNode {
-
-	GDCLASS(VisualScriptIndexGet, VisualScriptNode)
+	GDCLASS(VisualScriptIndexGet, VisualScriptNode);
 
 public:
 	virtual int get_output_sequence_port_count() const;
@@ -332,8 +419,7 @@ public:
 };
 
 class VisualScriptIndexSet : public VisualScriptNode {
-
-	GDCLASS(VisualScriptIndexSet, VisualScriptNode)
+	GDCLASS(VisualScriptIndexSet, VisualScriptNode);
 
 public:
 	virtual int get_output_sequence_port_count() const;
@@ -356,8 +442,7 @@ public:
 };
 
 class VisualScriptGlobalConstant : public VisualScriptNode {
-
-	GDCLASS(VisualScriptGlobalConstant, VisualScriptNode)
+	GDCLASS(VisualScriptGlobalConstant, VisualScriptNode);
 
 	int index;
 
@@ -387,8 +472,7 @@ public:
 };
 
 class VisualScriptClassConstant : public VisualScriptNode {
-
-	GDCLASS(VisualScriptClassConstant, VisualScriptNode)
+	GDCLASS(VisualScriptClassConstant, VisualScriptNode);
 
 	StringName base_type;
 	StringName name;
@@ -424,8 +508,7 @@ public:
 };
 
 class VisualScriptBasicTypeConstant : public VisualScriptNode {
-
-	GDCLASS(VisualScriptBasicTypeConstant, VisualScriptNode)
+	GDCLASS(VisualScriptBasicTypeConstant, VisualScriptNode);
 
 	Variant::Type type;
 	StringName name;
@@ -462,8 +545,8 @@ public:
 };
 
 class VisualScriptMathConstant : public VisualScriptNode {
+	GDCLASS(VisualScriptMathConstant, VisualScriptNode);
 
-	GDCLASS(VisualScriptMathConstant, VisualScriptNode)
 public:
 	enum MathConstant {
 		MATH_CONSTANT_ONE,
@@ -511,10 +594,12 @@ public:
 VARIANT_ENUM_CAST(VisualScriptMathConstant::MathConstant)
 
 class VisualScriptEngineSingleton : public VisualScriptNode {
-
-	GDCLASS(VisualScriptEngineSingleton, VisualScriptNode)
+	GDCLASS(VisualScriptEngineSingleton, VisualScriptNode);
 
 	String singleton;
+
+protected:
+	void _validate_property(PropertyInfo &property) const;
 
 	static void _bind_methods();
 
@@ -544,8 +629,7 @@ public:
 };
 
 class VisualScriptSceneNode : public VisualScriptNode {
-
-	GDCLASS(VisualScriptSceneNode, VisualScriptNode)
+	GDCLASS(VisualScriptSceneNode, VisualScriptNode);
 
 	NodePath path;
 
@@ -579,8 +663,7 @@ public:
 };
 
 class VisualScriptSceneTree : public VisualScriptNode {
-
-	GDCLASS(VisualScriptSceneTree, VisualScriptNode)
+	GDCLASS(VisualScriptSceneTree, VisualScriptNode);
 
 protected:
 	virtual void _validate_property(PropertyInfo &property) const;
@@ -609,8 +692,7 @@ public:
 };
 
 class VisualScriptResourcePath : public VisualScriptNode {
-
-	GDCLASS(VisualScriptResourcePath, VisualScriptNode)
+	GDCLASS(VisualScriptResourcePath, VisualScriptNode);
 
 	String path;
 
@@ -641,8 +723,7 @@ public:
 };
 
 class VisualScriptSelf : public VisualScriptNode {
-
-	GDCLASS(VisualScriptSelf, VisualScriptNode)
+	GDCLASS(VisualScriptSelf, VisualScriptNode);
 
 protected:
 	static void _bind_methods();
@@ -670,8 +751,7 @@ public:
 };
 
 class VisualScriptCustomNode : public VisualScriptNode {
-
-	GDCLASS(VisualScriptCustomNode, VisualScriptNode)
+	GDCLASS(VisualScriptCustomNode, VisualScriptNode);
 
 protected:
 	static void _bind_methods();
@@ -718,8 +798,7 @@ public:
 VARIANT_ENUM_CAST(VisualScriptCustomNode::StartMode);
 
 class VisualScriptSubCall : public VisualScriptNode {
-
-	GDCLASS(VisualScriptSubCall, VisualScriptNode)
+	GDCLASS(VisualScriptSubCall, VisualScriptNode);
 
 protected:
 	static void _bind_methods();
@@ -746,8 +825,7 @@ public:
 };
 
 class VisualScriptComment : public VisualScriptNode {
-
-	GDCLASS(VisualScriptComment, VisualScriptNode)
+	GDCLASS(VisualScriptComment, VisualScriptNode);
 
 	String title;
 	String description;
@@ -787,8 +865,7 @@ public:
 };
 
 class VisualScriptConstructor : public VisualScriptNode {
-
-	GDCLASS(VisualScriptConstructor, VisualScriptNode)
+	GDCLASS(VisualScriptConstructor, VisualScriptNode);
 
 	Variant::Type type;
 	MethodInfo constructor;
@@ -823,8 +900,7 @@ public:
 };
 
 class VisualScriptLocalVar : public VisualScriptNode {
-
-	GDCLASS(VisualScriptLocalVar, VisualScriptNode)
+	GDCLASS(VisualScriptLocalVar, VisualScriptNode);
 
 	StringName name;
 	Variant::Type type;
@@ -859,8 +935,7 @@ public:
 };
 
 class VisualScriptLocalVarSet : public VisualScriptNode {
-
-	GDCLASS(VisualScriptLocalVarSet, VisualScriptNode)
+	GDCLASS(VisualScriptLocalVarSet, VisualScriptNode);
 
 	StringName name;
 	Variant::Type type;
@@ -896,8 +971,8 @@ public:
 };
 
 class VisualScriptInputAction : public VisualScriptNode {
+	GDCLASS(VisualScriptInputAction, VisualScriptNode);
 
-	GDCLASS(VisualScriptInputAction, VisualScriptNode)
 public:
 	enum Mode {
 		MODE_PRESSED,
@@ -943,8 +1018,7 @@ public:
 VARIANT_ENUM_CAST(VisualScriptInputAction::Mode)
 
 class VisualScriptDeconstruct : public VisualScriptNode {
-
-	GDCLASS(VisualScriptDeconstruct, VisualScriptNode)
+	GDCLASS(VisualScriptDeconstruct, VisualScriptNode);
 
 	struct Element {
 		StringName name;

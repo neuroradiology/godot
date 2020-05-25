@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -42,13 +42,15 @@
 	This class is set apart that it assumes a single surface is always generated for our mesh.
 */
 class PrimitiveMesh : public Mesh {
-
 	GDCLASS(PrimitiveMesh, Mesh);
 
 private:
 	RID mesh;
 	mutable AABB aabb;
 	AABB custom_aabb;
+
+	mutable int array_len;
+	mutable int index_array_len;
 
 	Ref<Material> material;
 	bool flip_faces;
@@ -70,8 +72,10 @@ public:
 	virtual int surface_get_array_index_len(int p_idx) const;
 	virtual Array surface_get_arrays(int p_surface) const;
 	virtual Array surface_get_blend_shape_arrays(int p_surface) const;
+	virtual Dictionary surface_get_lods(int p_surface) const;
 	virtual uint32_t surface_get_format(int p_idx) const;
 	virtual Mesh::PrimitiveType surface_get_primitive_type(int p_idx) const;
+	virtual void surface_set_material(int p_idx, const Ref<Material> &p_material);
 	virtual Ref<Material> surface_get_material(int p_idx) const;
 	virtual int get_blend_shape_count() const;
 	virtual StringName get_blend_shape_name(int p_index) const;
@@ -129,7 +133,6 @@ public:
 	Similar to test cube but with subdivision support and different texture coordinates
 */
 class CubeMesh : public PrimitiveMesh {
-
 	GDCLASS(CubeMesh, PrimitiveMesh);
 
 private:
@@ -163,7 +166,6 @@ public:
 */
 
 class CylinderMesh : public PrimitiveMesh {
-
 	GDCLASS(CylinderMesh, PrimitiveMesh);
 
 private:
@@ -200,7 +202,6 @@ public:
 	Similar to quadmesh but with tessellation support
 */
 class PlaneMesh : public PrimitiveMesh {
-
 	GDCLASS(PlaneMesh, PrimitiveMesh);
 
 private:
@@ -229,7 +230,6 @@ public:
 	A prism shapen, handy for ramps, triangles, etc.
 */
 class PrismMesh : public PrimitiveMesh {
-
 	GDCLASS(PrismMesh, PrimitiveMesh);
 
 private:
@@ -267,8 +267,7 @@ public:
 */
 
 class QuadMesh : public PrimitiveMesh {
-
-	GDCLASS(QuadMesh, PrimitiveMesh)
+	GDCLASS(QuadMesh, PrimitiveMesh);
 
 private:
 	Size2 size;
@@ -288,7 +287,6 @@ public:
 	A sphere..
 */
 class SphereMesh : public PrimitiveMesh {
-
 	GDCLASS(SphereMesh, PrimitiveMesh);
 
 private:
@@ -319,6 +317,20 @@ public:
 	bool get_is_hemisphere() const;
 
 	SphereMesh();
+};
+
+/**
+	A single point for use in particle systems
+*/
+
+class PointMesh : public PrimitiveMesh {
+	GDCLASS(PointMesh, PrimitiveMesh)
+
+protected:
+	virtual void _create_mesh_array(Array &p_arr) const;
+
+public:
+	PointMesh();
 };
 
 #endif

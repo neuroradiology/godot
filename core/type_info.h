@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -28,14 +28,13 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#ifndef GET_TYPE_INFO_H
-#define GET_TYPE_INFO_H
+#ifndef TYPE_INFO_H
+#define TYPE_INFO_H
 
 #ifdef DEBUG_METHODS_ENABLED
 
 template <bool C, typename T = void>
 struct EnableIf {
-
 	typedef T type;
 };
 
@@ -45,19 +44,16 @@ struct EnableIf<false, T> {
 
 template <typename, typename>
 struct TypesAreSame {
-
 	static bool const value = false;
 };
 
 template <typename A>
 struct TypesAreSame<A, A> {
-
 	static bool const value = true;
 };
 
 template <typename B, typename D>
 struct TypeInherits {
-
 	static D *get_d();
 
 	static char (&test(B *))[1];
@@ -67,48 +63,86 @@ struct TypeInherits {
 							  !TypesAreSame<B volatile const, void volatile const>::value;
 };
 
-template <class T, typename = void>
-struct GetTypeInfo {
-	static const Variant::Type VARIANT_TYPE = Variant::NIL;
-	static inline PropertyInfo get_class_info() {
-		ERR_PRINT("GetTypeInfo fallback. Bug!");
-		return PropertyInfo(); // Not "Nil", this is an error
-	}
+namespace GodotTypeInfo {
+enum Metadata {
+	METADATA_NONE,
+	METADATA_INT_IS_INT8,
+	METADATA_INT_IS_INT16,
+	METADATA_INT_IS_INT32,
+	METADATA_INT_IS_INT64,
+	METADATA_INT_IS_UINT8,
+	METADATA_INT_IS_UINT16,
+	METADATA_INT_IS_UINT32,
+	METADATA_INT_IS_UINT64,
+	METADATA_REAL_IS_FLOAT,
+	METADATA_REAL_IS_DOUBLE
 };
+}
 
-#define MAKE_TYPE_INFO(m_type, m_var_type)                    \
-	template <>                                               \
-	struct GetTypeInfo<m_type> {                              \
-		static const Variant::Type VARIANT_TYPE = m_var_type; \
-		static inline PropertyInfo get_class_info() {         \
-			return PropertyInfo(VARIANT_TYPE, String());      \
-		}                                                     \
-	};                                                        \
-	template <>                                               \
-	struct GetTypeInfo<const m_type &> {                      \
-		static const Variant::Type VARIANT_TYPE = m_var_type; \
-		static inline PropertyInfo get_class_info() {         \
-			return PropertyInfo(VARIANT_TYPE, String());      \
-		}                                                     \
+// If the compiler fails because it's trying to instantiate the primary 'GetTypeInfo' template
+// instead of one of the specializations, it's most likely because the type 'T' is not supported.
+// If 'T' is a class that inherits 'Object', make sure it can see the actual class declaration
+// instead of a forward declaration. You can always forward declare 'T' in a header file, and then
+// include the actual declaration of 'T' in the source file where 'GetTypeInfo<T>' is instantiated.
+template <class T, typename = void>
+struct GetTypeInfo;
+
+#define MAKE_TYPE_INFO(m_type, m_var_type)                                            \
+	template <>                                                                       \
+	struct GetTypeInfo<m_type> {                                                      \
+		static const Variant::Type VARIANT_TYPE = m_var_type;                         \
+		static const GodotTypeInfo::Metadata METADATA = GodotTypeInfo::METADATA_NONE; \
+		static inline PropertyInfo get_class_info() {                                 \
+			return PropertyInfo(VARIANT_TYPE, String());                              \
+		}                                                                             \
+	};                                                                                \
+	template <>                                                                       \
+	struct GetTypeInfo<const m_type &> {                                              \
+		static const Variant::Type VARIANT_TYPE = m_var_type;                         \
+		static const GodotTypeInfo::Metadata METADATA = GodotTypeInfo::METADATA_NONE; \
+		static inline PropertyInfo get_class_info() {                                 \
+			return PropertyInfo(VARIANT_TYPE, String());                              \
+		}                                                                             \
+	};
+
+#define MAKE_TYPE_INFO_WITH_META(m_type, m_var_type, m_metadata)    \
+	template <>                                                     \
+	struct GetTypeInfo<m_type> {                                    \
+		static const Variant::Type VARIANT_TYPE = m_var_type;       \
+		static const GodotTypeInfo::Metadata METADATA = m_metadata; \
+		static inline PropertyInfo get_class_info() {               \
+			return PropertyInfo(VARIANT_TYPE, String());            \
+		}                                                           \
+	};                                                              \
+	template <>                                                     \
+	struct GetTypeInfo<const m_type &> {                            \
+		static const Variant::Type VARIANT_TYPE = m_var_type;       \
+		static const GodotTypeInfo::Metadata METADATA = m_metadata; \
+		static inline PropertyInfo get_class_info() {               \
+			return PropertyInfo(VARIANT_TYPE, String());            \
+		}                                                           \
 	};
 
 MAKE_TYPE_INFO(bool, Variant::BOOL)
-MAKE_TYPE_INFO(uint8_t, Variant::INT)
-MAKE_TYPE_INFO(int8_t, Variant::INT)
-MAKE_TYPE_INFO(uint16_t, Variant::INT)
-MAKE_TYPE_INFO(int16_t, Variant::INT)
-MAKE_TYPE_INFO(uint32_t, Variant::INT)
-MAKE_TYPE_INFO(int32_t, Variant::INT)
-MAKE_TYPE_INFO(int64_t, Variant::INT)
-MAKE_TYPE_INFO(uint64_t, Variant::INT)
+MAKE_TYPE_INFO_WITH_META(uint8_t, Variant::INT, GodotTypeInfo::METADATA_INT_IS_UINT8)
+MAKE_TYPE_INFO_WITH_META(int8_t, Variant::INT, GodotTypeInfo::METADATA_INT_IS_INT8)
+MAKE_TYPE_INFO_WITH_META(uint16_t, Variant::INT, GodotTypeInfo::METADATA_INT_IS_UINT16)
+MAKE_TYPE_INFO_WITH_META(int16_t, Variant::INT, GodotTypeInfo::METADATA_INT_IS_INT16)
+MAKE_TYPE_INFO_WITH_META(uint32_t, Variant::INT, GodotTypeInfo::METADATA_INT_IS_UINT32)
+MAKE_TYPE_INFO_WITH_META(int32_t, Variant::INT, GodotTypeInfo::METADATA_INT_IS_INT32)
+MAKE_TYPE_INFO_WITH_META(uint64_t, Variant::INT, GodotTypeInfo::METADATA_INT_IS_UINT64)
+MAKE_TYPE_INFO_WITH_META(int64_t, Variant::INT, GodotTypeInfo::METADATA_INT_IS_INT64)
 MAKE_TYPE_INFO(wchar_t, Variant::INT)
-MAKE_TYPE_INFO(float, Variant::REAL)
-MAKE_TYPE_INFO(double, Variant::REAL)
+MAKE_TYPE_INFO_WITH_META(float, Variant::FLOAT, GodotTypeInfo::METADATA_REAL_IS_FLOAT)
+MAKE_TYPE_INFO_WITH_META(double, Variant::FLOAT, GodotTypeInfo::METADATA_REAL_IS_DOUBLE)
 
 MAKE_TYPE_INFO(String, Variant::STRING)
 MAKE_TYPE_INFO(Vector2, Variant::VECTOR2)
 MAKE_TYPE_INFO(Rect2, Variant::RECT2)
 MAKE_TYPE_INFO(Vector3, Variant::VECTOR3)
+MAKE_TYPE_INFO(Vector2i, Variant::VECTOR2I)
+MAKE_TYPE_INFO(Rect2i, Variant::RECT2I)
+MAKE_TYPE_INFO(Vector3i, Variant::VECTOR3I)
 MAKE_TYPE_INFO(Transform2D, Variant::TRANSFORM2D)
 MAKE_TYPE_INFO(Plane, Variant::PLANE)
 MAKE_TYPE_INFO(Quat, Variant::QUAT)
@@ -116,37 +150,32 @@ MAKE_TYPE_INFO(AABB, Variant::AABB)
 MAKE_TYPE_INFO(Basis, Variant::BASIS)
 MAKE_TYPE_INFO(Transform, Variant::TRANSFORM)
 MAKE_TYPE_INFO(Color, Variant::COLOR)
+MAKE_TYPE_INFO(StringName, Variant::STRING_NAME)
 MAKE_TYPE_INFO(NodePath, Variant::NODE_PATH)
 MAKE_TYPE_INFO(RID, Variant::_RID)
+MAKE_TYPE_INFO(Callable, Variant::CALLABLE)
+MAKE_TYPE_INFO(Signal, Variant::SIGNAL)
 MAKE_TYPE_INFO(Dictionary, Variant::DICTIONARY)
 MAKE_TYPE_INFO(Array, Variant::ARRAY)
-MAKE_TYPE_INFO(PoolByteArray, Variant::POOL_BYTE_ARRAY)
-MAKE_TYPE_INFO(PoolIntArray, Variant::POOL_INT_ARRAY)
-MAKE_TYPE_INFO(PoolRealArray, Variant::POOL_REAL_ARRAY)
-MAKE_TYPE_INFO(PoolStringArray, Variant::POOL_STRING_ARRAY)
-MAKE_TYPE_INFO(PoolVector2Array, Variant::POOL_VECTOR2_ARRAY)
-MAKE_TYPE_INFO(PoolVector3Array, Variant::POOL_VECTOR3_ARRAY)
-MAKE_TYPE_INFO(PoolColorArray, Variant::POOL_COLOR_ARRAY)
+MAKE_TYPE_INFO(PackedByteArray, Variant::PACKED_BYTE_ARRAY)
+MAKE_TYPE_INFO(PackedInt32Array, Variant::PACKED_INT32_ARRAY)
+MAKE_TYPE_INFO(PackedInt64Array, Variant::PACKED_INT64_ARRAY)
+MAKE_TYPE_INFO(PackedFloat32Array, Variant::PACKED_FLOAT32_ARRAY)
+MAKE_TYPE_INFO(PackedFloat64Array, Variant::PACKED_FLOAT64_ARRAY)
+MAKE_TYPE_INFO(PackedStringArray, Variant::PACKED_STRING_ARRAY)
+MAKE_TYPE_INFO(PackedVector2Array, Variant::PACKED_VECTOR2_ARRAY)
+MAKE_TYPE_INFO(PackedVector3Array, Variant::PACKED_VECTOR3_ARRAY)
+MAKE_TYPE_INFO(PackedColorArray, Variant::PACKED_COLOR_ARRAY)
 
-MAKE_TYPE_INFO(StringName, Variant::STRING)
 MAKE_TYPE_INFO(IP_Address, Variant::STRING)
 
-class BSP_Tree;
-MAKE_TYPE_INFO(BSP_Tree, Variant::DICTIONARY)
-
-//for RefPtr
+//objectID
 template <>
-struct GetTypeInfo<RefPtr> {
-	static const Variant::Type VARIANT_TYPE = Variant::OBJECT;
+struct GetTypeInfo<ObjectID> {
+	static const Variant::Type VARIANT_TYPE = Variant::INT;
+	static const GodotTypeInfo::Metadata METADATA = GodotTypeInfo::METADATA_INT_IS_UINT64;
 	static inline PropertyInfo get_class_info() {
-		return PropertyInfo(Variant::OBJECT, String(), PROPERTY_HINT_RESOURCE_TYPE, "Reference");
-	}
-};
-template <>
-struct GetTypeInfo<const RefPtr &> {
-	static const Variant::Type VARIANT_TYPE = Variant::OBJECT;
-	static inline PropertyInfo get_class_info() {
-		return PropertyInfo(Variant::OBJECT, String(), PROPERTY_HINT_RESOURCE_TYPE, "Reference");
+		return PropertyInfo(Variant::INT, String(), PROPERTY_HINT_INT_IS_OBJECTID);
 	}
 };
 
@@ -154,6 +183,7 @@ struct GetTypeInfo<const RefPtr &> {
 template <>
 struct GetTypeInfo<Variant> {
 	static const Variant::Type VARIANT_TYPE = Variant::NIL;
+	static const GodotTypeInfo::Metadata METADATA = GodotTypeInfo::METADATA_NONE;
 	static inline PropertyInfo get_class_info() {
 		return PropertyInfo(Variant::NIL, String(), PROPERTY_HINT_NONE, String(), PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_NIL_IS_VARIANT);
 	}
@@ -162,46 +192,40 @@ struct GetTypeInfo<Variant> {
 template <>
 struct GetTypeInfo<const Variant &> {
 	static const Variant::Type VARIANT_TYPE = Variant::NIL;
+	static const GodotTypeInfo::Metadata METADATA = GodotTypeInfo::METADATA_NONE;
 	static inline PropertyInfo get_class_info() {
 		return PropertyInfo(Variant::NIL, String(), PROPERTY_HINT_NONE, String(), PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_NIL_IS_VARIANT);
 	}
 };
 
-#define MAKE_TEMPLATE_TYPE_INFO(m_template, m_type, m_var_type) \
-	template <>                                                 \
-	struct GetTypeInfo<m_template<m_type> > {                   \
-		static const Variant::Type VARIANT_TYPE = m_var_type;   \
-		static inline PropertyInfo get_class_info() {           \
-			return PropertyInfo(VARIANT_TYPE, String());        \
-		}                                                       \
-	};                                                          \
-	template <>                                                 \
-	struct GetTypeInfo<const m_template<m_type> &> {            \
-		static const Variant::Type VARIANT_TYPE = m_var_type;   \
-		static inline PropertyInfo get_class_info() {           \
-			return PropertyInfo(VARIANT_TYPE, String());        \
-		}                                                       \
+#define MAKE_TEMPLATE_TYPE_INFO(m_template, m_type, m_var_type)                       \
+	template <>                                                                       \
+	struct GetTypeInfo<m_template<m_type>> {                                          \
+		static const Variant::Type VARIANT_TYPE = m_var_type;                         \
+		static const GodotTypeInfo::Metadata METADATA = GodotTypeInfo::METADATA_NONE; \
+		static inline PropertyInfo get_class_info() {                                 \
+			return PropertyInfo(VARIANT_TYPE, String());                              \
+		}                                                                             \
+	};                                                                                \
+	template <>                                                                       \
+	struct GetTypeInfo<const m_template<m_type> &> {                                  \
+		static const Variant::Type VARIANT_TYPE = m_var_type;                         \
+		static const GodotTypeInfo::Metadata METADATA = GodotTypeInfo::METADATA_NONE; \
+		static inline PropertyInfo get_class_info() {                                 \
+			return PropertyInfo(VARIANT_TYPE, String());                              \
+		}                                                                             \
 	};
-
-MAKE_TEMPLATE_TYPE_INFO(Vector, uint8_t, Variant::POOL_BYTE_ARRAY)
-MAKE_TEMPLATE_TYPE_INFO(Vector, int, Variant::POOL_INT_ARRAY)
-MAKE_TEMPLATE_TYPE_INFO(Vector, float, Variant::POOL_REAL_ARRAY)
-MAKE_TEMPLATE_TYPE_INFO(Vector, String, Variant::POOL_STRING_ARRAY)
-MAKE_TEMPLATE_TYPE_INFO(Vector, Vector2, Variant::POOL_VECTOR2_ARRAY)
-MAKE_TEMPLATE_TYPE_INFO(Vector, Vector3, Variant::POOL_VECTOR3_ARRAY)
-MAKE_TEMPLATE_TYPE_INFO(Vector, Color, Variant::POOL_COLOR_ARRAY)
 
 MAKE_TEMPLATE_TYPE_INFO(Vector, Variant, Variant::ARRAY)
 MAKE_TEMPLATE_TYPE_INFO(Vector, RID, Variant::ARRAY)
 MAKE_TEMPLATE_TYPE_INFO(Vector, Plane, Variant::ARRAY)
-MAKE_TEMPLATE_TYPE_INFO(Vector, StringName, Variant::POOL_STRING_ARRAY)
-
-MAKE_TEMPLATE_TYPE_INFO(PoolVector, Plane, Variant::ARRAY)
-MAKE_TEMPLATE_TYPE_INFO(PoolVector, Face3, Variant::POOL_VECTOR3_ARRAY)
+MAKE_TEMPLATE_TYPE_INFO(Vector, Face3, Variant::PACKED_VECTOR3_ARRAY)
+MAKE_TEMPLATE_TYPE_INFO(Vector, StringName, Variant::PACKED_STRING_ARRAY)
 
 template <typename T>
 struct GetTypeInfo<T *, typename EnableIf<TypeInherits<Object, T>::value>::type> {
 	static const Variant::Type VARIANT_TYPE = Variant::OBJECT;
+	static const GodotTypeInfo::Metadata METADATA = GodotTypeInfo::METADATA_NONE;
 	static inline PropertyInfo get_class_info() {
 		return PropertyInfo(StringName(T::get_class_static()));
 	}
@@ -210,6 +234,7 @@ struct GetTypeInfo<T *, typename EnableIf<TypeInherits<Object, T>::value>::type>
 template <typename T>
 struct GetTypeInfo<const T *, typename EnableIf<TypeInherits<Object, T>::value>::type> {
 	static const Variant::Type VARIANT_TYPE = Variant::OBJECT;
+	static const GodotTypeInfo::Metadata METADATA = GodotTypeInfo::METADATA_NONE;
 	static inline PropertyInfo get_class_info() {
 		return PropertyInfo(StringName(T::get_class_static()));
 	}
@@ -219,6 +244,7 @@ struct GetTypeInfo<const T *, typename EnableIf<TypeInherits<Object, T>::value>:
 	template <>                                                                                                                                                                   \
 	struct GetTypeInfo<m_impl> {                                                                                                                                                  \
 		static const Variant::Type VARIANT_TYPE = Variant::INT;                                                                                                                   \
+		static const GodotTypeInfo::Metadata METADATA = GodotTypeInfo::METADATA_NONE;                                                                                             \
 		static inline PropertyInfo get_class_info() {                                                                                                                             \
 			return PropertyInfo(Variant::INT, String(), PROPERTY_HINT_NONE, String(), PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_CLASS_IS_ENUM, String(#m_enum).replace("::", ".")); \
 		}                                                                                                                                                                         \
@@ -232,15 +258,13 @@ struct GetTypeInfo<const T *, typename EnableIf<TypeInherits<Object, T>::value>:
 
 template <typename T>
 inline StringName __constant_get_enum_name(T param, const String &p_constant) {
-	if (GetTypeInfo<T>::VARIANT_TYPE == Variant::NIL)
-		ERR_PRINTS("Missing VARIANT_ENUM_CAST for constant's enum: " + p_constant);
+	if (GetTypeInfo<T>::VARIANT_TYPE == Variant::NIL) {
+		ERR_PRINT("Missing VARIANT_ENUM_CAST for constant's enum: " + p_constant);
+	}
 	return GetTypeInfo<T>::get_class_info().class_name;
 }
 
-#define CLASS_INFO(m_type)                                    \
-	(GetTypeInfo<m_type *>::VARIANT_TYPE != Variant::NIL ?    \
-					GetTypeInfo<m_type *>::get_class_info() : \
-					GetTypeInfo<m_type>::get_class_info())
+#define CLASS_INFO(m_type) (GetTypeInfo<m_type *>::get_class_info())
 
 #else
 
@@ -249,4 +273,4 @@ inline StringName __constant_get_enum_name(T param, const String &p_constant) {
 
 #endif // DEBUG_METHODS_ENABLED
 
-#endif // GET_TYPE_INFO_H
+#endif // TYPE_INFO_H

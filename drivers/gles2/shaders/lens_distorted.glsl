@@ -19,7 +19,6 @@ uniform vec2 scale;
 varying vec2 uv_interp;
 
 void main() {
-
 	uv_interp = vertex.xy * 2.0 - 1.0;
 
 	vec2 v = vertex.xy * scale + offset;
@@ -34,8 +33,13 @@ void main() {
 #define mediump
 #define highp
 #else
-precision mediump float;
+#if defined(USE_HIGHP_PRECISION)
+precision highp float;
 precision highp int;
+#else
+precision mediump float;
+precision mediump int;
+#endif
 #endif
 
 uniform sampler2D source; //texunit:0

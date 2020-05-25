@@ -9,8 +9,8 @@ header = """\
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2019 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2019 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -33,28 +33,28 @@ header = """\
 /*************************************************************************/
 """
 
-files = open("files", "rb")
+files = open("files", "r")
 
 fname = files.readline()
 
-while (fname != ""):
+while fname != "":
 
     # Handle replacing $filename with actual filename and keep alignment
     fsingle = fname.strip()
-    if (fsingle.find("/") != -1):
-        fsingle = fsingle[fsingle.rfind("/") + 1:]
+    if fsingle.find("/") != -1:
+        fsingle = fsingle[fsingle.rfind("/") + 1 :]
     rep_fl = "$filename"
     rep_fi = fsingle
     len_fl = len(rep_fl)
     len_fi = len(rep_fi)
     # Pad with spaces to keep alignment
-    if (len_fi < len_fl):
+    if len_fi < len_fl:
         for x in range(len_fl - len_fi):
             rep_fi += " "
-    elif (len_fl < len_fi):
+    elif len_fl < len_fi:
         for x in range(len_fi - len_fl):
             rep_fl += " "
-    if (header.find(rep_fl) != -1):
+    if header.find(rep_fl) != -1:
         text = header.replace(rep_fl, rep_fi)
     else:
         text = header.replace("$filename", fsingle)
@@ -67,32 +67,32 @@ while (fname != ""):
     # In a second pass, we skip all consecutive comment lines starting with "/*",
     # then we can append the rest (step 2).
 
-    fileread = open(fname.strip(), "rb")
+    fileread = open(fname.strip(), "r")
     line = fileread.readline()
     header_done = False
 
-    while (line.strip() == ""): # Skip empty lines at the top
+    while line.strip() == "":  # Skip empty lines at the top
         line = fileread.readline()
 
-    if (line.find("/**********") == -1): # Godot header starts this way
+    if line.find("/**********") == -1:  # Godot header starts this way
         # Maybe starting with a non-Godot comment, abort header magic
         header_done = True
 
-    while (not header_done): # Handle header now
-        if (line.find("/*") != 0): # No more starting with a comment
+    while not header_done:  # Handle header now
+        if line.find("/*") != 0:  # No more starting with a comment
             header_done = True
-            if (line.strip() != ""):
+            if line.strip() != "":
                 text += line
         line = fileread.readline()
 
-    while (line != ""): # Dump everything until EOF
+    while line != "":  # Dump everything until EOF
         text += line
         line = fileread.readline()
 
     fileread.close()
 
     # Write
-    filewrite = open(fname.strip(), "wb")
+    filewrite = open(fname.strip(), "w")
     filewrite.write(text)
     filewrite.close()
 
