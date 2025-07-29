@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="AudioEffectCompressor" inherits="AudioEffect" version="4.0">
+<class name="AudioEffectCompressor" inherits="AudioEffect" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
 	<brief_description>
 		Adds a compressor audio effect to an audio bus.
 		Reduces sounds that exceed a certain threshold level, smooths out the dynamics and increases the overall volume.
@@ -7,15 +7,14 @@
 	<description>
 		Dynamic range compressor reduces the level of the sound when the amplitude goes over a certain threshold in Decibels. One of the main uses of a compressor is to increase the dynamic range by clipping as little as possible (when sound goes over 0dB).
 		Compressor has many uses in the mix:
-		- In the Master bus to compress the whole output (although an [AudioEffectLimiter] is probably better).
+		- In the Master bus to compress the whole output (although an [AudioEffectHardLimiter] is probably better).
 		- In voice channels to ensure they sound as balanced as possible.
 		- Sidechained. This can reduce the sound level sidechained with another audio bus for threshold detection. This technique is common in video game mixing to the level of music and SFX while voices are being heard.
 		- Accentuates transients by using a wider attack, making effects sound more punchy.
 	</description>
 	<tutorials>
+		<link title="Audio buses">$DOCS_URL/tutorials/audio/audio_buses.html</link>
 	</tutorials>
-	<methods>
-	</methods>
 	<members>
 		<member name="attack_us" type="float" setter="set_attack_us" getter="get_attack_us" default="20.0">
 			Compressor's reaction time when the signal exceeds the threshold, in microseconds. Value can range from 20 to 2000.
@@ -32,13 +31,11 @@
 		<member name="release_ms" type="float" setter="set_release_ms" getter="get_release_ms" default="250.0">
 			Compressor's delay time to stop reducing the signal after the signal level falls below the threshold, in milliseconds. Value can range from 20 to 2000.
 		</member>
-		<member name="sidechain" type="StringName" setter="set_sidechain" getter="get_sidechain" default="@&quot;&quot;">
+		<member name="sidechain" type="StringName" setter="set_sidechain" getter="get_sidechain" default="&amp;&quot;&quot;">
 			Reduce the sound level using another audio bus for threshold detection.
 		</member>
 		<member name="threshold" type="float" setter="set_threshold" getter="get_threshold" default="0.0">
 			The level above which compression is applied to the audio. Value can range from -60 to 0.
 		</member>
 	</members>
-	<constants>
-	</constants>
 </class>

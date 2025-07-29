@@ -1,5 +1,5 @@
 def can_build(env, platform):
-    return True
+    return not env["disable_3d"]
 
 
 def configure(env):
@@ -7,9 +7,7 @@ def configure(env):
 
 
 def get_doc_classes():
-    return [
-        "GridMap",
-    ]
+    return ["GridMap", "GridMapEditorPlugin"]
 
 
 def get_doc_path():

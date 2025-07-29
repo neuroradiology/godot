@@ -1,39 +1,45 @@
-/*************************************************************************/
-/*  editor_debugger_inspector.h                                          */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  editor_debugger_inspector.h                                           */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
-#ifndef EDITOR_DEBUGGER_INSPECTOR_H
-#define EDITOR_DEBUGGER_INSPECTOR_H
-#include "editor/editor_inspector.h"
+#pragma once
 
-class EditorDebuggerRemoteObject : public Object {
-	GDCLASS(EditorDebuggerRemoteObject, Object);
+#include "core/variant/typed_dictionary.h"
+#include "editor/inspector/editor_inspector.h"
+
+class SceneDebuggerObject;
+
+class EditorDebuggerRemoteObjects : public Object {
+	GDCLASS(EditorDebuggerRemoteObjects, Object);
+
+private:
+	bool _set_impl(const StringName &p_name, const Variant &p_value, const String &p_field);
 
 protected:
 	bool _set(const StringName &p_name, const Variant &p_value);
@@ -42,15 +48,16 @@ protected:
 	static void _bind_methods();
 
 public:
-	bool editable = false;
-	ObjectID remote_object_id;
+	TypedArray<uint64_t> remote_object_ids;
 	String type_name;
 	List<PropertyInfo> prop_list;
-	Map<StringName, Variant> prop_values;
+	HashMap<StringName, TypedDictionary<uint64_t, Variant>> prop_values;
 
-	ObjectID get_remote_object_id() { return remote_object_id; };
+	bool _hide_script_from_inspector() { return true; }
+	bool _hide_metadata_from_inspector() { return true; }
+
+	void set_property_field(const StringName &p_property, const Variant &p_value, const String &p_field);
 	String get_title();
-
 	Variant get_variant(const StringName &p_name);
 
 	void clear() {
@@ -58,21 +65,19 @@ public:
 		prop_values.clear();
 	}
 
-	void update() { _change_notify(); }
-
-	EditorDebuggerRemoteObject() {}
+	void update() { notify_property_list_changed(); }
 };
 
 class EditorDebuggerInspector : public EditorInspector {
 	GDCLASS(EditorDebuggerInspector, EditorInspector);
 
 private:
-	ObjectID inspected_object_id;
-	Map<ObjectID, EditorDebuggerRemoteObject *> remote_objects;
-	EditorDebuggerRemoteObject *variables;
+	LocalVector<EditorDebuggerRemoteObjects *> remote_objects_list;
+	HashSet<Ref<Resource>> remote_dependencies;
+	EditorDebuggerRemoteObjects *variables = nullptr;
 
 	void _object_selected(ObjectID p_object);
-	void _object_edited(ObjectID p_id, const String &p_prop, const Variant &p_value);
+	void _objects_edited(const String &p_prop, const TypedDictionary<uint64_t, Variant> &p_values, const String &p_field);
 
 protected:
 	void _notification(int p_what);
@@ -83,14 +88,13 @@ public:
 	~EditorDebuggerInspector();
 
 	// Remote Object cache
-	ObjectID add_object(const Array &p_arr);
-	Object *get_object(ObjectID p_id);
+	EditorDebuggerRemoteObjects *set_objects(const Array &p_array);
+	void clear_remote_inspector();
 	void clear_cache();
+	void invalidate_selection_from_cache(const TypedArray<uint64_t> &p_ids);
 
 	// Stack Dump variables
 	String get_stack_variable(const String &p_var);
-	void add_stack_variable(const Array &p_arr);
+	void add_stack_variable(const Array &p_arr, int p_offset = -1);
 	void clear_stack_variables();
 };
-
-#endif // EDITOR_DEBUGGER_INSPECTOR_H

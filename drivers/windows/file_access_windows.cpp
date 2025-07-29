@@ -1,119 +1,223 @@
-/*************************************************************************/
-/*  file_access_windows.cpp                                              */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  file_access_windows.cpp                                               */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifdef WINDOWS_ENABLED
 
 #include "file_access_windows.h"
 
+#include "core/config/project_settings.h"
 #include "core/os/os.h"
-#include "core/print_string.h"
+#include "core/string/print_string.h"
 
+#include <share.h> // _SH_DENYNO
 #include <shlwapi.h>
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#include <errno.h>
+#include <io.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <tchar.h>
-#include <wchar.h>
+#include <cerrno>
+#include <cwchar>
 
 #ifdef _MSC_VER
-#define S_ISREG(m) ((m)&_S_IFREG)
+#define S_ISREG(m) ((m) & _S_IFREG)
 #endif
 
-void FileAccessWindows::check_errors() const {
-	ERR_FAIL_COND(!f);
+void FileAccessWindows::check_errors(bool p_write) const {
+	ERR_FAIL_NULL(f);
 
-	if (feof(f)) {
+	last_error = OK;
+	if (ferror(f)) {
+		if (p_write) {
+			last_error = ERR_FILE_CANT_WRITE;
+		} else {
+			last_error = ERR_FILE_CANT_READ;
+		}
+	}
+	if (!p_write && feof(f)) {
 		last_error = ERR_FILE_EOF;
 	}
 }
 
-Error FileAccessWindows::_open(const String &p_path, int p_mode_flags) {
+bool FileAccessWindows::is_path_invalid(const String &p_path) {
+	// Check for invalid operating system file.
+	String fname = p_path.get_file().to_lower();
+
+	int dot = fname.find_char('.');
+	if (dot != -1) {
+		fname = fname.substr(0, dot);
+	}
+	return invalid_files.has(fname);
+}
+
+String FileAccessWindows::fix_path(const String &p_path) const {
+	String r_path = FileAccess::fix_path(p_path);
+
+	if (r_path.is_relative_path()) {
+		Char16String current_dir_name;
+		size_t str_len = GetCurrentDirectoryW(0, nullptr);
+		current_dir_name.resize_uninitialized(str_len + 1);
+		GetCurrentDirectoryW(current_dir_name.size(), (LPWSTR)current_dir_name.ptrw());
+		r_path = String::utf16((const char16_t *)current_dir_name.get_data()).trim_prefix(R"(\\?\)").replace_char('\\', '/').path_join(r_path);
+	}
+	r_path = r_path.simplify_path();
+	r_path = r_path.replace_char('/', '\\');
+	if (!r_path.is_network_share_path() && !r_path.begins_with(R"(\\?\)")) {
+		r_path = R"(\\?\)" + r_path;
+	}
+	return r_path;
+}
+
+Error FileAccessWindows::open_internal(const String &p_path, int p_mode_flags) {
+	if (is_path_invalid(p_path)) {
+#ifdef DEBUG_ENABLED
+		if (p_mode_flags != READ) {
+			WARN_PRINT("The path :" + p_path + " is a reserved Windows system pipe, so it can't be used for creating files.");
+		}
+#endif
+		return ERR_INVALID_PARAMETER;
+	}
+
+	_close();
+
 	path_src = p_path;
 	path = fix_path(p_path);
-	if (f)
-		close();
 
-	const wchar_t *mode_string;
+	const WCHAR *mode_string;
 
-	if (p_mode_flags == READ)
+	if (p_mode_flags == READ) {
 		mode_string = L"rb";
-	else if (p_mode_flags == WRITE)
+	} else if (p_mode_flags == WRITE) {
 		mode_string = L"wb";
-	else if (p_mode_flags == READ_WRITE)
+	} else if (p_mode_flags == READ_WRITE) {
 		mode_string = L"rb+";
-	else if (p_mode_flags == WRITE_READ)
+	} else if (p_mode_flags == WRITE_READ) {
 		mode_string = L"wb+";
-	else
+	} else {
 		return ERR_INVALID_PARAMETER;
+	}
 
-	/* pretty much every implementation that uses fopen as primary
-	   backend supports utf8 encoding */
-
-	struct _stat st;
-	if (_wstat(path.c_str(), &st) == 0) {
-		if (!S_ISREG(st.st_mode))
-			return ERR_FILE_CANT_OPEN;
-	};
+	if (path.ends_with(":\\") || path.ends_with(":")) {
+		return ERR_FILE_CANT_OPEN;
+	}
+	DWORD file_attr = GetFileAttributesW((LPCWSTR)(path.utf16().get_data()));
+	if (file_attr != INVALID_FILE_ATTRIBUTES && (file_attr & FILE_ATTRIBUTE_DIRECTORY)) {
+		return ERR_FILE_CANT_OPEN;
+	}
 
 #ifdef TOOLS_ENABLED
-	// Windows is case insensitive, but all other platforms are sensitive to it
+	// Windows is case insensitive in the default configuration, but other platforms can be sensitive to it
 	// To ease cross-platform development, we issue a warning if users try to access
 	// a file using the wrong case (which *works* on Windows, but won't on other
-	// platforms).
-	if (p_mode_flags == READ) {
-		WIN32_FIND_DATAW d;
-		HANDLE f = FindFirstFileW(path.c_str(), &d);
-		if (f != INVALID_HANDLE_VALUE) {
-			String fname = d.cFileName;
-			if (fname != String()) {
-				String base_file = path.get_file();
-				if (base_file != fname && base_file.findn(fname) == 0) {
-					WARN_PRINT("Case mismatch opening requested file '" + base_file + "', stored as '" + fname + "' in the filesystem. This file will not open when exported to other case-sensitive platforms.");
+	// platforms), we only check for relative paths, or paths in res:// or user://,
+	// other paths aren't likely to be portable anyway.
+	if (p_mode_flags == READ && (p_path.is_relative_path() || get_access_type() != ACCESS_FILESYSTEM)) {
+		String base_path = p_path;
+		String working_path;
+		String proper_path;
+
+		if (get_access_type() == ACCESS_RESOURCES) {
+			if (ProjectSettings::get_singleton()) {
+				working_path = ProjectSettings::get_singleton()->get_resource_path();
+				if (!working_path.is_empty()) {
+					base_path = working_path.path_to_file(base_path);
 				}
 			}
-			FindClose(f);
+			proper_path = "res://";
+		} else if (get_access_type() == ACCESS_USERDATA) {
+			working_path = OS::get_singleton()->get_user_data_dir();
+			if (!working_path.is_empty()) {
+				base_path = working_path.path_to_file(base_path);
+			}
+			proper_path = "user://";
+		}
+		working_path = fix_path(working_path);
+
+		WIN32_FIND_DATAW d;
+		Vector<String> parts = base_path.simplify_path().split("/");
+
+		bool mismatch = false;
+
+		for (const String &part : parts) {
+			working_path = working_path + "\\" + part;
+
+			HANDLE fnd = FindFirstFileW((LPCWSTR)(working_path.utf16().get_data()), &d);
+			if (fnd == INVALID_HANDLE_VALUE) {
+				mismatch = false;
+				break;
+			}
+
+			const String fname = String::utf16((const char16_t *)(d.cFileName));
+
+			FindClose(fnd);
+
+			if (!mismatch) {
+				mismatch = (part != fname && part.findn(fname) == 0);
+			}
+
+			proper_path = proper_path.path_join(fname);
+		}
+
+		if (mismatch) {
+			WARN_PRINT("Case mismatch opening requested file '" + p_path + "', stored as '" + proper_path + "' in the filesystem. This file will not open when exported to other case-sensitive platforms.");
 		}
 	}
 #endif
 
-	if (is_backup_save_enabled() && p_mode_flags & WRITE && !(p_mode_flags & READ)) {
+	if (is_backup_save_enabled() && p_mode_flags == WRITE) {
 		save_path = path;
-		path = path + ".tmp";
+		// Create a temporary file in the same directory as the target file.
+		// Note: do not use GetTempFileNameW, it's not long path aware!
+		String tmpfile;
+		uint64_t id = OS::get_singleton()->get_ticks_usec();
+		while (true) {
+			tmpfile = path + itos(id++) + ".tmp";
+			HANDLE handle = CreateFileW((LPCWSTR)tmpfile.utf16().get_data(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+			if (handle != INVALID_HANDLE_VALUE) {
+				CloseHandle(handle);
+				break;
+			}
+			if (GetLastError() != ERROR_FILE_EXISTS && GetLastError() != ERROR_SHARING_VIOLATION) {
+				last_error = ERR_FILE_CANT_WRITE;
+				return FAILED;
+			}
+		}
+		path = tmpfile;
 	}
 
-	errno_t errcode = _wfopen_s(&f, path.c_str(), mode_string);
+	f = _wfsopen((LPCWSTR)(path.utf16().get_data()), mode_string, is_backup_save_enabled() ? ((p_mode_flags == READ) ? _SH_DENYWR : _SH_DENYRW) : _SH_DENYNO);
 
 	if (f == nullptr) {
-		switch (errcode) {
+		switch (errno) {
 			case ENOENT: {
 				last_error = ERR_FILE_NOT_FOUND;
 			} break;
@@ -129,40 +233,36 @@ Error FileAccessWindows::_open(const String &p_path, int p_mode_flags) {
 	}
 }
 
-void FileAccessWindows::close() {
-	if (!f)
+void FileAccessWindows::_close() {
+	if (!f) {
 		return;
+	}
 
 	fclose(f);
 	f = nullptr;
 
-	if (save_path != "") {
+	if (!save_path.is_empty()) {
+		// This workaround of trying multiple times is added to deal with paranoid Windows
+		// antiviruses that love reading just written files even if they are not executable, thus
+		// locking the file and preventing renaming from happening.
+
 		bool rename_error = true;
-		int attempts = 4;
-		while (rename_error && attempts) {
-			// This workaround of trying multiple times is added to deal with paranoid Windows
-			// antiviruses that love reading just written files even if they are not executable, thus
-			// locking the file and preventing renaming from happening.
-
-#ifdef UWP_ENABLED
-			// UWP has no PathFileExists, so we check attributes instead
-			DWORD fileAttr;
-
-			fileAttr = GetFileAttributesW(save_path.c_str());
-			if (INVALID_FILE_ATTRIBUTES == fileAttr) {
-#else
-			if (!PathFileExistsW(save_path.c_str())) {
-#endif
-				//creating new file
-				rename_error = _wrename((save_path + ".tmp").c_str(), save_path.c_str()) != 0;
+		const Char16String &path_utf16 = path.utf16();
+		const Char16String &save_path_utf16 = save_path.utf16();
+		for (int i = 0; i < 1000; i++) {
+			if (ReplaceFileW((LPCWSTR)(save_path_utf16.get_data()), (LPCWSTR)(path_utf16.get_data()), nullptr, REPLACEFILE_IGNORE_MERGE_ERRORS | REPLACEFILE_IGNORE_ACL_ERRORS, nullptr, nullptr)) {
+				rename_error = false;
 			} else {
-				//atomic replace for existing file
-				rename_error = !ReplaceFileW(save_path.c_str(), (save_path + ".tmp").c_str(), nullptr, 2 | 4, nullptr, nullptr);
+				// Either the target exists and is locked (temporarily, hopefully)
+				// or it doesn't exist; let's assume the latter before re-trying.
+				rename_error = MoveFileW((LPCWSTR)(path_utf16.get_data()), (LPCWSTR)(save_path_utf16.get_data())) == 0;
 			}
-			if (rename_error) {
-				attempts--;
-				OS::get_singleton()->delay_usec(100000); // wait 100msec and try again
+
+			if (!rename_error) {
+				break;
 			}
+
+			OS::get_singleton()->delay_usec(1000);
 		}
 
 		if (rename_error) {
@@ -182,96 +282,108 @@ String FileAccessWindows::get_path() const {
 }
 
 String FileAccessWindows::get_path_absolute() const {
-	return path;
+	return path.trim_prefix(R"(\\?\)").replace_char('\\', '/');
 }
 
 bool FileAccessWindows::is_open() const {
 	return (f != nullptr);
 }
 
-void FileAccessWindows::seek(size_t p_position) {
-	ERR_FAIL_COND(!f);
-	last_error = OK;
-	if (fseek(f, p_position, SEEK_SET))
+void FileAccessWindows::seek(uint64_t p_position) {
+	ERR_FAIL_NULL(f);
+
+	if (_fseeki64(f, p_position, SEEK_SET)) {
 		check_errors();
+	}
 	prev_op = 0;
 }
 
 void FileAccessWindows::seek_end(int64_t p_position) {
-	ERR_FAIL_COND(!f);
-	if (fseek(f, p_position, SEEK_END))
+	ERR_FAIL_NULL(f);
+
+	if (_fseeki64(f, p_position, SEEK_END)) {
 		check_errors();
+	}
 	prev_op = 0;
 }
 
-size_t FileAccessWindows::get_position() const {
-	size_t aux_position = 0;
-	aux_position = ftell(f);
-	if (!aux_position) {
+uint64_t FileAccessWindows::get_position() const {
+	ERR_FAIL_NULL_V_MSG(f, 0, "File must be opened before use.");
+
+	int64_t aux_position = _ftelli64(f);
+	if (aux_position < 0) {
 		check_errors();
-	};
+	}
 	return aux_position;
 }
 
-size_t FileAccessWindows::get_len() const {
-	ERR_FAIL_COND_V(!f, 0);
+uint64_t FileAccessWindows::get_length() const {
+	ERR_FAIL_NULL_V(f, 0);
 
-	size_t pos = get_position();
-	fseek(f, 0, SEEK_END);
-	int size = get_position();
-	fseek(f, pos, SEEK_SET);
+	uint64_t pos = get_position();
+	_fseeki64(f, 0, SEEK_END);
+	uint64_t size = get_position();
+	_fseeki64(f, pos, SEEK_SET);
 
 	return size;
 }
 
 bool FileAccessWindows::eof_reached() const {
-	check_errors();
-	return last_error == ERR_FILE_EOF;
+	return feof(f);
 }
 
-uint8_t FileAccessWindows::get_8() const {
-	ERR_FAIL_COND_V(!f, 0);
+uint64_t FileAccessWindows::get_buffer(uint8_t *p_dst, uint64_t p_length) const {
+	ERR_FAIL_NULL_V(f, -1);
+	ERR_FAIL_COND_V(!p_dst && p_length > 0, -1);
+
 	if (flags == READ_WRITE || flags == WRITE_READ) {
 		if (prev_op == WRITE) {
 			fflush(f);
 		}
 		prev_op = READ;
 	}
-	uint8_t b;
-	if (fread(&b, 1, 1, f) == 0) {
-		check_errors();
-		b = '\0';
-	};
 
-	return b;
-}
-
-int FileAccessWindows::get_buffer(uint8_t *p_dst, int p_length) const {
-	ERR_FAIL_COND_V(!f, -1);
-	if (flags == READ_WRITE || flags == WRITE_READ) {
-		if (prev_op == WRITE) {
-			fflush(f);
-		}
-		prev_op = READ;
-	}
-	int read = fread(p_dst, 1, p_length, f);
+	uint64_t read = fread(p_dst, 1, p_length, f);
 	check_errors();
+
 	return read;
-};
+}
 
 Error FileAccessWindows::get_error() const {
 	return last_error;
 }
 
+Error FileAccessWindows::resize(int64_t p_length) {
+	ERR_FAIL_NULL_V_MSG(f, FAILED, "File must be opened before use.");
+	errno_t res = _chsize_s(_fileno(f), p_length);
+	switch (res) {
+		case 0:
+			return OK;
+		case EACCES:
+		case EBADF:
+			return ERR_FILE_CANT_OPEN;
+		case ENOSPC:
+			return ERR_OUT_OF_MEMORY;
+		case EINVAL:
+			return ERR_INVALID_PARAMETER;
+		default:
+			return FAILED;
+	}
+}
+
 void FileAccessWindows::flush() {
-	ERR_FAIL_COND(!f);
+	ERR_FAIL_NULL(f);
+
 	fflush(f);
-	if (prev_op == WRITE)
+	if (prev_op == WRITE) {
 		prev_op = 0;
+	}
 }
 
-void FileAccessWindows::store_8(uint8_t p_dest) {
-	ERR_FAIL_COND(!f);
+bool FileAccessWindows::store_buffer(const uint8_t *p_src, uint64_t p_length) {
+	ERR_FAIL_NULL_V(f, false);
+	ERR_FAIL_COND_V(!p_src && p_length > 0, false);
+
 	if (flags == READ_WRITE || flags == WRITE_READ) {
 		if (prev_op == READ) {
 			if (last_error != ERR_FILE_EOF) {
@@ -280,60 +392,223 @@ void FileAccessWindows::store_8(uint8_t p_dest) {
 		}
 		prev_op = WRITE;
 	}
-	fwrite(&p_dest, 1, 1, f);
-}
 
-void FileAccessWindows::store_buffer(const uint8_t *p_src, int p_length) {
-	ERR_FAIL_COND(!f);
-	if (flags == READ_WRITE || flags == WRITE_READ) {
-		if (prev_op == READ) {
-			if (last_error != ERR_FILE_EOF) {
-				fseek(f, 0, SEEK_CUR);
-			}
-		}
-		prev_op = WRITE;
-	}
-	ERR_FAIL_COND(fwrite(p_src, 1, p_length, f) != (size_t)p_length);
+	bool res = fwrite(p_src, 1, p_length, f) == (size_t)p_length;
+	check_errors(true);
+	return res;
 }
 
 bool FileAccessWindows::file_exists(const String &p_name) {
-	FILE *g;
-	//printf("opening file %s\n", p_fname.c_str());
-	String filename = fix_path(p_name);
-	_wfopen_s(&g, filename.c_str(), L"rb");
-	if (g == nullptr) {
+	if (is_path_invalid(p_name)) {
 		return false;
-	} else {
-		fclose(g);
-		return true;
 	}
+
+	String filename = fix_path(p_name);
+	DWORD file_attr = GetFileAttributesW((LPCWSTR)(filename.utf16().get_data()));
+	return (file_attr != INVALID_FILE_ATTRIBUTES) && !(file_attr & FILE_ATTRIBUTE_DIRECTORY);
 }
 
 uint64_t FileAccessWindows::_get_modified_time(const String &p_file) {
-	String file = fix_path(p_file);
-	if (file.ends_with("/") && file != "/")
-		file = file.substr(0, file.length() - 1);
-
-	struct _stat st;
-	int rv = _wstat(file.c_str(), &st);
-
-	if (rv == 0) {
-		return st.st_mtime;
-	} else {
-		ERR_FAIL_V_MSG(0, "Failed to get modified time for: " + file + ".");
+	if (is_path_invalid(p_file)) {
+		return 0;
 	}
-}
 
-uint32_t FileAccessWindows::_get_unix_permissions(const String &p_file) {
+	String file = fix_path(p_file);
+	if (file.ends_with("\\") && file != "\\") {
+		file = file.substr(0, file.length() - 1);
+	}
+
+	HANDLE handle = CreateFileW((LPCWSTR)(file.utf16().get_data()), FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+
+	if (handle != INVALID_HANDLE_VALUE) {
+		FILETIME ft_create, ft_write;
+
+		bool status = GetFileTime(handle, &ft_create, nullptr, &ft_write);
+
+		CloseHandle(handle);
+
+		if (status) {
+			uint64_t ret = 0;
+
+			// If write time is invalid, fallback to creation time.
+			if (ft_write.dwHighDateTime == 0 && ft_write.dwLowDateTime == 0) {
+				ret = ft_create.dwHighDateTime;
+				ret <<= 32;
+				ret |= ft_create.dwLowDateTime;
+			} else {
+				ret = ft_write.dwHighDateTime;
+				ret <<= 32;
+				ret |= ft_write.dwLowDateTime;
+			}
+
+			const uint64_t WINDOWS_TICKS_PER_SECOND = 10000000;
+			const uint64_t TICKS_TO_UNIX_EPOCH = 116444736000000000LL;
+
+			if (ret >= TICKS_TO_UNIX_EPOCH) {
+				return (ret - TICKS_TO_UNIX_EPOCH) / WINDOWS_TICKS_PER_SECOND;
+			}
+		}
+	}
+
 	return 0;
 }
 
-Error FileAccessWindows::_set_unix_permissions(const String &p_file, uint32_t p_permissions) {
+uint64_t FileAccessWindows::_get_access_time(const String &p_file) {
+	if (is_path_invalid(p_file)) {
+		return 0;
+	}
+
+	String file = fix_path(p_file);
+	if (file.ends_with("\\") && file != "\\") {
+		file = file.substr(0, file.length() - 1);
+	}
+
+	HANDLE handle = CreateFileW((LPCWSTR)(file.utf16().get_data()), FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+
+	if (handle != INVALID_HANDLE_VALUE) {
+		FILETIME ft_create, ft_access;
+
+		bool status = GetFileTime(handle, &ft_create, &ft_access, nullptr);
+
+		CloseHandle(handle);
+
+		if (status) {
+			uint64_t ret = 0;
+
+			// If access time is invalid, fallback to creation time.
+			if (ft_access.dwHighDateTime == 0 && ft_access.dwLowDateTime == 0) {
+				ret = ft_create.dwHighDateTime;
+				ret <<= 32;
+				ret |= ft_create.dwLowDateTime;
+			} else {
+				ret = ft_access.dwHighDateTime;
+				ret <<= 32;
+				ret |= ft_access.dwLowDateTime;
+			}
+
+			const uint64_t WINDOWS_TICKS_PER_SECOND = 10000000;
+			const uint64_t TICKS_TO_UNIX_EPOCH = 116444736000000000LL;
+
+			if (ret >= TICKS_TO_UNIX_EPOCH) {
+				return (ret - TICKS_TO_UNIX_EPOCH) / WINDOWS_TICKS_PER_SECOND;
+			}
+		}
+	}
+
+	ERR_FAIL_V_MSG(0, "Failed to get access time for: " + p_file + "");
+}
+
+int64_t FileAccessWindows::_get_size(const String &p_file) {
+	if (is_path_invalid(p_file)) {
+		return 0;
+	}
+
+	String file = fix_path(p_file);
+	if (file.ends_with("\\") && file != "\\") {
+		file = file.substr(0, file.length() - 1);
+	}
+
+	DWORD file_attr = GetFileAttributesW((LPCWSTR)(file.utf16().get_data()));
+	HANDLE handle = CreateFileW((LPCWSTR)(file.utf16().get_data()), FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+
+	if (handle != INVALID_HANDLE_VALUE && !(file_attr & FILE_ATTRIBUTE_DIRECTORY)) {
+		LARGE_INTEGER fsize;
+
+		bool status = GetFileSizeEx(handle, &fsize);
+
+		CloseHandle(handle);
+
+		if (status) {
+			return (int64_t)fsize.QuadPart;
+		}
+	}
+	ERR_FAIL_V_MSG(-1, "Failed to get size for: " + p_file + "");
+}
+
+BitField<FileAccess::UnixPermissionFlags> FileAccessWindows::_get_unix_permissions(const String &p_file) {
+	return 0;
+}
+
+Error FileAccessWindows::_set_unix_permissions(const String &p_file, BitField<FileAccess::UnixPermissionFlags> p_permissions) {
 	return ERR_UNAVAILABLE;
 }
 
+bool FileAccessWindows::_get_hidden_attribute(const String &p_file) {
+	String file = fix_path(p_file);
+
+	DWORD attrib = GetFileAttributesW((LPCWSTR)file.utf16().get_data());
+	ERR_FAIL_COND_V_MSG(attrib == INVALID_FILE_ATTRIBUTES, false, "Failed to get attributes for: " + p_file);
+	return (attrib & FILE_ATTRIBUTE_HIDDEN);
+}
+
+Error FileAccessWindows::_set_hidden_attribute(const String &p_file, bool p_hidden) {
+	String file = fix_path(p_file);
+	const Char16String &file_utf16 = file.utf16();
+
+	DWORD attrib = GetFileAttributesW((LPCWSTR)file_utf16.get_data());
+	ERR_FAIL_COND_V_MSG(attrib == INVALID_FILE_ATTRIBUTES, FAILED, "Failed to get attributes for: " + p_file);
+	BOOL ok;
+	if (p_hidden) {
+		ok = SetFileAttributesW((LPCWSTR)file_utf16.get_data(), attrib | FILE_ATTRIBUTE_HIDDEN);
+	} else {
+		ok = SetFileAttributesW((LPCWSTR)file_utf16.get_data(), attrib & ~FILE_ATTRIBUTE_HIDDEN);
+	}
+	ERR_FAIL_COND_V_MSG(!ok, FAILED, "Failed to set attributes for: " + p_file);
+
+	return OK;
+}
+
+bool FileAccessWindows::_get_read_only_attribute(const String &p_file) {
+	String file = fix_path(p_file);
+
+	DWORD attrib = GetFileAttributesW((LPCWSTR)file.utf16().get_data());
+	ERR_FAIL_COND_V_MSG(attrib == INVALID_FILE_ATTRIBUTES, false, "Failed to get attributes for: " + p_file);
+	return (attrib & FILE_ATTRIBUTE_READONLY);
+}
+
+Error FileAccessWindows::_set_read_only_attribute(const String &p_file, bool p_ro) {
+	String file = fix_path(p_file);
+	const Char16String &file_utf16 = file.utf16();
+
+	DWORD attrib = GetFileAttributesW((LPCWSTR)file_utf16.get_data());
+	ERR_FAIL_COND_V_MSG(attrib == INVALID_FILE_ATTRIBUTES, FAILED, "Failed to get attributes for: " + p_file);
+	BOOL ok;
+	if (p_ro) {
+		ok = SetFileAttributesW((LPCWSTR)file_utf16.get_data(), attrib | FILE_ATTRIBUTE_READONLY);
+	} else {
+		ok = SetFileAttributesW((LPCWSTR)file_utf16.get_data(), attrib & ~FILE_ATTRIBUTE_READONLY);
+	}
+	ERR_FAIL_COND_V_MSG(!ok, FAILED, "Failed to set attributes for: " + p_file);
+
+	return OK;
+}
+
+void FileAccessWindows::close() {
+	_close();
+}
+
 FileAccessWindows::~FileAccessWindows() {
-	close();
+	_close();
+}
+
+HashSet<String> FileAccessWindows::invalid_files;
+
+void FileAccessWindows::initialize() {
+	static const char *reserved_files[]{
+		"con", "prn", "aux", "nul", "com0", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9", "lpt0", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9", nullptr
+	};
+	int reserved_file_index = 0;
+	while (reserved_files[reserved_file_index] != nullptr) {
+		invalid_files.insert(reserved_files[reserved_file_index]);
+		reserved_file_index++;
+	}
+
+	_setmaxstdio(8192);
+	print_verbose(vformat("Maximum number of file handles: %d", _getmaxstdio()));
+}
+
+void FileAccessWindows::finalize() {
+	invalid_files.clear();
 }
 
 #endif // WINDOWS_ENABLED

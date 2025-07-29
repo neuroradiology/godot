@@ -1,148 +1,157 @@
-/*************************************************************************/
-/*  tree.h                                                               */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  tree.h                                                                */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
-#ifndef TREE_H
-#define TREE_H
+#pragma once
 
 #include "scene/gui/control.h"
-#include "scene/gui/line_edit.h"
-#include "scene/gui/popup_menu.h"
-#include "scene/gui/scroll_bar.h"
-#include "scene/gui/slider.h"
+#include "scene/resources/text_paragraph.h"
 
+class VBoxContainer;
+class HScrollBar;
+class HSlider;
+class LineEdit;
+class Popup;
+class PopupMenu;
+class TextEdit;
 class Tree;
+class VScrollBar;
 
 class TreeItem : public Object {
 	GDCLASS(TreeItem, Object);
 
 public:
 	enum TreeCellMode {
-
-		CELL_MODE_STRING, ///< just a string
-		CELL_MODE_CHECK, ///< string + check
-		CELL_MODE_RANGE, ///< Contains a range
-		CELL_MODE_ICON, ///< Contains an icon, not editable
-		CELL_MODE_CUSTOM, ///< Contains a custom value, show a string, and an edit button
-	};
-
-	enum TextAlign {
-		ALIGN_LEFT,
-		ALIGN_CENTER,
-		ALIGN_RIGHT
+		CELL_MODE_STRING,
+		CELL_MODE_CHECK,
+		CELL_MODE_RANGE,
+		CELL_MODE_ICON,
+		CELL_MODE_CUSTOM,
 	};
 
 private:
 	friend class Tree;
 
 	struct Cell {
-		TreeCellMode mode;
+		mutable RID accessibility_cell_element;
+		TreeCellMode mode = TreeItem::CELL_MODE_STRING;
 
 		Ref<Texture2D> icon;
+		Ref<Texture2D> icon_overlay;
 		Rect2i icon_region;
 		String text;
+		String xl_text;
+		Node::AutoTranslateMode auto_translate_mode = Node::AUTO_TRANSLATE_MODE_INHERIT;
+		String description;
+		bool edit_multiline = false;
 		String suffix;
-		double min, max, step, val;
-		int icon_max_w;
-		bool expr;
-		bool checked;
-		bool editable;
-		bool selected;
-		bool selectable;
-		bool custom_color;
+		Ref<TextParagraph> text_buf;
+		String language;
+		TextServer::StructuredTextParser st_parser = TextServer::STRUCTURED_TEXT_DEFAULT;
+		Array st_args;
+		Control::TextDirection text_direction = Control::TEXT_DIRECTION_INHERITED;
+		TextServer::AutowrapMode autowrap_mode = TextServer::AUTOWRAP_OFF;
+		bool dirty = true;
+		double min = 0.0;
+		double max = 100.0;
+		double step = 1.0;
+		double val = 0.0;
+		int icon_max_w = 0;
+		bool expr = false;
+		bool checked = false;
+		bool indeterminate = false;
+		bool editable = false;
+		bool selected = false;
+		bool selectable = true;
+		bool custom_color = false;
 		Color color;
-		bool custom_bg_color;
-		bool custom_bg_outline;
+		bool custom_bg_color = false;
+		bool custom_bg_outline = false;
 		Color bg_color;
-		bool custom_button;
-		bool expand_right;
-		Color icon_color;
+		bool custom_button = false;
+		bool expand_right = false;
+		Color icon_color = Color(1, 1, 1);
 
-		TextAlign text_align;
+		Size2i cached_minimum_size;
+		bool cached_minimum_size_dirty = true;
+
+		HorizontalAlignment text_alignment = HORIZONTAL_ALIGNMENT_LEFT;
 
 		Variant meta;
 		String tooltip;
 
-		ObjectID custom_draw_obj;
-		StringName custom_draw_callback;
+		Callable custom_draw_callback;
 
 		struct Button {
-			int id;
-			bool disabled;
+			mutable RID accessibility_button_element;
+			int id = 0;
+			bool disabled = false;
 			Ref<Texture2D> texture;
-			Color color;
+			Color color = Color(1, 1, 1, 1);
 			String tooltip;
-			Button() {
-				id = 0;
-				disabled = false;
-				color = Color(1, 1, 1, 1);
-				tooltip = "";
-			}
+			String description;
 		};
 
 		Vector<Button> buttons;
 
+		Ref<Font> custom_font;
+		int custom_font_size = -1;
+
 		Cell() {
-			custom_draw_obj = ObjectID();
-			custom_button = false;
-			mode = TreeItem::CELL_MODE_STRING;
-			min = 0;
-			max = 100;
-			step = 1;
-			val = 0;
-			checked = false;
-			editable = false;
-			selected = false;
-			selectable = true;
-			custom_color = false;
-			custom_bg_color = false;
-			expr = false;
-			icon_max_w = 0;
-			text_align = ALIGN_LEFT;
-			expand_right = false;
-			icon_color = Color(1, 1, 1);
+			text_buf.instantiate();
+			text_buf->set_text_overrun_behavior(TextServer::OVERRUN_TRIM_ELLIPSIS);
 		}
 
 		Size2 get_icon_size() const;
 		void draw_icon(const RID &p_where, const Point2 &p_pos, const Size2 &p_size = Size2(), const Color &p_color = Color()) const;
 	};
 
+	mutable RID accessibility_row_element;
+	mutable bool accessibility_row_dirty = true;
+
 	Vector<Cell> cells;
 
-	bool collapsed; // won't show children
-	bool disable_folding;
-	int custom_min_height;
+	bool collapsed = false; // Won't show children.
+	bool visible = true;
+	bool parent_visible_in_tree = true;
+	bool disable_folding = false;
+	int custom_min_height = 0;
 
-	TreeItem *parent; // parent item
-	TreeItem *next; // next in list
-	TreeItem *children; //child items
-	Tree *tree; //tree (for reference)
+	TreeItem *parent = nullptr; // Parent item.
+	TreeItem *prev = nullptr; // Previous in list.
+	TreeItem *next = nullptr; // Next in list.
+	TreeItem *first_child = nullptr;
+	TreeItem *last_child = nullptr;
+
+	Vector<TreeItem *> children_cache;
+	bool is_root = false; // For tree root.
+	Tree *tree = nullptr; // Tree (for reference).
 
 	TreeItem(Tree *p_tree);
 
@@ -150,10 +159,69 @@ private:
 	void _changed_notify();
 	void _cell_selected(int p_cell);
 	void _cell_deselected(int p_cell);
+	void _handle_visibility_changed(bool p_visible);
+	void _propagate_visibility_changed(bool p_parent_visible_in_tree);
+
+	void _change_tree(Tree *p_tree);
+
+	_FORCE_INLINE_ void _create_children_cache() {
+		if (children_cache.is_empty()) {
+			TreeItem *c = first_child;
+			while (c) {
+				children_cache.append(c);
+				c = c->next;
+			}
+		}
+	}
+
+	_FORCE_INLINE_ void _unlink_from_tree() {
+		if (accessibility_row_element.is_valid()) {
+			DisplayServer::get_singleton()->accessibility_free_element(accessibility_row_element);
+			accessibility_row_element = RID();
+		}
+		for (Cell &cell : cells) {
+			if (cell.accessibility_cell_element.is_valid()) {
+				DisplayServer::get_singleton()->accessibility_free_element(cell.accessibility_cell_element);
+				cell.accessibility_cell_element = RID();
+			}
+			for (Cell::Button &btn : cell.buttons) {
+				if (btn.accessibility_button_element.is_valid()) {
+					DisplayServer::get_singleton()->accessibility_free_element(btn.accessibility_button_element);
+					btn.accessibility_button_element = RID();
+				}
+			}
+		}
+		TreeItem *p = get_prev();
+		if (p) {
+			p->next = next;
+		}
+		if (next) {
+			next->prev = p;
+		}
+		if (parent) {
+			if (!parent->children_cache.is_empty()) {
+				parent->children_cache.remove_at(get_index());
+			}
+			if (parent->first_child == this) {
+				parent->first_child = next;
+			}
+			if (parent->last_child == this) {
+				parent->last_child = prev;
+			}
+		}
+	}
+
+	bool _is_any_collapsed(bool p_only_visible);
 
 protected:
 	static void _bind_methods();
-	//bind helpers
+
+#ifndef DISABLE_DEPRECATED
+	void _add_button_bind_compat_76829(int p_column, const Ref<Texture2D> &p_button, int p_id, bool p_disabled, const String &p_tooltip);
+	static void _bind_compatibility_methods();
+#endif
+
+	// Bind helpers.
 	Dictionary _get_range_config(int p_column) {
 		Dictionary d;
 		double min = 0.0, max = 0.0, step = 0.0;
@@ -165,29 +233,73 @@ protected:
 
 		return d;
 	}
-	void _remove_child(Object *p_child) {
-		remove_child(Object::cast_to<TreeItem>(p_child));
-	}
 
-	Variant _call_recursive_bind(const Variant **p_args, int p_argcount, Callable::CallError &r_error);
+	void _call_recursive_bind(const Variant **p_args, int p_argcount, Callable::CallError &r_error);
 
 public:
-	/* cell mode */
+	// Cell mode.
 	void set_cell_mode(int p_column, TreeCellMode p_mode);
 	TreeCellMode get_cell_mode(int p_column) const;
 
-	/* check mode */
-	void set_checked(int p_column, bool p_checked);
-	bool is_checked(int p_column) const;
+	// Auto translate mode.
+	void set_auto_translate_mode(int p_column, Node::AutoTranslateMode p_mode);
+	Node::AutoTranslateMode get_auto_translate_mode(int p_column) const;
 
+	// Multiline editable.
+	void set_edit_multiline(int p_column, bool p_multiline);
+	bool is_edit_multiline(int p_column) const;
+
+	// Check mode.
+	void set_checked(int p_column, bool p_checked);
+	void set_indeterminate(int p_column, bool p_indeterminate);
+	bool is_checked(int p_column) const;
+	bool is_indeterminate(int p_column) const;
+
+	void propagate_check(int p_column, bool p_emit_signal = true);
+
+	String atr(int p_column, const String &p_text) const;
+
+private:
+	// Check helpers.
+	void _propagate_check_through_children(int p_column, bool p_checked, bool p_emit_signal);
+	void _propagate_check_through_parents(int p_column, bool p_emit_signal);
+
+	TreeItem *_get_prev_in_tree(bool p_wrap = false, bool p_include_invisible = false);
+	TreeItem *_get_next_in_tree(bool p_wrap = false, bool p_include_invisible = false);
+
+public:
 	void set_text(int p_column, String p_text);
 	String get_text(int p_column) const;
+
+	void set_description(int p_column, String p_text);
+	String get_description(int p_column) const;
+
+	void set_text_direction(int p_column, Control::TextDirection p_text_direction);
+	Control::TextDirection get_text_direction(int p_column) const;
+
+	void set_autowrap_mode(int p_column, TextServer::AutowrapMode p_mode);
+	TextServer::AutowrapMode get_autowrap_mode(int p_column) const;
+
+	void set_text_overrun_behavior(int p_column, TextServer::OverrunBehavior p_behavior);
+	TextServer::OverrunBehavior get_text_overrun_behavior(int p_column) const;
+
+	void set_structured_text_bidi_override(int p_column, TextServer::StructuredTextParser p_parser);
+	TextServer::StructuredTextParser get_structured_text_bidi_override(int p_column) const;
+
+	void set_structured_text_bidi_override_options(int p_column, Array p_args);
+	Array get_structured_text_bidi_override_options(int p_column) const;
+
+	void set_language(int p_column, const String &p_language);
+	String get_language(int p_column) const;
 
 	void set_suffix(int p_column, String p_suffix);
 	String get_suffix(int p_column) const;
 
 	void set_icon(int p_column, const Ref<Texture2D> &p_icon);
 	Ref<Texture2D> get_icon(int p_column) const;
+
+	void set_icon_overlay(int p_column, const Ref<Texture2D> &p_icon_overlay);
+	Ref<Texture2D> get_icon_overlay(int p_column) const;
 
 	void set_icon_region(int p_column, const Rect2 &p_icon_region);
 	Rect2 get_icon_region(int p_column) const;
@@ -198,20 +310,23 @@ public:
 	void set_icon_max_width(int p_column, int p_max);
 	int get_icon_max_width(int p_column) const;
 
-	void add_button(int p_column, const Ref<Texture2D> &p_button, int p_id = -1, bool p_disabled = false, const String &p_tooltip = "");
+	void clear_buttons();
+	void add_button(int p_column, const Ref<Texture2D> &p_button, int p_id = -1, bool p_disabled = false, const String &p_tooltip = "", const String &p_description = "");
 	int get_button_count(int p_column) const;
-	String get_button_tooltip(int p_column, int p_idx) const;
-	Ref<Texture2D> get_button(int p_column, int p_idx) const;
-	int get_button_id(int p_column, int p_idx) const;
-	void erase_button(int p_column, int p_idx);
+	String get_button_tooltip_text(int p_column, int p_index) const;
+	Ref<Texture2D> get_button(int p_column, int p_index) const;
+	int get_button_id(int p_column, int p_index) const;
+	void erase_button(int p_column, int p_index);
 	int get_button_by_id(int p_column, int p_id) const;
-	void set_button(int p_column, int p_idx, const Ref<Texture2D> &p_button);
-	void set_button_color(int p_column, int p_idx, const Color &p_color);
-	void set_button_disabled(int p_column, int p_idx, bool p_disabled);
-	bool is_button_disabled(int p_column, int p_idx) const;
+	Color get_button_color(int p_column, int p_index) const;
+	void set_button_tooltip_text(int p_column, int p_index, const String &p_tooltip);
+	void set_button(int p_column, int p_index, const Ref<Texture2D> &p_button);
+	void set_button_description(int p_column, int p_index, const String &p_description);
+	void set_button_color(int p_column, int p_index, const Color &p_color);
+	void set_button_disabled(int p_column, int p_index, bool p_disabled);
+	bool is_button_disabled(int p_column, int p_index) const;
 
-	/* range works for mode number or mode combo */
-
+	// Range works for mode number or mode combo.
 	void set_range(int p_column, double p_value);
 	double get_range(int p_column) const;
 
@@ -222,23 +337,26 @@ public:
 	void set_metadata(int p_column, const Variant &p_meta);
 	Variant get_metadata(int p_column) const;
 
+#ifndef DISABLE_DEPRECATED
 	void set_custom_draw(int p_column, Object *p_object, const StringName &p_callback);
+#endif // DISABLE_DEPRECATED
+	void set_custom_draw_callback(int p_column, const Callable &p_callback);
+	Callable get_custom_draw_callback(int p_column) const;
 
 	void set_collapsed(bool p_collapsed);
 	bool is_collapsed();
 
+	void set_collapsed_recursive(bool p_collapsed);
+	bool is_any_collapsed(bool p_only_visible = false);
+
+	void set_visible(bool p_visible);
+	bool is_visible();
+	bool is_visible_in_tree() const;
+
+	void uncollapse_tree();
+
 	void set_custom_minimum_height(int p_height);
 	int get_custom_minimum_height() const;
-
-	TreeItem *get_prev();
-	TreeItem *get_next();
-	TreeItem *get_parent();
-	TreeItem *get_children();
-
-	TreeItem *get_prev_visible(bool p_wrap = false);
-	TreeItem *get_next_visible(bool p_wrap = false);
-
-	void remove_child(TreeItem *p_item);
 
 	void set_selectable(int p_column, bool p_selectable);
 	bool is_selectable(int p_column) const;
@@ -255,6 +373,12 @@ public:
 	Color get_custom_color(int p_column) const;
 	void clear_custom_color(int p_column);
 
+	void set_custom_font(int p_column, const Ref<Font> &p_font);
+	Ref<Font> get_custom_font(int p_column) const;
+
+	void set_custom_font_size(int p_column, int p_font_size);
+	int get_custom_font_size(int p_column) const;
+
 	void set_custom_bg_color(int p_column, const Color &p_color, bool p_bg_outline = false);
 	void clear_custom_bg_color(int p_column);
 	Color get_custom_bg_color(int p_column) const;
@@ -262,22 +386,54 @@ public:
 	void set_custom_as_button(int p_column, bool p_button);
 	bool is_custom_set_as_button(int p_column) const;
 
-	void set_tooltip(int p_column, const String &p_tooltip);
-	String get_tooltip(int p_column) const;
+	void set_tooltip_text(int p_column, const String &p_tooltip);
+	String get_tooltip_text(int p_column) const;
 
-	void clear_children();
-
-	void set_text_align(int p_column, TextAlign p_align);
-	TextAlign get_text_align(int p_column) const;
+	void set_text_alignment(int p_column, HorizontalAlignment p_alignment);
+	HorizontalAlignment get_text_alignment(int p_column) const;
 
 	void set_expand_right(int p_column, bool p_enable);
 	bool get_expand_right(int p_column) const;
 
-	void move_to_top();
-	void move_to_bottom();
-
 	void set_disable_folding(bool p_disable);
 	bool is_folding_disabled() const;
+
+	Size2 get_minimum_size(int p_column);
+
+	// Item manipulation.
+	TreeItem *create_child(int p_index = -1);
+	void add_child(TreeItem *p_item);
+	void remove_child(TreeItem *p_item);
+
+	Tree *get_tree() const;
+
+	TreeItem *get_prev();
+	TreeItem *get_next() const;
+	TreeItem *get_parent() const;
+	TreeItem *get_first_child() const;
+
+	TreeItem *get_prev_in_tree(bool p_wrap = false);
+	TreeItem *get_next_in_tree(bool p_wrap = false);
+
+	TreeItem *get_prev_visible(bool p_wrap = false);
+	TreeItem *get_next_visible(bool p_wrap = false);
+
+	TreeItem *get_child(int p_index);
+	int get_visible_child_count();
+	int get_child_count();
+	TypedArray<TreeItem> get_children();
+	void clear_children();
+	int get_index();
+
+#ifdef DEV_ENABLED
+	// This debugging code can be removed once the current refactoring of this class is complete.
+	void validate_cache() const;
+#else
+	void validate_cache() const {}
+#endif
+
+	void move_before(TreeItem *p_item);
+	void move_after(TreeItem *p_item);
 
 	void call_recursive(const StringName &p_method, const Variant **p_args, int p_argcount, Callable::CallError &r_error);
 
@@ -285,9 +441,6 @@ public:
 };
 
 VARIANT_ENUM_CAST(TreeItem::TreeCellMode);
-VARIANT_ENUM_CAST(TreeItem::TextAlign);
-
-class VBoxContainer;
 
 class Tree : public Control {
 	GDCLASS(Tree, Control);
@@ -308,104 +461,136 @@ public:
 private:
 	friend class TreeItem;
 
-	TreeItem *root;
-	TreeItem *popup_edited_item;
-	TreeItem *selected_item;
-	TreeItem *edited_item;
+	TreeItem *root = nullptr;
+	TreeItem *popup_edited_item = nullptr;
+	TreeItem *selected_item = nullptr;
+	TreeItem *edited_item = nullptr;
+	TreeItem *shift_anchor = nullptr;
 
-	TreeItem *drop_mode_over;
-	int drop_mode_section;
+	TreeItem *popup_pressing_edited_item = nullptr; // Candidate.
+	int popup_pressing_edited_item_column = -1;
 
-	TreeItem *single_select_defer;
-	int single_select_defer_column;
+	TreeItem *drop_mode_over = nullptr;
+	int drop_mode_section = 0;
 
-	int pressed_button;
-	bool pressing_for_editor;
+	TreeItem *single_select_defer = nullptr;
+	int single_select_defer_column = 0;
+
+	int pressed_button = -1;
+	bool pressing_for_editor = false;
 	String pressing_for_editor_text;
 	Vector2 pressing_pos;
 	Rect2 pressing_item_rect;
 
-	float range_drag_base;
-	bool range_drag_enabled;
+	Vector2 hovered_pos;
+	bool is_mouse_hovering = false;
+
+	float range_drag_base = 0.0;
+	bool range_drag_enabled = false;
 	Vector2 range_drag_capture_pos;
 
-	bool propagate_mouse_activated;
-
-	//TreeItem *cursor_item;
-	//int cursor_column;
+	bool propagate_mouse_activated = false;
+	float content_scale_factor = 0.0;
 
 	Rect2 custom_popup_rect;
-	int edited_col;
-	int selected_col;
-	int popup_edited_item_col;
-	bool hide_root;
-	SelectMode select_mode;
+	int edited_col = -1;
+	int selected_col = -1;
+	int selected_button = -1;
+	int popup_edited_item_col = -1;
+	bool hide_root = false;
+	SelectMode select_mode = SELECT_SINGLE;
 
-	int blocked;
+	int blocked = 0;
 
-	int drop_mode_flags;
+	int drop_mode_flags = 0;
 
 	struct ColumnInfo {
-		int min_width;
-		bool expand;
+		mutable RID accessibility_col_element;
+		int custom_min_width = 0;
+		int expand_ratio = 1;
+		bool expand = true;
+		bool clip_content = false;
 		String title;
+		String xl_title;
+		HorizontalAlignment title_alignment = HORIZONTAL_ALIGNMENT_CENTER;
+		Ref<TextParagraph> text_buf;
+		String language;
+		Control::TextDirection text_direction = Control::TEXT_DIRECTION_INHERITED;
+
+		mutable int cached_minimum_width = 0;
+		mutable bool cached_minimum_width_dirty = true;
+
 		ColumnInfo() {
-			min_width = 1;
-			expand = true;
+			text_buf.instantiate();
 		}
 	};
 
-	bool show_column_titles;
+	bool show_column_titles = false;
 
-	VBoxContainer *popup_editor_vb;
+	bool popup_edit_committed = true;
+	RID accessibility_scroll_element;
 
-	PopupPanel *popup_editor;
-	LineEdit *text_editor;
-	HSlider *value_editor;
-	bool updating_value_editor;
-	int64_t focus_in_id;
-	PopupMenu *popup_menu;
+	VBoxContainer *popup_editor_vb = nullptr;
+	Popup *popup_editor = nullptr;
+	LineEdit *line_editor = nullptr;
+	TextEdit *text_editor = nullptr;
+	HSlider *value_editor = nullptr;
+	bool updating_value_editor = false;
+	uint64_t focus_in_id = 0;
+	PopupMenu *popup_menu = nullptr;
 
 	Vector<ColumnInfo> columns;
 
-	Timer *range_click_timer;
-	TreeItem *range_item_last;
-	bool range_up_last;
+	Timer *range_click_timer = nullptr;
+	TreeItem *range_item_last = nullptr;
+	bool range_up_last = false;
 	void _range_click_timeout();
 
 	int compute_item_height(TreeItem *p_item) const;
 	int get_item_height(TreeItem *p_item) const;
-	//void draw_item_text(String p_text,const Ref<Texture2D>& p_icon,int p_icon_max_w,bool p_tool,Rect2i p_rect,const Color& p_color);
-	void draw_item_rect(const TreeItem::Cell &p_cell, const Rect2i &p_rect, const Color &p_color, const Color &p_icon_color);
-	int draw_item(const Point2i &p_pos, const Point2 &p_draw_ofs, const Size2 &p_draw_size, TreeItem *p_item);
+	void _update_all();
+	void update_column(int p_col);
+	void update_item_cell(TreeItem *p_item, int p_col) const;
+	void update_item_cache(TreeItem *p_item) const;
+	void draw_item_rect(TreeItem::Cell &p_cell, const Rect2i &p_rect, const Color &p_color, const Color &p_icon_color, int p_ol_size, const Color &p_ol_color);
+	int draw_item(const Point2i &p_pos, const Point2 &p_draw_ofs, const Size2 &p_draw_size, TreeItem *p_item, int &r_self_height);
 	void select_single_item(TreeItem *p_selected, TreeItem *p_current, int p_col, TreeItem *p_prev = nullptr, bool *r_in_range = nullptr, bool p_force_deselect = false);
-	int propagate_mouse_event(const Point2i &p_pos, int x_ofs, int y_ofs, bool p_doubleclick, TreeItem *p_item, int p_button, const Ref<InputEventWithModifiers> &p_mod);
-	void _text_editor_enter(String p_text);
-	void _text_editor_modal_close();
+	int propagate_mouse_event(const Point2i &p_pos, int x_ofs, int y_ofs, int x_limit, bool p_double_click, TreeItem *p_item, MouseButton p_button, const Ref<InputEventWithModifiers> &p_mod);
+	void _line_editor_submit(String p_text);
+	void _apply_multiline_edit();
+	void _text_editor_popup_modal_close();
+	void _text_editor_gui_input(const Ref<InputEvent> &p_event);
 	void value_editor_changed(double p_value);
+	void _update_popup_menu(const TreeItem::Cell &p_cell);
+	void _update_value_editor(const TreeItem::Cell &p_cell);
 
 	void popup_select(int p_option);
 
-	void _gui_input(Ref<InputEvent> p_event);
-	void _notification(int p_what);
-
-	Size2 get_minimum_size() const;
-
-	void item_edited(int p_column, TreeItem *p_item, bool p_lmb = true);
+	void item_edited(int p_column, TreeItem *p_item, MouseButton p_custom_mouse_index = MouseButton::NONE);
 	void item_changed(int p_column, TreeItem *p_item);
 	void item_selected(int p_column, TreeItem *p_item);
 	void item_deselected(int p_column, TreeItem *p_item);
 
 	void propagate_set_columns(TreeItem *p_item);
 
-	struct Cache {
+	struct ThemeCache {
+		Ref<StyleBox> panel_style;
+		Ref<StyleBox> focus_style;
+
 		Ref<Font> font;
 		Ref<Font> tb_font;
-		Ref<StyleBox> bg;
+		int font_size = 0;
+		int tb_font_size = 0;
+
+		Ref<StyleBox> hovered;
+		Ref<StyleBox> hovered_dimmed;
+		Ref<StyleBox> hovered_selected;
+		Ref<StyleBox> hovered_selected_focus;
 		Ref<StyleBox> selected;
 		Ref<StyleBox> selected_focus;
 		Ref<StyleBox> cursor;
 		Ref<StyleBox> cursor_unfocus;
+		Ref<StyleBox> button_hover;
 		Ref<StyleBox> button_pressed;
 		Ref<StyleBox> title_button;
 		Ref<StyleBox> title_button_hover;
@@ -418,138 +603,225 @@ private:
 
 		Ref<Texture2D> checked;
 		Ref<Texture2D> unchecked;
-		Ref<Texture2D> arrow_collapsed;
+		Ref<Texture2D> checked_disabled;
+		Ref<Texture2D> unchecked_disabled;
+		Ref<Texture2D> indeterminate;
+		Ref<Texture2D> indeterminate_disabled;
 		Ref<Texture2D> arrow;
+		Ref<Texture2D> arrow_collapsed;
+		Ref<Texture2D> arrow_collapsed_mirrored;
 		Ref<Texture2D> select_arrow;
 		Ref<Texture2D> updown;
 
 		Color font_color;
-		Color font_color_selected;
+		Color font_hovered_color;
+		Color font_hovered_dimmed_color;
+		Color font_hovered_selected_color;
+		Color font_selected_color;
+		Color font_disabled_color;
 		Color guide_color;
 		Color drop_position_color;
 		Color relationship_line_color;
+		Color parent_hl_line_color;
+		Color children_hl_line_color;
 		Color custom_button_font_highlight;
+		Color font_outline_color;
 
-		int hseparation;
-		int vseparation;
-		int item_margin;
-		int button_margin;
+		float base_scale = 1.0;
+		int font_outline_size = 0;
+
+		int h_separation = 0;
+		int v_separation = 0;
+		int inner_item_margin_bottom = 0;
+		int inner_item_margin_left = 0;
+		int inner_item_margin_right = 0;
+		int inner_item_margin_top = 0;
+		int item_margin = 0;
+		int button_margin = 0;
+		int icon_max_width = 0;
 		Point2 offset;
-		int draw_relationship_lines;
-		int draw_guides;
-		int scroll_border;
-		int scroll_speed;
 
+		int draw_relationship_lines = 0;
+		int relationship_line_width = 0;
+		int parent_hl_line_width = 0;
+		int children_hl_line_width = 0;
+		int parent_hl_line_margin = 0;
+		int draw_guides = 0;
+
+		int scroll_border = 0;
+		int scroll_speed = 0;
+
+		int scrollbar_margin_top = -1;
+		int scrollbar_margin_right = -1;
+		int scrollbar_margin_bottom = -1;
+		int scrollbar_margin_left = -1;
+		int scrollbar_h_separation = 0;
+		int scrollbar_v_separation = 0;
+	} theme_cache;
+
+	struct Cache {
 		enum ClickType {
 			CLICK_NONE,
 			CLICK_TITLE,
 			CLICK_BUTTON,
-
 		};
 
-		ClickType click_type;
-		ClickType hover_type;
-		int click_index;
-		int click_id;
-		TreeItem *click_item;
-		int click_column;
-		int hover_index;
+		ClickType click_type = Cache::CLICK_NONE;
+		int click_index = -1;
+		int click_id = -1;
+		TreeItem *click_item = nullptr;
+		int click_column = 0;
+		int hover_header_column = -1;
+		bool hover_header_row = false;
 		Point2 click_pos;
 
-		TreeItem *hover_item;
-		int hover_cell;
+		TreeItem *hover_item = nullptr;
+		int hover_column = -1;
+		int hover_button_index_in_column = -1;
 
-		Point2i text_editor_position;
-
+		bool rtl = false;
 	} cache;
 
 	int _get_title_button_height() const;
+	Size2 _get_cell_icon_size(const TreeItem::Cell &p_cell) const;
 
 	void _scroll_moved(float p_value);
-	HScrollBar *h_scroll;
-	VScrollBar *v_scroll;
+	HScrollBar *h_scroll = nullptr;
+	VScrollBar *v_scroll = nullptr;
+
+	bool h_scroll_enabled = true;
+	bool v_scroll_enabled = true;
 
 	Size2 get_internal_min_size() const;
-	void update_cache();
 	void update_scrollbars();
 
 	Rect2 search_item_rect(TreeItem *p_from, TreeItem *p_item);
-	//Rect2 get_item_rect(TreeItem *p_item);
-	uint64_t last_keypress;
+	uint64_t last_keypress = 0;
 	String incr_search;
-	bool cursor_can_exit_tree;
+	bool cursor_can_exit_tree = true;
 	void _do_incr_search(const String &p_add);
 
 	TreeItem *_search_item_text(TreeItem *p_at, const String &p_find, int *r_col, bool p_selectable, bool p_backwards = false);
 
-	TreeItem *_find_item_at_pos(TreeItem *p_item, const Point2 &p_pos, int &r_column, int &h, int &section) const;
+	TreeItem *_find_item_at_pos(TreeItem *p_item, const Point2 &p_pos, int &r_column, int &r_height, int &r_section) const;
 
-	/*	float drag_speed;
-	float drag_accum;
+	void _find_button_at_pos(const Point2 &p_pos, TreeItem *&r_item, int &r_column, int &r_index, int &r_section) const;
 
-	float last_drag_accum;
-	float last_drag_time;
-	float time_since_motion;*/
+	struct FindColumnButtonResult {
+		int column_index = -1;
+		int button_index = -1;
+		int column_width = -1;
+		int column_offset = -1;
+		int pos_x = -1;
+	};
 
-	float drag_speed;
-	float drag_from;
-	float drag_accum;
-	Vector2 last_speed;
-	bool drag_touching;
-	bool drag_touching_deaccel;
-	bool click_handled;
-	bool allow_rmb_select;
-	bool scrolling;
+	FindColumnButtonResult _find_column_and_button_at_pos(int p_x, const TreeItem *p_item, int p_x_ofs, int p_x_limit) const;
 
-	bool allow_reselect;
+	float drag_speed = 0.0;
+	float drag_from = 0.0;
+	float drag_accum = 0.0;
+	bool drag_touching = false;
+	bool drag_touching_deaccel = false;
+	bool click_handled = false;
+	bool allow_rmb_select = false;
+	bool scrolling = false;
 
-	bool force_edit_checkbox_only_on_checkbox;
+	bool allow_reselect = false;
+	bool allow_search = true;
 
-	bool hide_folding;
+	bool force_edit_checkbox_only_on_checkbox = false;
+
+	bool hide_folding = false;
+
+	bool enable_recursive_folding = true;
+
+	bool enable_auto_tooltip = true;
+
+	bool hovered_update_queued = false;
+	void _determine_hovered_item();
+	void _queue_update_hovered_item();
 
 	int _count_selected_items(TreeItem *p_from) const;
+	bool _is_branch_selected(TreeItem *p_from) const;
+	bool _is_sibling_branch_selected(TreeItem *p_from) const;
 	void _go_left();
 	void _go_right();
 	void _go_down();
 	void _go_up();
+	void _shift_select_range(TreeItem *new_item);
+
+	bool _scroll(bool p_horizontal, float p_pages);
+
+	Rect2 _get_scrollbar_layout_rect() const;
+	Rect2 _get_content_rect() const; // Considering the background stylebox and scrollbars.
+	Rect2 _get_item_focus_rect(const TreeItem *p_item) const;
+
+	void _check_item_accessibility(TreeItem *p_item, PackedStringArray &r_warnings, int &r_row) const;
+
+	void _accessibility_clean_info(TreeItem *p_item);
+	void _accessibility_update_item(Point2 &r_ofs, TreeItem *p_item, int &r_row, int p_level);
 
 protected:
+	virtual void _update_theme_item_cache() override;
+
+	void _notification(int p_what);
 	static void _bind_methods();
 
-	//bind helpers
-	TreeItem *_create_item(Object *p_parent, int p_idx = -1) {
-		return create_item(Object::cast_to<TreeItem>(p_parent), p_idx);
-	}
-
-	TreeItem *_get_next_selected(Object *p_item) {
-		return get_next_selected(Object::cast_to<TreeItem>(p_item));
-	}
-
-	Rect2 _get_item_rect(Object *p_item, int p_column) const {
-		return get_item_rect(Object::cast_to<TreeItem>(p_item), p_column);
-	}
+	void _accessibility_action_scroll_down(const Variant &p_data);
+	void _accessibility_action_scroll_left(const Variant &p_data);
+	void _accessibility_action_scroll_right(const Variant &p_data);
+	void _accessibility_action_scroll_up(const Variant &p_data);
+	void _accessibility_action_scroll_set(const Variant &p_data);
+	void _accessibility_action_scroll_into_view(const Variant &p_data, TreeItem *p_item, int p_col);
+	void _accessibility_action_focus(const Variant &p_data, TreeItem *p_item, int p_col);
+	void _accessibility_action_blur(const Variant &p_data, TreeItem *p_item, int p_col);
+	void _accessibility_action_collapse(const Variant &p_data, TreeItem *p_item);
+	void _accessibility_action_expand(const Variant &p_data, TreeItem *p_item);
+	void _accessibility_action_set_text_value(const Variant &p_data, TreeItem *p_item, int p_col);
+	void _accessibility_action_set_num_value(const Variant &p_data, TreeItem *p_item, int p_col);
+	void _accessibility_action_set_bool_value(const Variant &p_data, TreeItem *p_item, int p_col);
+	void _accessibility_action_set_inc(const Variant &p_data, TreeItem *p_item, int p_col);
+	void _accessibility_action_set_dec(const Variant &p_data, TreeItem *p_item, int p_col);
+	void _accessibility_action_edit_custom(const Variant &p_data, TreeItem *p_item, int p_col);
+	void _accessibility_action_button_press(const Variant &p_data, TreeItem *p_item, int p_col, int p_btn);
 
 public:
-	virtual String get_tooltip(const Point2 &p_pos) const;
+	PackedStringArray get_accessibility_configuration_warnings() const override;
+	virtual RID get_focused_accessibility_element() const override;
 
+	virtual void gui_input(const Ref<InputEvent> &p_event) override;
+
+	virtual String get_tooltip(const Point2 &p_pos) const override;
+
+	virtual bool can_drop_data(const Point2 &p_point, const Variant &p_data) const override;
+	virtual Variant get_drag_data(const Point2 &p_point) override;
 	TreeItem *get_item_at_position(const Point2 &p_pos) const;
 	int get_column_at_position(const Point2 &p_pos) const;
 	int get_drop_section_at_position(const Point2 &p_pos) const;
+	int get_button_id_at_position(const Point2 &p_pos) const;
 
 	void clear();
 
-	TreeItem *create_item(TreeItem *p_parent = nullptr, int p_idx = -1);
-	TreeItem *get_root();
-	TreeItem *get_last_item();
+	TreeItem *create_item(TreeItem *p_parent = nullptr, int p_index = -1);
+	TreeItem *get_root() const;
+	TreeItem *get_last_item() const;
 
-	void set_column_min_width(int p_column, int p_min_width);
+	void set_column_custom_minimum_width(int p_column, int p_min_width);
 	void set_column_expand(int p_column, bool p_expand);
+	void set_column_expand_ratio(int p_column, int p_ratio);
+	void set_column_clip_content(int p_column, bool p_fit);
+	int get_column_minimum_width(int p_column) const;
 	int get_column_width(int p_column) const;
+	int get_column_expand_ratio(int p_column) const;
+
+	bool is_column_expanding(int p_column) const;
+	bool is_column_clipping_content(int p_column) const;
 
 	void set_hide_root(bool p_enabled);
 	bool is_root_hidden() const;
 	TreeItem *get_next_selected(TreeItem *p_item);
 	TreeItem *get_selected() const;
+	void set_selected(TreeItem *p_item, int p_column = 0);
 	int get_selected_column() const;
 	int get_pressed_button() const;
 	void set_select_mode(SelectMode p_mode);
@@ -563,6 +835,15 @@ public:
 	void set_column_title(int p_column, const String &p_title);
 	String get_column_title(int p_column) const;
 
+	void set_column_title_alignment(int p_column, HorizontalAlignment p_alignment);
+	HorizontalAlignment get_column_title_alignment(int p_column) const;
+
+	void set_column_title_direction(int p_column, Control::TextDirection p_text_direction);
+	Control::TextDirection get_column_title_direction(int p_column) const;
+
+	void set_column_title_language(int p_column, const String &p_language);
+	String get_column_title_language(int p_column) const;
+
 	void set_column_titles_visible(bool p_show);
 	bool are_column_titles_visible() const;
 
@@ -574,24 +855,33 @@ public:
 	Rect2 get_custom_popup_rect() const;
 
 	int get_item_offset(TreeItem *p_item) const;
-	Rect2 get_item_rect(TreeItem *p_item, int p_column = -1) const;
-	bool edit_selected();
+	Rect2 get_item_rect(TreeItem *p_item, int p_column = -1, int p_button = -1) const;
+	bool edit_selected(bool p_force_edit = false);
+	bool is_editing();
+	void set_editor_selection(int p_from_line, int p_to_line, int p_from_column = -1, int p_to_column = -1, int p_caret = 0);
 
 	// First item that starts with the text, from the current focused item down and wraps around.
 	TreeItem *search_item_text(const String &p_find, int *r_col = nullptr, bool p_selectable = false);
 	// First item that matches the whole text, from the first item down.
 	TreeItem *get_item_with_text(const String &p_find) const;
+	TreeItem *get_item_with_metadata(const Variant &p_find, int p_column = -1) const;
 
 	Point2 get_scroll() const;
-	void scroll_to_item(TreeItem *p_item);
+	void scroll_to_item(TreeItem *p_item, bool p_center_on_item = false);
+	void set_h_scroll_enabled(bool p_enable);
+	bool is_h_scroll_enabled() const;
+	void set_v_scroll_enabled(bool p_enable);
+	bool is_v_scroll_enabled() const;
 
 	void set_cursor_can_exit_tree(bool p_enable);
-	bool can_cursor_exit_tree() const;
 
 	VScrollBar *get_vscroll_bar() { return v_scroll; }
 
 	void set_hide_folding(bool p_hide);
 	bool is_folding_hidden() const;
+
+	void set_enable_recursive_folding(bool p_enable);
+	bool is_recursive_folding_enabled() const;
 
 	void set_drop_mode_flags(int p_flags);
 	int get_drop_mode_flags() const;
@@ -605,10 +895,17 @@ public:
 	void set_allow_reselect(bool p_allow);
 	bool get_allow_reselect() const;
 
+	void set_allow_search(bool p_allow);
+	bool get_allow_search() const;
+
+	void set_auto_tooltip(bool p_enable);
+	bool is_auto_tooltip_enabled() const;
+
+	Size2 get_minimum_size() const override;
+
 	Tree();
 	~Tree();
 };
 
 VARIANT_ENUM_CAST(Tree::SelectMode);
 VARIANT_ENUM_CAST(Tree::DropModeFlags);
-#endif

@@ -1,39 +1,38 @@
-/*************************************************************************/
-/*  png_driver_common.cpp                                                */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  png_driver_common.cpp                                                 */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "png_driver_common.h"
 
-#include "core/os/os.h"
+#include "core/config/engine.h"
 
 #include <png.h>
-#include <string.h>
 
 namespace PNGDriverCommon {
 
@@ -58,9 +57,9 @@ static bool check_error(const png_image &image) {
 	return false;
 }
 
-Error png_to_image(const uint8_t *p_source, size_t p_size, Ref<Image> p_image) {
+Error png_to_image(const uint8_t *p_source, size_t p_size, bool p_force_linear, Ref<Image> p_image) {
 	png_image png_img;
-	zeromem(&png_img, sizeof(png_img));
+	memset(&png_img, 0, sizeof(png_img));
 	png_img.version = PNG_IMAGE_VERSION;
 
 	// fetch image properties
@@ -99,6 +98,11 @@ Error png_to_image(const uint8_t *p_source, size_t p_size, Ref<Image> p_image) {
 			return ERR_UNAVAILABLE;
 	}
 
+	if (!p_force_linear) {
+		// assume 16 bit pngs without sRGB or gAMA chunks are in sRGB format
+		png_img.flags |= PNG_IMAGE_FLAG_16BIT_sRGB;
+	}
+
 	const png_uint_32 stride = PNG_IMAGE_ROW_STRIDE(png_img);
 	Vector<uint8_t> buffer;
 	Error err = buffer.resize(PNG_IMAGE_BUFFER_SIZE(png_img, stride));
@@ -114,7 +118,7 @@ Error png_to_image(const uint8_t *p_source, size_t p_size, Ref<Image> p_image) {
 	ERR_FAIL_COND_V(!success, ERR_FILE_CORRUPT);
 
 	//print_line("png width: "+itos(png_img.width)+" height: "+itos(png_img.height));
-	p_image->create(png_img.width, png_img.height, false, dest_format, buffer);
+	p_image->set_data(png_img.width, png_img.height, false, dest_format, buffer);
 
 	return OK;
 }
@@ -129,7 +133,7 @@ Error image_to_png(const Ref<Image> &p_image, Vector<uint8_t> &p_buffer) {
 	ERR_FAIL_COND_V(source_image->is_compressed(), FAILED);
 
 	png_image png_img;
-	zeromem(&png_img, sizeof(png_img));
+	memset(&png_img, 0, sizeof(png_img));
 	png_img.version = PNG_IMAGE_VERSION;
 	png_img.width = source_image->get_width();
 	png_img.height = source_image->get_height();
@@ -148,7 +152,7 @@ Error image_to_png(const Ref<Image> &p_image, Vector<uint8_t> &p_buffer) {
 			png_img.format = PNG_FORMAT_RGBA;
 			break;
 		default:
-			if (source_image->detect_alpha()) {
+			if (source_image->detect_alpha() != Image::ALPHA_NONE) {
 				source_image->convert(Image::FORMAT_RGBA8);
 				png_img.format = PNG_FORMAT_RGBA;
 			} else {
@@ -198,5 +202,4 @@ Error image_to_png(const Ref<Image> &p_image, Vector<uint8_t> &p_buffer) {
 
 	return OK;
 }
-
 } // namespace PNGDriverCommon

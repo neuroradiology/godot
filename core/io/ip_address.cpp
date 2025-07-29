@@ -1,44 +1,40 @@
-/*************************************************************************/
-/*  ip_address.cpp                                                       */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  ip_address.cpp                                                        */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "ip_address.h"
 /*
-IP_Address::operator Variant() const {
-
+IPAddress::operator Variant() const {
 	return operator String();
 }*/
 
-#include <stdio.h>
-#include <string.h>
-
-IP_Address::operator String() const {
+IPAddress::operator String() const {
 	if (wildcard) {
 		return "*";
 	}
@@ -71,8 +67,8 @@ static void _parse_hex(const String &p_string, int p_start, uint8_t *p_dst) {
 		}
 
 		int n = 0;
-		CharType c = p_string[i];
-		if (c >= '0' && c <= '9') {
+		char32_t c = p_string[i];
+		if (is_digit(c)) {
 			n = c - '0';
 		} else if (c >= 'a' && c <= 'f') {
 			n = 10 + (c - 'a');
@@ -91,7 +87,7 @@ static void _parse_hex(const String &p_string, int p_start, uint8_t *p_dst) {
 	p_dst[1] = ret & 0xff;
 }
 
-void IP_Address::_parse_ipv6(const String &p_string) {
+void IPAddress::_parse_ipv6(const String &p_string) {
 	static const int parts_total = 8;
 	int parts[parts_total] = { 0 };
 	int parts_count = 0;
@@ -101,7 +97,7 @@ void IP_Address::_parse_ipv6(const String &p_string) {
 	int parts_idx = 0;
 
 	for (int i = 0; i < p_string.length(); i++) {
-		CharType c = p_string[i];
+		char32_t c = p_string[i];
 		if (c == ':') {
 			if (i == 0) {
 				continue; // next must be a ":"
@@ -114,7 +110,7 @@ void IP_Address::_parse_ipv6(const String &p_string) {
 		} else if (c == '.') {
 			part_ipv4 = true;
 
-		} else if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+		} else if (is_hex_digit(c)) {
 			if (!part_found) {
 				parts[parts_idx++] = i;
 				part_found = true;
@@ -147,10 +143,10 @@ void IP_Address::_parse_ipv6(const String &p_string) {
 	}
 }
 
-void IP_Address::_parse_ipv4(const String &p_string, int p_start, uint8_t *p_ret) {
+void IPAddress::_parse_ipv4(const String &p_string, int p_start, uint8_t *p_ret) {
 	String ip;
 	if (p_start != 0) {
-		ip = p_string.substr(p_start, p_string.length() - p_start);
+		ip = p_string.substr(p_start);
 	} else {
 		ip = p_string;
 	}
@@ -162,33 +158,33 @@ void IP_Address::_parse_ipv4(const String &p_string, int p_start, uint8_t *p_ret
 	}
 }
 
-void IP_Address::clear() {
+void IPAddress::clear() {
 	memset(&field8[0], 0, sizeof(field8));
 	valid = false;
 	wildcard = false;
 }
 
-bool IP_Address::is_ipv4() const {
+bool IPAddress::is_ipv4() const {
 	return (field32[0] == 0 && field32[1] == 0 && field16[4] == 0 && field16[5] == 0xffff);
 }
 
-const uint8_t *IP_Address::get_ipv4() const {
+const uint8_t *IPAddress::get_ipv4() const {
 	ERR_FAIL_COND_V_MSG(!is_ipv4(), &(field8[12]), "IPv4 requested, but current IP is IPv6."); // Not the correct IPv4 (it's an IPv6), but we don't want to return a null pointer risking an engine crash.
 	return &(field8[12]);
 }
 
-void IP_Address::set_ipv4(const uint8_t *p_ip) {
+void IPAddress::set_ipv4(const uint8_t *p_ip) {
 	clear();
 	valid = true;
 	field16[5] = 0xffff;
 	field32[3] = *((const uint32_t *)p_ip);
 }
 
-const uint8_t *IP_Address::get_ipv6() const {
+const uint8_t *IPAddress::get_ipv6() const {
 	return field8;
 }
 
-void IP_Address::set_ipv6(const uint8_t *p_buf) {
+void IPAddress::set_ipv6(const uint8_t *p_buf) {
 	clear();
 	valid = true;
 	for (int i = 0; i < 16; i++) {
@@ -196,14 +192,14 @@ void IP_Address::set_ipv6(const uint8_t *p_buf) {
 	}
 }
 
-IP_Address::IP_Address(const String &p_string) {
+IPAddress::IPAddress(const String &p_string) {
 	clear();
 
 	if (p_string == "*") {
 		// Wildcard (not a valid IP)
 		wildcard = true;
 
-	} else if (p_string.find(":") >= 0) {
+	} else if (p_string.contains_char(':')) {
 		// IPv6
 		_parse_ipv6(p_string);
 		valid = true;
@@ -226,7 +222,7 @@ _FORCE_INLINE_ static void _32_to_buf(uint8_t *p_dst, uint32_t p_n) {
 	p_dst[3] = (p_n >> 0) & 0xff;
 }
 
-IP_Address::IP_Address(uint32_t p_a, uint32_t p_b, uint32_t p_c, uint32_t p_d, bool is_v6) {
+IPAddress::IPAddress(uint32_t p_a, uint32_t p_b, uint32_t p_c, uint32_t p_d, bool is_v6) {
 	clear();
 	valid = true;
 	if (!is_v6) {

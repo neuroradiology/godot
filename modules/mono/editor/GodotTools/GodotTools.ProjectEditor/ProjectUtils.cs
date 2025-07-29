@@ -1,17 +1,17 @@
-using GodotTools.Core;
+using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Reflection;
+using System.Text.RegularExpressions;
 using Microsoft.Build.Construction;
-using Microsoft.Build.Globbing;
+using Microsoft.Build.Evaluation;
+using Microsoft.Build.Locator;
+using NuGet.Frameworks;
 
 namespace GodotTools.ProjectEditor
 {
     public sealed class MSBuildProject
     {
-        public ProjectRootElement Root { get; }
+        internal ProjectRootElement Root { get; set; }
 
         public bool HasUnsavedChanges { get; set; }
 
@@ -23,350 +23,204 @@ namespace GodotTools.ProjectEditor
         }
     }
 
-    public static class ProjectUtils
+    public static partial class ProjectUtils
     {
-        public static MSBuildProject Open(string path)
+        [GeneratedRegex(@"\s*'\$\(GodotTargetPlatform\)'\s*==\s*'(?<platform>[A-z]+)'\s*", RegexOptions.IgnoreCase)]
+        private static partial Regex GodotTargetPlatformConditionRegex();
+
+        private static readonly string[] _platformNames =
         {
-            var root = ProjectRootElement.Open(path);
+            "windows",
+            "linuxbsd",
+            "macos",
+            "android",
+            "ios",
+            "web",
+        };
+
+        public static void MSBuildLocatorRegisterLatest(out Version version, out string path)
+        {
+            var instance = MSBuildLocator.QueryVisualStudioInstances()
+                .OrderByDescending(x => x.Version)
+                .First();
+            MSBuildLocator.RegisterInstance(instance);
+            version = instance.Version;
+            path = instance.MSBuildPath;
+        }
+
+        public static void MSBuildLocatorRegisterMSBuildPath(string msbuildPath)
+            => MSBuildLocator.RegisterMSBuildPath(msbuildPath);
+
+        public static MSBuildProject? Open(string path)
+        {
+            var root = ProjectRootElement.Open(path, ProjectCollection.GlobalProjectCollection, preserveFormatting: true);
             return root != null ? new MSBuildProject(root) : null;
         }
 
-        public static void AddItemToProjectChecked(string projectPath, string itemType, string include)
+        public static void UpgradeProjectIfNeeded(MSBuildProject project, string projectName)
         {
-            var dir = Directory.GetParent(projectPath).FullName;
-            var root = ProjectRootElement.Open(projectPath);
-            Debug.Assert(root != null);
+            // NOTE: The order in which changes are made to the project is important.
 
-            var normalizedInclude = include.RelativeToPath(dir).Replace("/", "\\");
+            // Migrate to MSBuild project Sdks style if using the old style.
+            MigrateToProjectSdksStyle(project, projectName);
 
-            if (root.AddItemChecked(itemType, normalizedInclude))
-                root.Save();
+            EnsureGodotSdkIsUpToDate(project);
+            EnsureTargetFrameworkMatchesMinimumRequirement(project);
         }
 
-        public static void RenameItemInProjectChecked(string projectPath, string itemType, string oldInclude, string newInclude)
+        private static void MigrateToProjectSdksStyle(MSBuildProject project, string projectName)
         {
-            var dir = Directory.GetParent(projectPath).FullName;
-            var root = ProjectRootElement.Open(projectPath);
-            Debug.Assert(root != null);
+            var origRoot = project.Root;
 
-            var normalizedOldInclude = oldInclude.NormalizePath();
-            var normalizedNewInclude = newInclude.NormalizePath();
-
-            var item = root.FindItemOrNullAbs(itemType, normalizedOldInclude);
-
-            if (item == null)
+            if (!string.IsNullOrEmpty(origRoot.Sdk))
                 return;
 
-            item.Include = normalizedNewInclude.RelativeToPath(dir).Replace("/", "\\");
-            root.Save();
+            project.Root = ProjectGenerator.GenGameProject(projectName);
+            project.Root.FullPath = origRoot.FullPath;
+            project.HasUnsavedChanges = true;
         }
 
-        public static void RemoveItemFromProjectChecked(string projectPath, string itemType, string include)
+        public static void EnsureGodotSdkIsUpToDate(MSBuildProject project)
         {
-            var root = ProjectRootElement.Open(projectPath);
-            Debug.Assert(root != null);
+            var root = project.Root;
+            string godotSdkAttrValue = ProjectGenerator.GodotSdkAttrValue;
 
-            var normalizedInclude = include.NormalizePath();
+            if (!string.IsNullOrEmpty(root.Sdk) &&
+                root.Sdk.Trim().Equals(godotSdkAttrValue, StringComparison.OrdinalIgnoreCase))
+                return;
 
-            if (root.RemoveItemChecked(itemType, normalizedInclude))
-                root.Save();
+            root.Sdk = godotSdkAttrValue;
+            project.HasUnsavedChanges = true;
         }
 
-        public static void RenameItemsToNewFolderInProjectChecked(string projectPath, string itemType, string oldFolder, string newFolder)
+        private static void EnsureTargetFrameworkMatchesMinimumRequirement(MSBuildProject project)
         {
-            var dir = Directory.GetParent(projectPath).FullName;
-            var root = ProjectRootElement.Open(projectPath);
-            Debug.Assert(root != null);
+            var root = project.Root;
+            string minTfmValue = ProjectGenerator.GodotMinimumRequiredTfm;
+            var minTfmVersion = NuGetFramework.Parse(minTfmValue).Version;
 
-            bool dirty = false;
+            ProjectPropertyGroupElement? mainPropertyGroup = null;
+            ProjectPropertyElement? mainTargetFrameworkProperty = null;
 
-            var oldFolderNormalized = oldFolder.NormalizePath();
-            var newFolderNormalized = newFolder.NormalizePath();
-            string absOldFolderNormalized = Path.GetFullPath(oldFolderNormalized).NormalizePath();
-            string absNewFolderNormalized = Path.GetFullPath(newFolderNormalized).NormalizePath();
+            var propertiesToChange = new List<ProjectPropertyElement>();
 
-            foreach (var item in root.FindAllItemsInFolder(itemType, oldFolderNormalized))
+            foreach (var propertyGroup in root.PropertyGroups)
             {
-                string absPathNormalized = Path.GetFullPath(item.Include).NormalizePath();
-                string absNewIncludeNormalized = absNewFolderNormalized + absPathNormalized.Substring(absOldFolderNormalized.Length);
-                item.Include = absNewIncludeNormalized.RelativeToPath(dir).Replace("/", "\\");
-                dirty = true;
-            }
+                bool groupHasCondition = !string.IsNullOrEmpty(propertyGroup.Condition);
 
-            if (dirty)
-                root.Save();
-        }
-
-        public static void RemoveItemsInFolderFromProjectChecked(string projectPath, string itemType, string folder)
-        {
-            var root = ProjectRootElement.Open(projectPath);
-            Debug.Assert(root != null);
-
-            var folderNormalized = folder.NormalizePath();
-
-            var itemsToRemove = root.FindAllItemsInFolder(itemType, folderNormalized).ToList();
-
-            if (itemsToRemove.Count > 0)
-            {
-                foreach (var item in itemsToRemove)
-                    item.Parent.RemoveChild(item);
-
-                root.Save();
-            }
-        }
-
-        private static string[] GetAllFilesRecursive(string rootDirectory, string mask)
-        {
-            string[] files = Directory.GetFiles(rootDirectory, mask, SearchOption.AllDirectories);
-
-            // We want relative paths
-            for (int i = 0; i < files.Length; i++)
-            {
-                files[i] = files[i].RelativeToPath(rootDirectory);
-            }
-
-            return files;
-        }
-
-        public static string[] GetIncludeFiles(string projectPath, string itemType)
-        {
-            var result = new List<string>();
-            var existingFiles = GetAllFilesRecursive(Path.GetDirectoryName(projectPath), "*.cs");
-
-            var root = ProjectRootElement.Open(projectPath);
-            Debug.Assert(root != null);
-
-            foreach (var itemGroup in root.ItemGroups)
-            {
-                if (itemGroup.Condition.Length != 0)
+                // Check if the property group should be excluded from checking for 'TargetFramework' properties.
+                if (groupHasCondition && !ConditionMatchesGodotPlatform(propertyGroup.Condition))
+                {
                     continue;
+                }
 
-                foreach (var item in itemGroup.Items)
+                // Store a reference to the first property group without conditions,
+                // in case we need to add a new 'TargetFramework' property later.
+                if (mainPropertyGroup == null && !groupHasCondition)
                 {
-                    if (item.ItemType != itemType)
+                    mainPropertyGroup = propertyGroup;
+                }
+
+                foreach (var property in propertyGroup.Properties)
+                {
+                    // We are looking for 'TargetFramework' properties.
+                    if (property.Name != "TargetFramework")
+                    {
                         continue;
+                    }
 
-                    string normalizedInclude = item.Include.NormalizePath();
+                    bool propertyHasCondition = !string.IsNullOrEmpty(property.Condition);
 
-                    var glob = MSBuildGlob.Parse(normalizedInclude);
-
-                    // TODO Check somehow if path has no blob to avoid the following loop...
-
-                    foreach (var existingFile in existingFiles)
+                    // Check if the property should be excluded.
+                    if (propertyHasCondition && !ConditionMatchesGodotPlatform(property.Condition))
                     {
-                        if (glob.IsMatch(existingFile))
+                        continue;
+                    }
+
+                    if (!groupHasCondition && !propertyHasCondition)
+                    {
+                        // Store a reference to the 'TargetFramework' that has no conditions
+                        // because it applies to all platforms.
+                        if (mainTargetFrameworkProperty == null)
                         {
-                            result.Add(existingFile);
+                            mainTargetFrameworkProperty = property;
                         }
+                        continue;
+                    }
+
+                    // If the 'TargetFramework' property is conditional, it may no longer be needed
+                    // when the main one is upgraded to the new minimum version.
+                    var tfmVersion = NuGetFramework.Parse(property.Value).Version;
+                    if (tfmVersion <= minTfmVersion)
+                    {
+                        propertiesToChange.Add(property);
                     }
                 }
             }
 
-            return result.ToArray();
-        }
-
-        ///  Simple function to make sure the Api assembly references are configured correctly
-        public static void FixApiHintPath(MSBuildProject project)
-        {
-            var root = project.Root;
-
-            void AddPropertyIfNotPresent(string name, string condition, string value)
+            if (mainTargetFrameworkProperty == null)
             {
-                if (root.PropertyGroups
-                    .Any(g => (string.IsNullOrEmpty(g.Condition) || g.Condition.Trim() == condition) &&
-                              g.Properties
-                                  .Any(p => p.Name == name &&
-                                            p.Value == value &&
-                                            (p.Condition.Trim() == condition || g.Condition.Trim() == condition))))
+                // We haven't found a 'TargetFramework' property without conditions,
+                // we'll just add one in the first property group without conditions.
+                if (mainPropertyGroup == null)
                 {
-                    return;
+                    // We also don't have a property group without conditions,
+                    // so we'll add a new one to the project.
+                    mainPropertyGroup = root.AddPropertyGroup();
                 }
 
-                root.AddProperty(name, value).Condition = " " + condition + " ";
+                mainTargetFrameworkProperty = mainPropertyGroup.AddProperty("TargetFramework", minTfmValue);
                 project.HasUnsavedChanges = true;
             }
-
-            AddPropertyIfNotPresent(name: "ApiConfiguration",
-                condition: "'$(Configuration)' != 'ExportRelease'",
-                value: "Debug");
-            AddPropertyIfNotPresent(name: "ApiConfiguration",
-                condition: "'$(Configuration)' == 'ExportRelease'",
-                value: "Release");
-
-            void SetReferenceHintPath(string referenceName, string condition, string hintPath)
+            else
             {
-                foreach (var itemGroup in root.ItemGroups.Where(g =>
-                    g.Condition.Trim() == string.Empty || g.Condition.Trim() == condition))
+                var tfmVersion = NuGetFramework.Parse(mainTargetFrameworkProperty.Value).Version;
+                if (tfmVersion < minTfmVersion)
                 {
-                    var references = itemGroup.Items.Where(item =>
-                        item.ItemType == "Reference" &&
-                        item.Include == referenceName &&
-                        (item.Condition.Trim() == condition || itemGroup.Condition.Trim() == condition));
-
-                    var referencesWithHintPath = references.Where(reference =>
-                        reference.Metadata.Any(m => m.Name == "HintPath"));
-
-                    if (referencesWithHintPath.Any(reference => reference.Metadata
-                        .Any(m => m.Name == "HintPath" && m.Value == hintPath)))
-                    {
-                        // Found a Reference item with the right HintPath
-                        return;
-                    }
-
-                    var referenceWithHintPath = referencesWithHintPath.FirstOrDefault();
-                    if (referenceWithHintPath != null)
-                    {
-                        // Found a Reference item with a wrong HintPath
-                        foreach (var metadata in referenceWithHintPath.Metadata.ToList()
-                            .Where(m => m.Name == "HintPath"))
-                        {
-                            // Safe to remove as we duplicate with ToList() to loop
-                            referenceWithHintPath.RemoveChild(metadata);
-                        }
-
-                        referenceWithHintPath.AddMetadata("HintPath", hintPath);
-                        project.HasUnsavedChanges = true;
-                        return;
-                    }
-
-                    var referenceWithoutHintPath = references.FirstOrDefault();
-                    if (referenceWithoutHintPath != null)
-                    {
-                        // Found a Reference item without a HintPath
-                        referenceWithoutHintPath.AddMetadata("HintPath", hintPath);
-                        project.HasUnsavedChanges = true;
-                        return;
-                    }
-                }
-
-                // Found no Reference item at all. Add it.
-                root.AddItem("Reference", referenceName).Condition = " " + condition + " ";
-                project.HasUnsavedChanges = true;
-            }
-
-            const string coreProjectName = "GodotSharp";
-            const string editorProjectName = "GodotSharpEditor";
-
-            const string coreCondition = "";
-            const string editorCondition = "'$(Configuration)' == 'Debug'";
-
-            var coreHintPath = $"$(ProjectDir)/.mono/assemblies/$(ApiConfiguration)/{coreProjectName}.dll";
-            var editorHintPath = $"$(ProjectDir)/.mono/assemblies/$(ApiConfiguration)/{editorProjectName}.dll";
-
-            SetReferenceHintPath(coreProjectName, coreCondition, coreHintPath);
-            SetReferenceHintPath(editorProjectName, editorCondition, editorHintPath);
-        }
-
-        public static void MigrateFromOldConfigNames(MSBuildProject project)
-        {
-            var root = project.Root;
-
-            bool hasGodotProjectGeneratorVersion = false;
-            bool foundOldConfiguration = false;
-
-            foreach (var propertyGroup in root.PropertyGroups.Where(g => string.IsNullOrEmpty(g.Condition)))
-            {
-                if (!hasGodotProjectGeneratorVersion && propertyGroup.Properties.Any(p => p.Name == "GodotProjectGeneratorVersion"))
-                    hasGodotProjectGeneratorVersion = true;
-
-                foreach (var configItem in propertyGroup.Properties
-                    .Where(p => p.Condition.Trim() == "'$(Configuration)' == ''" && p.Value == "Tools"))
-                {
-                    configItem.Value = "Debug";
-                    foundOldConfiguration = true;
+                    mainTargetFrameworkProperty.Value = minTfmValue;
                     project.HasUnsavedChanges = true;
                 }
             }
 
-            if (!hasGodotProjectGeneratorVersion)
+            var mainTfmVersion = NuGetFramework.Parse(mainTargetFrameworkProperty.Value).Version;
+            foreach (var property in propertiesToChange)
             {
-                root.PropertyGroups.First(g => string.IsNullOrEmpty(g.Condition))?
-                    .AddProperty("GodotProjectGeneratorVersion", Assembly.GetExecutingAssembly().GetName().Version.ToString());
+                // If the main 'TargetFramework' property targets a version newer than
+                // the minimum required by Godot, we don't want to remove the conditional
+                // 'TargetFramework' properties, only upgrade them to the new minimum.
+                // Otherwise, it can be removed.
+                if (mainTfmVersion > minTfmVersion)
+                {
+                    var propertyTfmVersion = NuGetFramework.Parse(property.Value).Version;
+                    if (propertyTfmVersion == minTfmVersion)
+                    {
+                        // The 'TargetFramework' property already matches the minimum version.
+                        continue;
+                    }
+
+                    property.Value = minTfmValue;
+                }
+                else
+                {
+                    property.Parent.RemoveChild(property);
+                }
+
                 project.HasUnsavedChanges = true;
             }
 
-            if (!foundOldConfiguration)
+            static bool ConditionMatchesGodotPlatform(string condition)
             {
-                var toolsConditions = new[]
+                // Check if the condition is checking the 'GodotTargetPlatform' for one of the
+                // Godot platforms with built-in support in the Godot.NET.Sdk.
+                var match = GodotTargetPlatformConditionRegex().Match(condition);
+                if (match.Success)
                 {
-                    "'$(Configuration)|$(Platform)' == 'Tools|AnyCPU'",
-                    "'$(Configuration)|$(Platform)' != 'Tools|AnyCPU'",
-                    "'$(Configuration)' == 'Tools'",
-                    "'$(Configuration)' != 'Tools'"
-                };
-
-                foundOldConfiguration = root.PropertyGroups
-                    .Any(g => toolsConditions.Any(c => c == g.Condition.Trim()));
-            }
-
-            if (foundOldConfiguration)
-            {
-                void MigrateConfigurationConditions(string oldConfiguration, string newConfiguration)
-                {
-                    void MigrateConditions(string oldCondition, string newCondition)
-                    {
-                        foreach (var propertyGroup in root.PropertyGroups.Where(g => g.Condition.Trim() == oldCondition))
-                        {
-                            propertyGroup.Condition = " " + newCondition + " ";
-                            project.HasUnsavedChanges = true;
-                        }
-
-                        foreach (var propertyGroup in root.PropertyGroups)
-                        {
-                            foreach (var prop in propertyGroup.Properties.Where(p => p.Condition.Trim() == oldCondition))
-                            {
-                                prop.Condition = " " + newCondition + " ";
-                                project.HasUnsavedChanges = true;
-                            }
-                        }
-
-                        foreach (var itemGroup in root.ItemGroups.Where(g => g.Condition.Trim() == oldCondition))
-                        {
-                            itemGroup.Condition = " " + newCondition + " ";
-                            project.HasUnsavedChanges = true;
-                        }
-
-                        foreach (var itemGroup in root.ItemGroups)
-                        {
-                            foreach (var item in itemGroup.Items.Where(item => item.Condition.Trim() == oldCondition))
-                            {
-                                item.Condition = " " + newCondition + " ";
-                                project.HasUnsavedChanges = true;
-                            }
-                        }
-                    }
-
-                    foreach (var op in new[] {"==", "!="})
-                    {
-                        MigrateConditions($"'$(Configuration)|$(Platform)' {op} '{oldConfiguration}|AnyCPU'", $"'$(Configuration)|$(Platform)' {op} '{newConfiguration}|AnyCPU'");
-                        MigrateConditions($"'$(Configuration)' {op} '{oldConfiguration}'", $"'$(Configuration)' {op} '{newConfiguration}'");
-                    }
+                    string platform = match.Groups["platform"].Value;
+                    return _platformNames.Contains(platform, StringComparer.OrdinalIgnoreCase);
                 }
 
-                MigrateConfigurationConditions("Debug", "ExportDebug");
-                MigrateConfigurationConditions("Release", "ExportRelease");
-                MigrateConfigurationConditions("Tools", "Debug"); // Must be last
+                return false;
             }
-        }
-
-        public static void EnsureHasNugetNetFrameworkRefAssemblies(MSBuildProject project)
-        {
-            var root = project.Root;
-
-            bool found = root.ItemGroups.Any(g => string.IsNullOrEmpty(g.Condition) && g.Items.Any(
-                item => item.ItemType == "PackageReference" && item.Include == "Microsoft.NETFramework.ReferenceAssemblies"));
-
-            if (found)
-                return;
-
-            var frameworkRefAssembliesItem = root.AddItem("PackageReference", "Microsoft.NETFramework.ReferenceAssemblies");
-
-            // Use metadata (child nodes) instead of attributes for the PackageReference.
-            // This is for compatibility with 3.2, where GodotTools uses an old Microsoft.Build.
-            frameworkRefAssembliesItem.AddMetadata("Version", "1.0.0");
-            frameworkRefAssembliesItem.AddMetadata("PrivateAssets", "All");
-
-            project.HasUnsavedChanges = true;
         }
     }
 }

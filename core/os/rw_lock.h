@@ -1,88 +1,103 @@
-/*************************************************************************/
-/*  rw_lock.h                                                            */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  rw_lock.h                                                             */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
-#ifndef RW_LOCK_H
-#define RW_LOCK_H
+#pragma once
 
-#include "core/error_list.h"
+#include "core/typedefs.h"
+
+#ifdef MINGW_ENABLED
+#define MINGW_STDTHREAD_REDUNDANCY_WARNING
+#include "thirdparty/mingw-std-threads/mingw.shared_mutex.h"
+#define THREADING_NAMESPACE mingw_stdthread
+#else
+#include <shared_mutex>
+#define THREADING_NAMESPACE std
+#endif
 
 class RWLock {
-protected:
-	static RWLock *(*create_func)();
+	mutable THREADING_NAMESPACE::shared_timed_mutex mutex;
 
 public:
-	virtual void read_lock() = 0; ///< Lock the rwlock, block if locked by someone else
-	virtual void read_unlock() = 0; ///< Unlock the rwlock, let other threads continue
-	virtual Error read_try_lock() = 0; ///< Attempt to lock the rwlock, OK on success, ERROR means it can't lock.
+	// Lock the RWLock, block if locked by someone else.
+	_ALWAYS_INLINE_ void read_lock() const {
+		mutex.lock_shared();
+	}
 
-	virtual void write_lock() = 0; ///< Lock the rwlock, block if locked by someone else
-	virtual void write_unlock() = 0; ///< Unlock the rwlock, let other thwrites continue
-	virtual Error write_try_lock() = 0; ///< Attempt to lock the rwlock, OK on success, ERROR means it can't lock.
+	// Unlock the RWLock, let other threads continue.
+	_ALWAYS_INLINE_ void read_unlock() const {
+		mutex.unlock_shared();
+	}
 
-	static RWLock *create(); ///< Create a rwlock
+	// Attempt to lock the RWLock for reading. True on success, false means it can't lock.
+	_ALWAYS_INLINE_ bool read_try_lock() const {
+		return mutex.try_lock_shared();
+	}
 
-	virtual ~RWLock() {}
+	// Lock the RWLock, block if locked by someone else.
+	_ALWAYS_INLINE_ void write_lock() {
+		mutex.lock();
+	}
+
+	// Unlock the RWLock, let other threads continue.
+	_ALWAYS_INLINE_ void write_unlock() {
+		mutex.unlock();
+	}
+
+	// Attempt to lock the RWLock for writing. True on success, false means it can't lock.
+	_ALWAYS_INLINE_ bool write_try_lock() {
+		return mutex.try_lock();
+	}
 };
 
 class RWLockRead {
-	RWLock *lock;
+	const RWLock &lock;
 
 public:
-	RWLockRead(const RWLock *p_lock) {
-		lock = const_cast<RWLock *>(p_lock);
-		if (lock) {
-			lock->read_lock();
-		}
+	_ALWAYS_INLINE_ RWLockRead(const RWLock &p_lock) :
+			lock(p_lock) {
+		lock.read_lock();
 	}
-	~RWLockRead() {
-		if (lock) {
-			lock->read_unlock();
-		}
+	_ALWAYS_INLINE_ ~RWLockRead() {
+		lock.read_unlock();
 	}
 };
 
 class RWLockWrite {
-	RWLock *lock;
+	RWLock &lock;
 
 public:
-	RWLockWrite(RWLock *p_lock) {
-		lock = p_lock;
-		if (lock) {
-			lock->write_lock();
-		}
+	_ALWAYS_INLINE_ RWLockWrite(RWLock &p_lock) :
+			lock(p_lock) {
+		lock.write_lock();
 	}
-	~RWLockWrite() {
-		if (lock) {
-			lock->write_unlock();
-		}
+	_ALWAYS_INLINE_ ~RWLockWrite() {
+		lock.write_unlock();
 	}
 };
-
-#endif // RW_LOCK_H

@@ -1,62 +1,91 @@
-/*************************************************************************/
-/*  dir_access_windows.cpp                                               */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  dir_access_windows.cpp                                                */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #if defined(WINDOWS_ENABLED)
 
 #include "dir_access_windows.h"
+#include "file_access_windows.h"
 
+#include "core/config/project_settings.h"
 #include "core/os/memory.h"
-#include "core/print_string.h"
+#include "core/os/os.h"
+#include "core/string/print_string.h"
 
-#include <stdio.h>
-#include <wchar.h>
+#include <cstdio>
+#include <cwchar>
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-/*
+typedef struct _NT_IO_STATUS_BLOCK {
+	union {
+		LONG Status;
+		PVOID Pointer;
+	} DUMMY;
+	ULONG_PTR Information;
+} NT_IO_STATUS_BLOCK;
 
-[03:57] <reduz> yessopie, so i don't havemak to rely on unicows
-[03:58] <yessopie> reduz- yeah, all of the functions fail, and then you can call GetLastError () which will return 120
-[03:58] <drumstick> CategoryApl, hehe, what? :)
-[03:59] <CategoryApl> didn't Verona lead to some trouble
-[03:59] <yessopie> 120 = ERROR_CALL_NOT_IMPLEMENTED
-[03:59] <yessopie> (you can use that constant if you include winerr.h)
-[03:59] <CategoryApl> well answer with winning a compo
+typedef struct _NT_FILE_CASE_SENSITIVE_INFO {
+	ULONG Flags;
+} NT_FILE_CASE_SENSITIVE_INFO;
 
-[04:02] <yessopie> if ( SetCurrentDirectoryW ( L"." ) == FALSE && GetLastError () == ERROR_CALL_NOT_IMPLEMENTED ) { use ANSI }
-*/
+typedef enum _NT_FILE_INFORMATION_CLASS {
+	FileCaseSensitiveInformation = 71,
+} NT_FILE_INFORMATION_CLASS;
+
+#define NT_FILE_CS_FLAG_CASE_SENSITIVE_DIR 0x00000001
+
+extern "C" NTSYSAPI LONG NTAPI NtQueryInformationFile(HANDLE FileHandle, NT_IO_STATUS_BLOCK *IoStatusBlock, PVOID FileInformation, ULONG Length, NT_FILE_INFORMATION_CLASS FileInformationClass);
 
 struct DirAccessWindowsPrivate {
-	HANDLE h; //handle for findfirstfile
+	HANDLE h; // handle for FindFirstFile.
 	WIN32_FIND_DATA f;
-	WIN32_FIND_DATAW fu; //unicode version
+	WIN32_FIND_DATAW fu; // Unicode version.
 };
+
+String DirAccessWindows::fix_path(const String &p_path) const {
+	String r_path = DirAccess::fix_path(p_path.trim_prefix(R"(\\?\)").replace_char('\\', '/'));
+	if (r_path.ends_with(":")) {
+		r_path += "/";
+	}
+	if (r_path.is_relative_path()) {
+		r_path = current_dir.trim_prefix(R"(\\?\)").replace_char('\\', '/').path_join(r_path);
+	} else if (r_path == ".") {
+		r_path = current_dir.trim_prefix(R"(\\?\)").replace_char('\\', '/');
+	}
+	r_path = r_path.simplify_path();
+	r_path = r_path.replace_char('/', '\\');
+	if (!r_path.is_network_share_path() && !r_path.begins_with(R"(\\?\)")) {
+		r_path = R"(\\?\)" + r_path;
+	}
+	return r_path;
+}
 
 // CreateFolderAsync
 
@@ -65,19 +94,24 @@ Error DirAccessWindows::list_dir_begin() {
 	_cishidden = false;
 
 	list_dir_end();
-	p->h = FindFirstFileExW((current_dir + "\\*").c_str(), FindExInfoStandard, &p->fu, FindExSearchNameMatch, nullptr, 0);
+	p->h = FindFirstFileExW((LPCWSTR)(String(current_dir + "\\*").utf16().get_data()), FindExInfoStandard, &p->fu, FindExSearchNameMatch, nullptr, 0);
 
-	return (p->h == INVALID_HANDLE_VALUE) ? ERR_CANT_OPEN : OK;
+	if (p->h == INVALID_HANDLE_VALUE) {
+		return ERR_CANT_OPEN;
+	}
+
+	return OK;
 }
 
 String DirAccessWindows::get_next() {
-	if (p->h == INVALID_HANDLE_VALUE)
+	if (p->h == INVALID_HANDLE_VALUE) {
 		return "";
+	}
 
 	_cisdir = (p->fu.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 	_cishidden = (p->fu.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN);
 
-	String name = p->fu.cFileName;
+	String name = String::utf16((const char16_t *)(p->fu.cFileName));
 
 	if (FindNextFileW(p->h, &p->fu) == 0) {
 		FindClose(p->h);
@@ -107,8 +141,9 @@ int DirAccessWindows::get_drive_count() {
 }
 
 String DirAccessWindows::get_drive(int p_drive) {
-	if (p_drive < 0 || p_drive >= drive_count)
+	if (p_drive < 0 || p_drive >= drive_count) {
 		return "";
+	}
 
 	return String::chr(drives[p_drive]) + ":";
 }
@@ -116,34 +151,36 @@ String DirAccessWindows::get_drive(int p_drive) {
 Error DirAccessWindows::change_dir(String p_dir) {
 	GLOBAL_LOCK_FUNCTION
 
-	p_dir = fix_path(p_dir);
+	String dir = fix_path(p_dir);
 
-	wchar_t real_current_dir_name[2048];
-	GetCurrentDirectoryW(2048, real_current_dir_name);
-	String prev_dir = real_current_dir_name;
+	Char16String real_current_dir_name;
+	size_t str_len = GetCurrentDirectoryW(0, nullptr);
+	real_current_dir_name.resize_uninitialized(str_len + 1);
+	GetCurrentDirectoryW(real_current_dir_name.size(), (LPWSTR)real_current_dir_name.ptrw());
+	String prev_dir = String::utf16((const char16_t *)real_current_dir_name.get_data());
 
-	SetCurrentDirectoryW(current_dir.c_str());
-	bool worked = (SetCurrentDirectoryW(p_dir.c_str()) != 0);
+	SetCurrentDirectoryW((LPCWSTR)(current_dir.utf16().get_data()));
+	bool worked = (SetCurrentDirectoryW((LPCWSTR)(dir.utf16().get_data())) != 0);
 
 	String base = _get_root_path();
-	if (base != "") {
-		GetCurrentDirectoryW(2048, real_current_dir_name);
-		String new_dir;
-		new_dir = String(real_current_dir_name).replace("\\", "/");
+	if (!base.is_empty()) {
+		str_len = GetCurrentDirectoryW(0, nullptr);
+		real_current_dir_name.resize_uninitialized(str_len + 1);
+		GetCurrentDirectoryW(real_current_dir_name.size(), (LPWSTR)real_current_dir_name.ptrw());
+		String new_dir = String::utf16((const char16_t *)real_current_dir_name.get_data()).trim_prefix(R"(\\?\)").replace_char('\\', '/');
 		if (!new_dir.begins_with(base)) {
 			worked = false;
 		}
 	}
 
 	if (worked) {
-		GetCurrentDirectoryW(2048, real_current_dir_name);
-		current_dir = real_current_dir_name; // TODO, utf8 parser
-		current_dir = current_dir.replace("\\", "/");
+		str_len = GetCurrentDirectoryW(0, nullptr);
+		real_current_dir_name.resize_uninitialized(str_len + 1);
+		GetCurrentDirectoryW(real_current_dir_name.size(), (LPWSTR)real_current_dir_name.ptrw());
+		current_dir = String::utf16((const char16_t *)real_current_dir_name.get_data());
+	}
 
-	} //else {
-
-	SetCurrentDirectoryW(prev_dir.c_str());
-	//}
+	SetCurrentDirectoryW((LPCWSTR)(prev_dir.utf16().get_data()));
 
 	return worked ? OK : ERR_INVALID_PARAMETER;
 }
@@ -151,74 +188,67 @@ Error DirAccessWindows::change_dir(String p_dir) {
 Error DirAccessWindows::make_dir(String p_dir) {
 	GLOBAL_LOCK_FUNCTION
 
-	p_dir = fix_path(p_dir);
-	if (p_dir.is_rel_path())
-		p_dir = current_dir.plus_file(p_dir);
+	if (FileAccessWindows::is_path_invalid(p_dir)) {
+#ifdef DEBUG_ENABLED
+		WARN_PRINT("The path :" + p_dir + " is a reserved Windows system pipe, so it can't be used for creating directories.");
+#endif
+		return ERR_INVALID_PARAMETER;
+	}
 
-	p_dir = p_dir.replace("/", "\\");
+	String dir = fix_path(p_dir);
 
 	bool success;
 	int err;
 
-	p_dir = "\\\\?\\" + p_dir; //done according to
-	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa363855(v=vs.85).aspx
-
-	success = CreateDirectoryW(p_dir.c_str(), nullptr);
+	success = CreateDirectoryW((LPCWSTR)(dir.utf16().get_data()), nullptr);
 	err = GetLastError();
 
 	if (success) {
 		return OK;
-	};
+	}
 
 	if (err == ERROR_ALREADY_EXISTS || err == ERROR_ACCESS_DENIED) {
 		return ERR_ALREADY_EXISTS;
-	};
+	}
 
 	return ERR_CANT_CREATE;
 }
 
-String DirAccessWindows::get_current_dir(bool p_include_drive) {
+String DirAccessWindows::get_current_dir(bool p_include_drive) const {
+	String cdir = current_dir.trim_prefix(R"(\\?\)").replace_char('\\', '/');
 	String base = _get_root_path();
-	if (base != "") {
-		String bd = current_dir.replace("\\", "/").replace_first(base, "");
-		if (bd.begins_with("/"))
-			return _get_root_string() + bd.substr(1, bd.length());
-		else
+	if (!base.is_empty()) {
+		String bd = cdir.replace_first(base, "");
+		if (bd.begins_with("/")) {
+			return _get_root_string() + bd.substr(1);
+		} else {
 			return _get_root_string() + bd;
-
-	} else {
+		}
 	}
 
 	if (p_include_drive) {
-		return current_dir;
+		return cdir;
 	} else {
-		if (_get_root_string() == "") {
-			int p = current_dir.find(":");
-			if (p != -1) {
-				return current_dir.right(p + 1);
+		if (_get_root_string().is_empty()) {
+			int pos = cdir.find_char(':');
+			if (pos != -1) {
+				return cdir.substr(pos + 1);
 			}
 		}
-		return current_dir;
+		return cdir;
 	}
 }
 
 bool DirAccessWindows::file_exists(String p_file) {
 	GLOBAL_LOCK_FUNCTION
 
-	if (!p_file.is_abs_path())
-		p_file = get_current_dir().plus_file(p_file);
-
-	p_file = fix_path(p_file);
-
-	//p_file.replace("/","\\");
-
-	//WIN32_FILE_ATTRIBUTE_DATA    fileInfo;
+	String file = fix_path(p_file);
 
 	DWORD fileAttr;
-
-	fileAttr = GetFileAttributesW(p_file.c_str());
-	if (INVALID_FILE_ATTRIBUTES == fileAttr)
+	fileAttr = GetFileAttributesW((LPCWSTR)(file.utf16().get_data()));
+	if (INVALID_FILE_ATTRIBUTES == fileAttr) {
 		return false;
+	}
 
 	return !(fileAttr & FILE_ATTRIBUTE_DIRECTORY);
 }
@@ -226,123 +256,102 @@ bool DirAccessWindows::file_exists(String p_file) {
 bool DirAccessWindows::dir_exists(String p_dir) {
 	GLOBAL_LOCK_FUNCTION
 
-	if (p_dir.is_rel_path())
-		p_dir = get_current_dir().plus_file(p_dir);
-
-	p_dir = fix_path(p_dir);
-
-	//p_dir.replace("/","\\");
-
-	//WIN32_FILE_ATTRIBUTE_DATA    fileInfo;
+	String dir = fix_path(p_dir);
 
 	DWORD fileAttr;
-
-	fileAttr = GetFileAttributesW(p_dir.c_str());
-	if (INVALID_FILE_ATTRIBUTES == fileAttr)
+	fileAttr = GetFileAttributesW((LPCWSTR)(dir.utf16().get_data()));
+	if (INVALID_FILE_ATTRIBUTES == fileAttr) {
 		return false;
+	}
 	return (fileAttr & FILE_ATTRIBUTE_DIRECTORY);
 }
 
 Error DirAccessWindows::rename(String p_path, String p_new_path) {
-	if (p_path.is_rel_path())
-		p_path = get_current_dir().plus_file(p_path);
-
-	p_path = fix_path(p_path);
-
-	if (p_new_path.is_rel_path())
-		p_new_path = get_current_dir().plus_file(p_new_path);
-
-	p_new_path = fix_path(p_new_path);
+	String path = fix_path(p_path);
+	String new_path = fix_path(p_new_path);
 
 	// If we're only changing file name case we need to do a little juggling
-	if (p_path.to_lower() == p_new_path.to_lower()) {
-		WCHAR tmpfile[MAX_PATH];
-
-		if (!GetTempFileNameW(fix_path(get_current_dir()).c_str(), nullptr, 0, tmpfile)) {
-			return FAILED;
+	if (path.to_lower() == new_path.to_lower()) {
+		if (dir_exists(path)) {
+			// The path is a dir; just rename
+			return MoveFileW((LPCWSTR)(path.utf16().get_data()), (LPCWSTR)(new_path.utf16().get_data())) != 0 ? OK : FAILED;
 		}
-
-		if (!::ReplaceFileW(tmpfile, p_path.c_str(), nullptr, 0, nullptr, nullptr)) {
-			DeleteFileW(tmpfile);
-			return FAILED;
-		}
-
-		return ::_wrename(tmpfile, p_new_path.c_str()) == 0 ? OK : FAILED;
-
-	} else {
-		if (file_exists(p_new_path)) {
-			if (remove(p_new_path) != OK) {
+		// The path is a file; juggle
+		// Note: do not use GetTempFileNameW, it's not long path aware!
+		Char16String tmpfile_utf16;
+		uint64_t id = OS::get_singleton()->get_ticks_usec();
+		while (true) {
+			tmpfile_utf16 = (path + itos(id++) + ".tmp").utf16();
+			HANDLE handle = CreateFileW((LPCWSTR)tmpfile_utf16.get_data(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+			if (handle != INVALID_HANDLE_VALUE) {
+				CloseHandle(handle);
+				break;
+			}
+			if (GetLastError() != ERROR_FILE_EXISTS && GetLastError() != ERROR_SHARING_VIOLATION) {
 				return FAILED;
 			}
 		}
 
-		return ::_wrename(p_path.c_str(), p_new_path.c_str()) == 0 ? OK : FAILED;
+		if (!::ReplaceFileW((LPCWSTR)tmpfile_utf16.get_data(), (LPCWSTR)(path.utf16().get_data()), nullptr, 0, nullptr, nullptr)) {
+			DeleteFileW((LPCWSTR)tmpfile_utf16.get_data());
+			return FAILED;
+		}
+
+		return MoveFileW((LPCWSTR)tmpfile_utf16.get_data(), (LPCWSTR)(new_path.utf16().get_data())) != 0 ? OK : FAILED;
+
+	} else {
+		if (file_exists(new_path)) {
+			if (remove(new_path) != OK) {
+				return FAILED;
+			}
+		}
+
+		return MoveFileW((LPCWSTR)(path.utf16().get_data()), (LPCWSTR)(new_path.utf16().get_data())) != 0 ? OK : FAILED;
 	}
 }
 
 Error DirAccessWindows::remove(String p_path) {
-	if (p_path.is_rel_path())
-		p_path = get_current_dir().plus_file(p_path);
-
-	p_path = fix_path(p_path);
-
-	printf("erasing %s\n", p_path.utf8().get_data());
-	//WIN32_FILE_ATTRIBUTE_DATA    fileInfo;
-	//DWORD fileAttr = GetFileAttributesExW(p_path.c_str(), GetFileExInfoStandard, &fileInfo);
+	String path = fix_path(p_path);
+	const Char16String &path_utf16 = path.utf16();
 
 	DWORD fileAttr;
 
-	fileAttr = GetFileAttributesW(p_path.c_str());
-	if (INVALID_FILE_ATTRIBUTES == fileAttr)
+	fileAttr = GetFileAttributesW((LPCWSTR)(path_utf16.get_data()));
+	if (INVALID_FILE_ATTRIBUTES == fileAttr) {
 		return FAILED;
-	if ((fileAttr & FILE_ATTRIBUTE_DIRECTORY))
-		return ::_wrmdir(p_path.c_str()) == 0 ? OK : FAILED;
-	else
-		return ::_wunlink(p_path.c_str()) == 0 ? OK : FAILED;
+	}
+	if ((fileAttr & FILE_ATTRIBUTE_DIRECTORY)) {
+		return RemoveDirectoryW((LPCWSTR)(path_utf16.get_data())) != 0 ? OK : FAILED;
+	} else {
+		return DeleteFileW((LPCWSTR)(path_utf16.get_data())) != 0 ? OK : FAILED;
+	}
 }
 
-/*
+uint64_t DirAccessWindows::get_space_left() {
+	uint64_t bytes = 0;
 
-FileType DirAccessWindows::get_file_type(const String& p_file) const {
+	String path = fix_path(current_dir);
 
-
-	wchar_t real_current_dir_name[2048];
-	GetCurrentDirectoryW(2048,real_current_dir_name);
-	String prev_dir=real_current_dir_name;
-
-	bool worked SetCurrentDirectoryW(current_dir.c_str());
-
-	DWORD attr;
-	if (worked) {
-
-		WIN32_FILE_ATTRIBUTE_DATA    fileInfo;
-		attr = GetFileAttributesExW(p_file.c_str(), GetFileExInfoStandard, &fileInfo);
-
+	if (!path.ends_with("\\")) {
+		path += "\\";
 	}
 
-	SetCurrentDirectoryW(prev_dir.c_str());
-
-	if (!worked)
-		return FILE_TYPE_NONE;
-
-
-	return (attr&FILE_ATTRIBUTE_DIRECTORY)?FILE_TYPE_
-}
-
-*/
-size_t DirAccessWindows::get_space_left() {
-	uint64_t bytes = 0;
-	if (!GetDiskFreeSpaceEx(nullptr, (PULARGE_INTEGER)&bytes, nullptr, nullptr))
+	if (!GetDiskFreeSpaceExW((LPCWSTR)(path.utf16().get_data()), (PULARGE_INTEGER)&bytes, nullptr, nullptr)) {
 		return 0;
+	}
 
-	//this is either 0 or a value in bytes.
-	return (size_t)bytes;
+	// This is either 0 or a value in bytes.
+	return bytes;
 }
 
 String DirAccessWindows::get_filesystem_type() const {
-	String path = fix_path(const_cast<DirAccessWindows *>(this)->get_current_dir());
+	String path = current_dir.trim_prefix(R"(\\?\)");
 
-	int unit_end = path.find(":");
+	if (path.is_network_share_path()) {
+		return "Network Share";
+	}
+
+	int unit_end = path.find_char(':');
 	ERR_FAIL_COND_V(unit_end == -1, String());
 	String unit = path.substr(0, unit_end + 1) + "\\";
 
@@ -352,7 +361,7 @@ String DirAccessWindows::get_filesystem_type() const {
 	DWORD dwMaxFileNameLength = 0;
 	DWORD dwFileSystemFlags = 0;
 
-	if (::GetVolumeInformationW(unit.c_str(),
+	if (::GetVolumeInformationW((LPCWSTR)(unit.utf16().get_data()),
 				szVolumeName,
 				sizeof(szVolumeName),
 				&dwSerialNumber,
@@ -360,24 +369,122 @@ String DirAccessWindows::get_filesystem_type() const {
 				&dwFileSystemFlags,
 				szFileSystemName,
 				sizeof(szFileSystemName)) == TRUE) {
-		return String(szFileSystemName);
+		return String::utf16((const char16_t *)szFileSystemName).to_upper();
 	}
 
 	ERR_FAIL_V("");
 }
 
+bool DirAccessWindows::is_case_sensitive(const String &p_path) const {
+	String f = fix_path(p_path);
+
+	HANDLE h_file = ::CreateFileW((LPCWSTR)(f.utf16().get_data()), 0,
+			FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+			nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+
+	if (h_file == INVALID_HANDLE_VALUE) {
+		return false;
+	}
+
+	NT_IO_STATUS_BLOCK io_status_block;
+	NT_FILE_CASE_SENSITIVE_INFO file_info;
+	LONG out = NtQueryInformationFile(h_file, &io_status_block, &file_info, sizeof(NT_FILE_CASE_SENSITIVE_INFO), FileCaseSensitiveInformation);
+	::CloseHandle(h_file);
+
+	if (out >= 0) {
+		return file_info.Flags & NT_FILE_CS_FLAG_CASE_SENSITIVE_DIR;
+	} else {
+		return false;
+	}
+}
+
+typedef struct {
+	ULONGLONG LowPart;
+	ULONGLONG HighPart;
+} GD_FILE_ID_128;
+
+typedef struct {
+	ULONGLONG VolumeSerialNumber;
+	GD_FILE_ID_128 FileId;
+} GD_FILE_ID_INFO;
+
+bool DirAccessWindows::is_equivalent(const String &p_path_a, const String &p_path_b) const {
+	String f1 = fix_path(p_path_a);
+	GD_FILE_ID_INFO st1;
+	HANDLE h1 = ::CreateFileW((LPCWSTR)(f1.utf16().get_data()), FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+	if (h1 == INVALID_HANDLE_VALUE) {
+		return DirAccess::is_equivalent(p_path_a, p_path_b);
+	}
+	::GetFileInformationByHandleEx(h1, (FILE_INFO_BY_HANDLE_CLASS)0x12 /*FileIdInfo*/, &st1, sizeof(st1));
+	::CloseHandle(h1);
+
+	String f2 = fix_path(p_path_b);
+	GD_FILE_ID_INFO st2;
+	HANDLE h2 = ::CreateFileW((LPCWSTR)(f2.utf16().get_data()), FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+	if (h2 == INVALID_HANDLE_VALUE) {
+		return DirAccess::is_equivalent(p_path_a, p_path_b);
+	}
+	::GetFileInformationByHandleEx(h2, (FILE_INFO_BY_HANDLE_CLASS)0x12 /*FileIdInfo*/, &st2, sizeof(st2));
+	::CloseHandle(h2);
+
+	return (st1.VolumeSerialNumber == st2.VolumeSerialNumber) && (st1.FileId.LowPart == st2.FileId.LowPart) && (st1.FileId.HighPart == st2.FileId.HighPart);
+}
+
+bool DirAccessWindows::is_link(String p_file) {
+	String f = fix_path(p_file);
+
+	DWORD attr = GetFileAttributesW((LPCWSTR)(f.utf16().get_data()));
+	if (attr == INVALID_FILE_ATTRIBUTES) {
+		return false;
+	}
+
+	return (attr & FILE_ATTRIBUTE_REPARSE_POINT);
+}
+
+String DirAccessWindows::read_link(String p_file) {
+	String f = fix_path(p_file);
+
+	HANDLE hfile = CreateFileW((LPCWSTR)(f.utf16().get_data()), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+	if (hfile == INVALID_HANDLE_VALUE) {
+		return f;
+	}
+
+	DWORD ret = GetFinalPathNameByHandleW(hfile, nullptr, 0, VOLUME_NAME_DOS | FILE_NAME_NORMALIZED);
+	if (ret == 0) {
+		return f;
+	}
+	Char16String cs;
+	cs.resize_uninitialized(ret + 1);
+	GetFinalPathNameByHandleW(hfile, (LPWSTR)cs.ptrw(), ret, VOLUME_NAME_DOS | FILE_NAME_NORMALIZED);
+	CloseHandle(hfile);
+
+	return String::utf16((const char16_t *)cs.ptr(), ret).trim_prefix(R"(\\?\)").replace_char('\\', '/');
+}
+
+Error DirAccessWindows::create_link(String p_source, String p_target) {
+	String source = fix_path(p_source);
+	String target = fix_path(p_target);
+
+	DWORD file_attr = GetFileAttributesW((LPCWSTR)(source.utf16().get_data()));
+	bool is_dir = (file_attr & FILE_ATTRIBUTE_DIRECTORY);
+
+	DWORD flags = ((is_dir) ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0) | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
+	if (CreateSymbolicLinkW((LPCWSTR)target.utf16().get_data(), (LPCWSTR)source.utf16().get_data(), flags) != 0) {
+		return OK;
+	} else {
+		return FAILED;
+	}
+}
+
 DirAccessWindows::DirAccessWindows() {
 	p = memnew(DirAccessWindowsPrivate);
 	p->h = INVALID_HANDLE_VALUE;
-	current_dir = ".";
 
-	drive_count = 0;
-
-#ifdef UWP_ENABLED
-	Windows::Storage::StorageFolder ^ install_folder = Windows::ApplicationModel::Package::Current->InstalledLocation;
-	change_dir(install_folder->Path->Data());
-
-#else
+	Char16String real_current_dir_name;
+	size_t str_len = GetCurrentDirectoryW(0, nullptr);
+	real_current_dir_name.resize_uninitialized(str_len + 1);
+	GetCurrentDirectoryW(real_current_dir_name.size(), (LPWSTR)real_current_dir_name.ptrw());
+	current_dir = String::utf16((const char16_t *)real_current_dir_name.get_data());
 
 	DWORD mask = GetLogicalDrives();
 
@@ -390,11 +497,12 @@ DirAccessWindows::DirAccessWindows() {
 	}
 
 	change_dir(".");
-#endif
 }
 
 DirAccessWindows::~DirAccessWindows() {
+	list_dir_end();
+
 	memdelete(p);
 }
 
-#endif //windows DirAccess support
+#endif // WINDOWS_ENABLED

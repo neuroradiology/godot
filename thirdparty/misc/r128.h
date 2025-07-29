@@ -1,5 +1,5 @@
 /*
-r128.h: 128-bit (64.64) signed fixed-point arithmetic. Version 1.4.3
+r128.h: 128-bit (64.64) signed fixed-point arithmetic. Version 1.6.0
 
 COMPILATION
 -----------
@@ -76,8 +76,8 @@ OTHER DEALINGS IN THE SOFTWARE.
 #  include <stdint.h>
 #  define R128_S32 int32_t
 #  define R128_U32 uint32_t
-#  define R128_S64 int64_t
-#  define R128_U64 uint64_t
+#  define R128_S64 long long
+#  define R128_U64 unsigned long long
 #  define R128_LIT_S64(x) x##ll
 #  define R128_LIT_U64(x) x##ull
 #endif
@@ -127,8 +127,10 @@ extern double r128ToFloat(const R128 *v);
 // Copy
 extern void r128Copy(R128 *dst, const R128 *src);
 
-// Negate
-extern void r128Neg(R128 *dst, const R128 *src);
+// Sign manipulation
+extern void r128Neg(R128 *dst, const R128 *v);   // -v
+extern void r128Abs(R128* dst, const R128* v);   // abs(v)
+extern void r128Nabs(R128* dst, const R128* v);  // -abs(v)
 
 // Bitwise operations
 extern void r128Not(R128 *dst, const R128 *src);               // ~a
@@ -155,6 +157,7 @@ extern void r128Min(R128 *dst, const R128 *a, const R128 *b);
 extern void r128Max(R128 *dst, const R128 *a, const R128 *b);
 extern void r128Floor(R128 *dst, const R128 *v);
 extern void r128Ceil(R128 *dst, const R128 *v);
+extern void r128Round(R128 *dst, const R128 *v);    // round to nearest, rounding halfway values away from zero
 extern int  r128IsNeg(const R128 *v); // quick check for < 0
 
 // String conversion
@@ -701,7 +704,7 @@ static R128_U32 r128__udiv64(R128_U32 nlo, R128_U32 nhi, R128_U32 d, R128_U32 *r
    return (R128_U32)(n64 / d);
 #  endif
 }
-#elif !defined(_M_X64) || defined(R128_STDC_ONLY)
+#elif defined(R128_STDC_ONLY) || !R128_INTEL
 #define r128__umul64(a, b) ((a) * (R128_U64)(b))
 static R128_U32 r128__udiv64(R128_U32 nlo, R128_U32 nhi, R128_U32 d, R128_U32 *rem)
 {
@@ -799,7 +802,7 @@ static void r128__umul128(R128 *dst, R128_U64 a, R128_U64 b)
 // MSVC x64 provides neither inline assembly nor (pre-2019) a div intrinsic, so we do fake
 // "inline assembly" to avoid long division or outline assembly.
 #pragma code_seg(".text")
-__declspec(allocate(".text")) static const unsigned char r128__udiv128Code[] = {
+__declspec(allocate(".text") align(16)) static const unsigned char r128__udiv128Code[] = {
    0x48, 0x8B, 0xC1,       //mov  rax, rcx
    0x49, 0xF7, 0xF0,       //div  rax, r8
    0x49, 0x89, 0x11,       //mov  qword ptr [r9], rdx
@@ -1413,15 +1416,15 @@ void r128FromString(R128 *dst, const char *s, char **endptr)
          }
       }
 
-      for (--s; s >= exp; --s) {
+      for (const char *c = s - 1; c >= exp; --c) {
          R128_U64 digit, unused;
 
-         if ('0' <= *s && *s <= '9') {
-            digit = *s - '0';
-         } else if ('a' <= *s && *s <= 'f') {
-            digit = *s - 'a' + 10;
+         if ('0' <= *c && *c <= '9') {
+            digit = *c - '0';
+         } else if ('a' <= *c && *c <= 'f') {
+            digit = *c - 'a' + 10;
          } else {
-            digit = *s - 'A' + 10;
+            digit = *c - 'A' + 10;
          }
 
          lo = r128__udiv128(lo, digit, base, &unused);
@@ -1441,7 +1444,11 @@ void r128FromString(R128 *dst, const char *s, char **endptr)
 R128_S64 r128ToInt(const R128 *v)
 {
    R128_ASSERT(v != NULL);
-   return (R128_S64)v->hi;
+   if ((R128_S64)v->hi < 0) {
+      return (R128_S64)v->hi + (v->lo != 0);
+   } else {
+      return (R128_S64)v->hi;
+   }
 }
 
 double r128ToFloat(const R128 *v)
@@ -1546,10 +1553,38 @@ void r128Copy(R128 *dst, const R128 *src)
    R128_DEBUG_SET(dst);
 }
 
-void r128Neg(R128 *dst, const R128 *src)
+void r128Neg(R128 *dst, const R128 *v)
 {
-   r128__neg(dst, src);
+   r128__neg(dst, v);
    R128_DEBUG_SET(dst);
+}
+
+void r128Abs(R128* dst, const R128* v)
+{
+    R128 sign, inv;
+
+    R128_ASSERT(dst != NULL);
+    R128_ASSERT(v != NULL);
+
+    sign.lo = sign.hi = (R128_U64)(((R128_S64)v->hi) >> 63);
+    inv.lo = v->lo ^ sign.lo;
+    inv.hi = v->hi ^ sign.hi;
+
+    r128Sub(dst, &inv, &sign);
+}
+
+void r128Nabs(R128* dst, const R128* v)
+{
+    R128 sign, inv;
+
+    R128_ASSERT(dst != NULL);
+    R128_ASSERT(v != NULL);
+
+    sign.lo = sign.hi = (R128_U64)(((R128_S64)v->hi) >> 63);
+    inv.lo = v->lo ^ sign.lo;
+    inv.hi = v->hi ^ sign.hi;
+
+    r128Sub(dst, &sign, &inv);
 }
 
 void r128Not(R128 *dst, const R128 *src)
@@ -1643,7 +1678,7 @@ void r128Shl(R128 *dst, const R128 *src, int amount)
       r[1] = r[0] << (amount - 64);
       r[0] = 0;
    } else if (amount) {
-#  ifdef _M_X64
+#  if defined(_M_X64) && !defined(R128_STDC_ONLY)
       r[1] = __shiftleft128(r[0], r[1], (char) amount);
 #  else
       r[1] = (r[1] << amount) | (r[0] >> (64 - amount));
@@ -1705,7 +1740,7 @@ void r128Shr(R128 *dst, const R128 *src, int amount)
       r[2] = r[3] >> (amount - 64);
       r[3] = 0;
    } else if (amount) {
-#ifdef _M_X64
+#if defined(_M_X64) && !defined(R128_STDC_ONLY)
       r[2] = __shiftright128(r[2], r[3], (char) amount);
 #else
       r[2] = (r[2] >> amount) | (r[3] << (64 - amount));
@@ -2097,11 +2132,7 @@ void r128Floor(R128 *dst, const R128 *v)
    R128_ASSERT(dst != NULL);
    R128_ASSERT(v != NULL);
 
-   if ((R128_S64)v->hi < 0) {
-      dst->hi = v->hi - (v->lo != 0);
-   } else {
-      dst->hi = v->hi;
-   }
+   dst->hi = v->hi;
    dst->lo = 0;
    R128_DEBUG_SET(dst);
 }
@@ -2111,11 +2142,17 @@ void r128Ceil(R128 *dst, const R128 *v)
    R128_ASSERT(dst != NULL);
    R128_ASSERT(v != NULL);
 
-   if ((R128_S64)v->hi > 0) {
-      dst->hi = v->hi + (v->lo != 0);
-   } else {
-      dst->hi = v->hi;
-   }
+   dst->hi = v->hi + (v->lo != 0);
+   dst->lo = 0;
+   R128_DEBUG_SET(dst);
+}
+
+void r128Round(R128* dst, const R128* v)
+{
+   R128_ASSERT(dst != NULL);
+   R128_ASSERT(v != NULL);
+
+   dst->hi = v->hi + (v->lo >= R128_LIT_U64(0x8000000000000000) + (R128_U64)((R128_S64)v->hi < 0));
    dst->lo = 0;
    R128_DEBUG_SET(dst);
 }

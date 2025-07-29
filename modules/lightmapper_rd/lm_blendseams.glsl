@@ -7,11 +7,11 @@ triangles = "#define MODE_TRIANGLES";
 
 #version 450
 
-VERSION_DEFINES
+#VERSION_DEFINES
 
 #include "lm_common_inc.glsl"
 
-layout(push_constant, binding = 0, std430) uniform Params {
+layout(push_constant, std430) uniform Params {
 	uint base_index;
 	uint slice;
 	vec2 uv_offset;
@@ -74,11 +74,11 @@ void main() {
 
 #version 450
 
-VERSION_DEFINES
+#VERSION_DEFINES
 
 #include "lm_common_inc.glsl"
 
-layout(push_constant, binding = 0, std430) uniform Params {
+layout(push_constant, std430) uniform Params {
 	uint base_index;
 	uint slice;
 	vec2 uv_offset;

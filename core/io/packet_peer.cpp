@@ -1,45 +1,45 @@
-/*************************************************************************/
-/*  packet_peer.cpp                                                      */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  packet_peer.cpp                                                       */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "packet_peer.h"
 
+#include "core/config/project_settings.h"
 #include "core/io/marshalls.h"
-#include "core/project_settings.h"
 
 /* helpers / binders */
 
 void PacketPeer::set_encode_buffer_max_size(int p_max_size) {
 	ERR_FAIL_COND_MSG(p_max_size < 1024, "Max encode buffer must be at least 1024 bytes");
 	ERR_FAIL_COND_MSG(p_max_size > 256 * 1024 * 1024, "Max encode buffer cannot exceed 256 MiB");
-	encode_buffer_max_size = next_power_of_2(p_max_size);
-	encode_buffer.resize(0);
+	encode_buffer_max_size = next_power_of_2((uint32_t)p_max_size);
+	encode_buffer.clear();
 }
 
 int PacketPeer::get_encode_buffer_max_size() const {
@@ -103,7 +103,7 @@ Error PacketPeer::put_var(const Variant &p_packet, bool p_full_objects) {
 
 	if (unlikely(encode_buffer.size() < len)) {
 		encode_buffer.resize(0); // Avoid realloc
-		encode_buffer.resize(next_power_of_2(len));
+		encode_buffer.resize(next_power_of_2((uint32_t)len));
 	}
 
 	uint8_t *w = encode_buffer.ptrw();
@@ -138,6 +138,7 @@ Error PacketPeer::_get_packet_error() const {
 void PacketPeer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_var", "allow_objects"), &PacketPeer::_bnd_get_var, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("put_var", "var", "full_objects"), &PacketPeer::put_var, DEFVAL(false));
+
 	ClassDB::bind_method(D_METHOD("get_packet"), &PacketPeer::_get_packet);
 	ClassDB::bind_method(D_METHOD("put_packet", "buffer"), &PacketPeer::_put_packet);
 	ClassDB::bind_method(D_METHOD("get_packet_error"), &PacketPeer::_get_packet_error);
@@ -151,10 +152,32 @@ void PacketPeer::_bind_methods() {
 
 /***************/
 
-void PacketPeerStream::_set_stream_peer(REF p_peer) {
-	ERR_FAIL_COND_MSG(p_peer.is_null(), "It's not a reference to a valid Resource object.");
-	set_stream_peer(p_peer);
+Error PacketPeerExtension::get_packet(const uint8_t **r_buffer, int &r_buffer_size) {
+	Error err;
+	if (GDVIRTUAL_CALL(_get_packet, r_buffer, &r_buffer_size, err)) {
+		return err;
+	}
+	WARN_PRINT_ONCE("PacketPeerExtension::_get_packet_native is unimplemented!");
+	return FAILED;
 }
+
+Error PacketPeerExtension::put_packet(const uint8_t *p_buffer, int p_buffer_size) {
+	Error err;
+	if (GDVIRTUAL_CALL(_put_packet, p_buffer, p_buffer_size, err)) {
+		return err;
+	}
+	WARN_PRINT_ONCE("PacketPeerExtension::_put_packet_native is unimplemented!");
+	return FAILED;
+}
+
+void PacketPeerExtension::_bind_methods() {
+	GDVIRTUAL_BIND(_get_packet, "r_buffer", "r_buffer_size");
+	GDVIRTUAL_BIND(_put_packet, "p_buffer", "p_buffer_size");
+	GDVIRTUAL_BIND(_get_available_packet_count);
+	GDVIRTUAL_BIND(_get_max_packet_size);
+}
+
+/***************/
 
 void PacketPeerStream::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_stream_peer", "peer"), &PacketPeerStream::set_stream_peer);
@@ -166,7 +189,7 @@ void PacketPeerStream::_bind_methods() {
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "input_buffer_max_size"), "set_input_buffer_max_size", "get_input_buffer_max_size");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "output_buffer_max_size"), "set_output_buffer_max_size", "get_output_buffer_max_size");
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "stream_peer", PROPERTY_HINT_RESOURCE_TYPE, "StreamPeer", 0), "set_stream_peer", "get_stream_peer");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "stream_peer", PROPERTY_HINT_RESOURCE_TYPE, "StreamPeer", PROPERTY_USAGE_NONE), "set_stream_peer", "get_stream_peer");
 }
 
 Error PacketPeerStream::_poll_buffer() const {
@@ -263,10 +286,8 @@ int PacketPeerStream::get_max_packet_size() const {
 }
 
 void PacketPeerStream::set_stream_peer(const Ref<StreamPeer> &p_peer) {
-	//ERR_FAIL_COND(p_peer.is_null());
-
 	if (p_peer.ptr() != peer.ptr()) {
-		ring_buffer.advance_read(ring_buffer.data_left()); // reset the ring buffer
+		ring_buffer.advance_read(ring_buffer.data_left()); // Reset the ring buffer.
 	}
 
 	peer = p_peer;
@@ -278,10 +299,10 @@ Ref<StreamPeer> PacketPeerStream::get_stream_peer() const {
 
 void PacketPeerStream::set_input_buffer_max_size(int p_max_size) {
 	ERR_FAIL_COND_MSG(p_max_size < 0, "Max size of input buffer size cannot be smaller than 0.");
-	//warning may lose packets
+	// WARNING: May lose packets.
 	ERR_FAIL_COND_MSG(ring_buffer.data_left(), "Buffer in use, resizing would cause loss of data.");
-	ring_buffer.resize(nearest_shift(next_power_of_2(p_max_size + 4)) - 1);
-	input_buffer.resize(next_power_of_2(p_max_size + 4));
+	ring_buffer.resize(nearest_shift(next_power_of_2((uint32_t)p_max_size + (uint32_t)4)) - 1);
+	input_buffer.resize(next_power_of_2((uint32_t)p_max_size + (uint32_t)4));
 }
 
 int PacketPeerStream::get_input_buffer_max_size() const {
@@ -289,7 +310,7 @@ int PacketPeerStream::get_input_buffer_max_size() const {
 }
 
 void PacketPeerStream::set_output_buffer_max_size(int p_max_size) {
-	output_buffer.resize(next_power_of_2(p_max_size + 4));
+	output_buffer.resize(next_power_of_2((uint32_t)p_max_size + (uint32_t)4));
 }
 
 int PacketPeerStream::get_output_buffer_max_size() const {
@@ -297,9 +318,9 @@ int PacketPeerStream::get_output_buffer_max_size() const {
 }
 
 PacketPeerStream::PacketPeerStream() {
-	int rbsize = GLOBAL_GET("network/limits/packet_peer_stream/max_buffer_po2");
+	int64_t rbsize = GLOBAL_GET("network/limits/packet_peer_stream/max_buffer_po2");
 
 	ring_buffer.resize(rbsize);
-	input_buffer.resize(1 << rbsize);
-	output_buffer.resize(1 << rbsize);
+	input_buffer.resize(int64_t(1) << rbsize);
+	output_buffer.resize(int64_t(1) << rbsize);
 }

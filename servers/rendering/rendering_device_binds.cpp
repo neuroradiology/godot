@@ -1,34 +1,41 @@
-/*************************************************************************/
-/*  rendering_device_binds.cpp                                           */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  rendering_device_binds.cpp                                            */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "rendering_device_binds.h"
+
+#include "modules/modules_enabled.gen.h" // For glslang.
+#ifdef MODULE_GLSLANG_ENABLED
+#include "modules/glslang/shader_compile.h"
+#endif
+
+#include "shader_include_db.h"
 
 Error RDShaderFile::parse_versions_from_text(const String &p_text, const String p_defines, OpenIncludeFunction p_include_func, void *p_include_func_userdata) {
 	Vector<String> lines = p_text.split("\n");
@@ -45,7 +52,7 @@ Error RDShaderFile::parse_versions_from_text(const String &p_text, const String 
 	};
 	String stage_code[RD::SHADER_STAGE_MAX];
 	int stages_found = 0;
-	Map<StringName, String> version_texts;
+	HashMap<StringName, String> version_texts;
 
 	versions.clear();
 	base_error = "";
@@ -80,7 +87,7 @@ Error RDShaderFile::parse_versions_from_text(const String &p_text, const String 
 						}
 					}
 
-					if (base_error != String()) {
+					if (!base_error.is_empty()) {
 						break;
 					}
 				}
@@ -89,7 +96,7 @@ Error RDShaderFile::parse_versions_from_text(const String &p_text, const String 
 			}
 		}
 
-		if (stage == RD::SHADER_STAGE_MAX && line.strip_edges() != "") {
+		if (stage == RD::SHADER_STAGE_MAX && !line.strip_edges().is_empty()) {
 			line = line.strip_edges();
 			if (line.begins_with("//") || line.begins_with("/*")) {
 				continue; //assuming comment (single line)
@@ -98,19 +105,19 @@ Error RDShaderFile::parse_versions_from_text(const String &p_text, const String 
 
 		if (reading_versions) {
 			String l = line.strip_edges();
-			if (l != "") {
-				if (l.find("=") == -1) {
+			if (!l.is_empty()) {
+				if (!l.contains_char('=')) {
 					base_error = "Missing `=` in '" + l + "'. Version syntax is `version = \"<defines with C escaping>\";`.";
 					break;
 				}
-				if (l.find(";") != -1) {
+				if (!l.contains_char(';')) {
 					// We don't require a semicolon per se, but it's needed for clang-format to handle things properly.
 					base_error = "Missing `;` in '" + l + "'. Version syntax is `version = \"<defines with C escaping>\";`.";
 					break;
 				}
-				Vector<String> slices = l.get_slice(";", 0).split("=");
+				Vector<String> slices = l.get_slicec(';', 0).split("=");
 				String version = slices[0].strip_edges();
-				if (!version.is_valid_identifier()) {
+				if (!version.is_valid_ascii_identifier()) {
 					base_error = "Version names must be valid identifiers, found '" + version + "' instead.";
 					break;
 				}
@@ -124,7 +131,7 @@ Error RDShaderFile::parse_versions_from_text(const String &p_text, const String 
 				version_texts[version] = define + "\n" + p_defines;
 			}
 		} else {
-			if (stage == RD::SHADER_STAGE_MAX && line.strip_edges() != "") {
+			if (stage == RD::SHADER_STAGE_MAX && !line.strip_edges().is_empty()) {
 				base_error = "Text was found that does not belong to a valid section: " + line;
 				break;
 			}
@@ -135,15 +142,21 @@ Error RDShaderFile::parse_versions_from_text(const String &p_text, const String 
 						//process include
 						String include = line.replace("#include", "").strip_edges();
 						if (!include.begins_with("\"") || !include.ends_with("\"")) {
-							base_error = "Malformed #include syntax, expected #include \"<path>\", found instad: " + include;
+							base_error = "Malformed #include syntax, expected #include \"<path>\", found instead: " + include;
 							break;
 						}
 						include = include.substr(1, include.length() - 2).strip_edges();
-						String include_text = p_include_func(include, p_include_func_userdata);
-						if (include_text != String()) {
-							stage_code[stage] += "\n" + include_text + "\n";
+
+						String include_code = ShaderIncludeDB::get_built_in_include_file(include);
+						if (!include_code.is_empty()) {
+							stage_code[stage] += "\n" + include_code + "\n";
 						} else {
-							base_error = "#include failed for file '" + include + "'";
+							String include_text = p_include_func(include, p_include_func_userdata);
+							if (!include_text.is_empty()) {
+								stage_code[stage] += "\n" + include_text + "\n";
+							} else {
+								base_error = "#include failed for file '" + include + "'.";
+							}
 						}
 					} else {
 						base_error = "#include used, but no include function provided.";
@@ -155,15 +168,12 @@ Error RDShaderFile::parse_versions_from_text(const String &p_text, const String 
 		}
 	}
 
-	Ref<RDShaderFile> shader_file;
-	shader_file.instance();
-
-	if (base_error == "") {
+	if (base_error.is_empty()) {
 		if (stage_found[RD::SHADER_STAGE_COMPUTE] && stages_found > 1) {
 			ERR_FAIL_V_MSG(ERR_PARSE_ERROR, "When writing compute shaders, [compute] mustbe the only stage present.");
 		}
 
-		if (version_texts.empty()) {
+		if (version_texts.is_empty()) {
 			version_texts[""] = ""; //make sure a default version exists
 		}
 
@@ -171,20 +181,24 @@ Error RDShaderFile::parse_versions_from_text(const String &p_text, const String 
 
 		/* STEP 2, Compile the versions, add to shader file */
 
-		for (Map<StringName, String>::Element *E = version_texts.front(); E; E = E->next()) {
-			Ref<RDShaderBytecode> bytecode;
-			bytecode.instance();
+		for (const KeyValue<StringName, String> &E : version_texts) {
+			Ref<RDShaderSPIRV> bytecode;
+			bytecode.instantiate();
 
 			for (int i = 0; i < RD::SHADER_STAGE_MAX; i++) {
 				String code = stage_code[i];
-				if (code == String()) {
+				if (code.is_empty()) {
 					continue;
 				}
-				code = code.replace("VERSION_DEFINES", E->get());
+				code = code.replace("VERSION_DEFINES", E.value);
 				String error;
-				Vector<uint8_t> spirv = RenderingDevice::get_singleton()->shader_compile_from_source(RD::ShaderStage(i), code, RD::SHADER_LANGUAGE_GLSL, &error, false);
+#ifdef MODULE_GLSLANG_ENABLED
+				Vector<uint8_t> spirv = compile_glslang_shader(RD::ShaderStage(i), ShaderIncludeDB::parse_include_files(code), RD::SHADER_LANGUAGE_VULKAN_VERSION_1_1, RD::SHADER_SPIRV_VERSION_1_3, &error);
 				bytecode->set_stage_bytecode(RD::ShaderStage(i), spirv);
-				if (error != "") {
+#else
+				error = "Shader compilation is not supported because glslang was not enabled.";
+#endif
+				if (!error.is_empty()) {
 					error += String() + "\n\nStage '" + stage_str[i] + "' source code: \n\n";
 					Vector<String> sclines = code.split("\n");
 					for (int j = 0; j < sclines.size(); j++) {
@@ -195,7 +209,7 @@ Error RDShaderFile::parse_versions_from_text(const String &p_text, const String 
 				bytecode->set_stage_compile_error(RD::ShaderStage(i), error);
 			}
 
-			set_bytecode(bytecode, E->key());
+			set_bytecode(bytecode, E.key);
 		}
 
 		return errors_found ? ERR_PARSE_ERROR : OK;

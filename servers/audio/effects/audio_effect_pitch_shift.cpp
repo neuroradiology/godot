@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  audio_effect_pitch_shift.cpp                                         */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  audio_effect_pitch_shift.cpp                                          */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "audio_effect_pitch_shift.h"
 
@@ -40,7 +40,7 @@
 *
 * NAME: smbPitchShift.cpp
 * VERSION: 1.2
-* HOME URL: http://blogs.zynaptiq.com/bernsee
+* HOME URL: https://blogs.zynaptiq.com/bernsee
 * KNOWN BUGS: none
 *
 * SYNOPSIS: Routine for doing pitch shifting while maintaining
@@ -92,17 +92,15 @@ void SMBPitchShift::PitchShift(float pitchShift, long numSampsToProcess, long ff
 	fftFrameSize2 = fftFrameSize/2;
 	stepSize = fftFrameSize/osamp;
 	freqPerBin = sampleRate/(double)fftFrameSize;
-	expct = 2.*Math_PI*(double)stepSize/(double)fftFrameSize;
+	expct = 2.*Math::PI*(double)stepSize/(double)fftFrameSize;
 	inFifoLatency = fftFrameSize-stepSize;
 	if (gRover == 0) { gRover = inFifoLatency;
-
 }
 
 	/* initialize our static arrays */
 
 	/* main processing loop */
 	for (i = 0; i < numSampsToProcess; i++){
-
 		/* As long as we have not yet collected enough data just read in */
 		gInFIFO[gRover] = indata[i*stride];
 		outdata[i*stride] = gOutFIFO[gRover-inFifoLatency];
@@ -114,7 +112,7 @@ void SMBPitchShift::PitchShift(float pitchShift, long numSampsToProcess, long ff
 
 			/* do windowing and re,im interleave */
 			for (k = 0; k < fftFrameSize;k++) {
-				window = -.5*cos(2.*Math_PI*(double)k/(double)fftFrameSize)+.5;
+				window = -.5*std::cos(2.*Math::PI*(double)k/(double)fftFrameSize)+.5;
 				gFFTworksp[2*k] = gInFIFO[k] * window;
 				gFFTworksp[2*k+1] = 0.;
 			}
@@ -126,14 +124,13 @@ void SMBPitchShift::PitchShift(float pitchShift, long numSampsToProcess, long ff
 
 			/* this is the analysis step */
 			for (k = 0; k <= fftFrameSize2; k++) {
-
 				/* de-interlace FFT buffer */
 				real = gFFTworksp[2*k];
 				imag = gFFTworksp[2*k+1];
 
 				/* compute magnitude and phase */
-				magn = 2.*sqrt(real*real + imag*imag);
-				phase = atan2(imag,real);
+				magn = 2.*std::sqrt(real*real + imag*imag);
+				phase = std::atan2(imag,real);
 
 				/* compute phase difference */
 				tmp = phase - gLastPhase[k];
@@ -143,15 +140,14 @@ void SMBPitchShift::PitchShift(float pitchShift, long numSampsToProcess, long ff
 				tmp -= (double)k*expct;
 
 				/* map delta phase into +/- Pi interval */
-				qpd = tmp/Math_PI;
+				qpd = tmp/Math::PI;
 				if (qpd >= 0) { qpd += qpd&1;
 				} else { qpd -= qpd&1;
-
 }
-				tmp -= Math_PI*(double)qpd;
+				tmp -= Math::PI*(double)qpd;
 
 				/* get deviation from bin frequency from the +/- Pi interval */
-				tmp = osamp*tmp/(2.*Math_PI);
+				tmp = osamp*tmp/(2.*Math::PI);
 
 				/* compute the k-th partials' true frequency */
 				tmp = (double)k*freqPerBin + tmp*freqPerBin;
@@ -164,8 +160,13 @@ void SMBPitchShift::PitchShift(float pitchShift, long numSampsToProcess, long ff
 
 			/* ***************** PROCESSING ******************* */
 			/* this does the actual pitch shifting */
-			memset(gSynMagn, 0, fftFrameSize*sizeof(float));
-			memset(gSynFreq, 0, fftFrameSize*sizeof(float));
+			size_t fftBufferSize = static_cast<size_t>(fftFrameSize) * sizeof(float);
+			if (unlikely(fftBufferSize > MAX_FRAME_LENGTH)) {
+				ERR_PRINT_ONCE("Invalid FFT frame size for PitchShift. This is a bug, please report.");
+				return;
+			}
+			memset(gSynMagn, 0, fftBufferSize);
+			memset(gSynFreq, 0, fftBufferSize);
 			for (k = 0; k <= fftFrameSize2; k++) {
 				index = k*pitchShift;
 				if (index <= fftFrameSize2) {
@@ -177,7 +178,6 @@ void SMBPitchShift::PitchShift(float pitchShift, long numSampsToProcess, long ff
 			/* ***************** SYNTHESIS ******************* */
 			/* this is the synthesis step */
 			for (k = 0; k <= fftFrameSize2; k++) {
-
 				/* get magnitude and true frequency from synthesis arrays */
 				magn = gSynMagn[k];
 				tmp = gSynFreq[k];
@@ -189,7 +189,7 @@ void SMBPitchShift::PitchShift(float pitchShift, long numSampsToProcess, long ff
 				tmp /= freqPerBin;
 
 				/* take osamp into account */
-				tmp = 2.*Math_PI*tmp/osamp;
+				tmp = 2.*Math::PI*tmp/osamp;
 
 				/* add the overlap phase advance back in */
 				tmp += (double)k*expct;
@@ -199,13 +199,12 @@ void SMBPitchShift::PitchShift(float pitchShift, long numSampsToProcess, long ff
 				phase = gSumPhase[k];
 
 				/* get real and imag part and re-interleave */
-				gFFTworksp[2*k] = magn*cos(phase);
-				gFFTworksp[2*k+1] = magn*sin(phase);
+				gFFTworksp[2*k] = magn*std::cos(phase);
+				gFFTworksp[2*k+1] = magn*std::sin(phase);
 			}
 
 			/* zero negative frequencies */
 			for (k = fftFrameSize+2; k < 2*fftFrameSize; k++) { gFFTworksp[k] = 0.;
-
 }
 
 			/* do inverse transform */
@@ -213,25 +212,20 @@ void SMBPitchShift::PitchShift(float pitchShift, long numSampsToProcess, long ff
 
 			/* do windowing and add to output accumulator */
 			for(k=0; k < fftFrameSize; k++) {
-				window = -.5*cos(2.*Math_PI*(double)k/(double)fftFrameSize)+.5;
+				window = -.5*std::cos(2.*Math::PI*(double)k/(double)fftFrameSize)+.5;
 				gOutputAccum[k] += 2.*window*gFFTworksp[2*k]/(fftFrameSize2*osamp);
 			}
 			for (k = 0; k < stepSize; k++) { gOutFIFO[k] = gOutputAccum[k];
-
 }
 
 			/* shift accumulator */
-			memmove(gOutputAccum, gOutputAccum+stepSize, fftFrameSize*sizeof(float));
+			memmove(gOutputAccum, gOutputAccum+stepSize, fftBufferSize);
 
 			/* move input FIFO */
 			for (k = 0; k < inFifoLatency; k++) { gInFIFO[k] = gInFIFO[k+stepSize];
-
 }
 		}
 	}
-
-
-
 }
 
 
@@ -256,7 +250,6 @@ void SMBPitchShift::smbFft(float *fftBuffer, long fftFrameSize, long sign)
 	for (i = 2; i < 2*fftFrameSize-2; i += 2) {
 		for (bitm = 2, j = 0; bitm < 2*fftFrameSize; bitm <<= 1) {
 			if (i & bitm) { j++;
-
 }
 			j <<= 1;
 		}
@@ -267,14 +260,14 @@ void SMBPitchShift::smbFft(float *fftBuffer, long fftFrameSize, long sign)
 			*p1 = *p2; *p2 = temp;
 		}
 	}
-	for (k = 0, le = 2; k < (long)(log((double)fftFrameSize)/log(2.)+.5); k++) {
+	for (k = 0, le = 2; k < (long)(std::log((double)fftFrameSize)/std::log(2.)+.5); k++) {
 		le <<= 1;
 		le2 = le>>1;
 		ur = 1.0;
 		ui = 0.0;
-		arg = Math_PI / (le2>>1);
-		wr = cos(arg);
-		wi = sign*sin(arg);
+		arg = Math::PI / (le2>>1);
+		wr = std::cos(arg);
+		wi = sign*std::sin(arg);
 		for (j = 0; j < le2; j += 2) {
 			p1r = fftBuffer+j; p1i = p1r+1;
 			p2r = p1r+le2; p2i = p2r+1;
@@ -298,6 +291,14 @@ void SMBPitchShift::smbFft(float *fftBuffer, long fftFrameSize, long sign)
 /* clang-format on */
 
 void AudioEffectPitchShiftInstance::process(const AudioFrame *p_src_frames, AudioFrame *p_dst_frames, int p_frame_count) {
+	// Avoid distortion by skipping processing if pitch_scale is 1.0.
+	if (Math::is_equal_approx(base->pitch_scale, 1.0f)) {
+		for (int i = 0; i < p_frame_count; i++) {
+			p_dst_frames[i] = p_src_frames[i];
+		}
+		return;
+	}
+
 	float sample_rate = AudioServer::get_singleton()->get_mix_rate();
 
 	float *in_l = (float *)p_src_frames;
@@ -310,9 +311,9 @@ void AudioEffectPitchShiftInstance::process(const AudioFrame *p_src_frames, Audi
 	shift_r.PitchShift(base->pitch_scale, p_frame_count, fft_size, base->oversampling, sample_rate, in_r, out_r, 2);
 }
 
-Ref<AudioEffectInstance> AudioEffectPitchShift::instance() {
+Ref<AudioEffectInstance> AudioEffectPitchShift::instantiate() {
 	Ref<AudioEffectPitchShiftInstance> ins;
-	ins.instance();
+	ins.instantiate();
 	ins->base = Ref<AudioEffectPitchShift>(this);
 	static const int fft_sizes[FFT_SIZE_MAX] = { 256, 512, 1024, 2048, 4096 };
 	ins->fft_size = fft_sizes[fft_size];
@@ -321,7 +322,7 @@ Ref<AudioEffectInstance> AudioEffectPitchShift::instance() {
 }
 
 void AudioEffectPitchShift::set_pitch_scale(float p_pitch_scale) {
-	ERR_FAIL_COND(p_pitch_scale <= 0.0);
+	ERR_FAIL_COND(!(p_pitch_scale > 0.0));
 	pitch_scale = p_pitch_scale;
 }
 
@@ -338,12 +339,12 @@ int AudioEffectPitchShift::get_oversampling() const {
 	return oversampling;
 }
 
-void AudioEffectPitchShift::set_fft_size(FFT_Size p_fft_size) {
+void AudioEffectPitchShift::set_fft_size(FFTSize p_fft_size) {
 	ERR_FAIL_INDEX(p_fft_size, FFT_SIZE_MAX);
 	fft_size = p_fft_size;
 }
 
-AudioEffectPitchShift::FFT_Size AudioEffectPitchShift::get_fft_size() const {
+AudioEffectPitchShift::FFTSize AudioEffectPitchShift::get_fft_size() const {
 	return fft_size;
 }
 
@@ -367,13 +368,4 @@ void AudioEffectPitchShift::_bind_methods() {
 	BIND_ENUM_CONSTANT(FFT_SIZE_2048);
 	BIND_ENUM_CONSTANT(FFT_SIZE_4096);
 	BIND_ENUM_CONSTANT(FFT_SIZE_MAX);
-}
-
-AudioEffectPitchShift::AudioEffectPitchShift() {
-	pitch_scale = 1.0;
-	oversampling = 4;
-	fft_size = FFT_SIZE_2048;
-	wet = 0.0;
-	dry = 0.0;
-	filter = false;
 }

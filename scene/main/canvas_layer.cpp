@@ -1,45 +1,79 @@
-/*************************************************************************/
-/*  canvas_layer.cpp                                                     */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  canvas_layer.cpp                                                      */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "canvas_layer.h"
-#include "viewport.h"
+
+#include "scene/main/canvas_item.h"
+#include "scene/main/viewport.h"
+#include "scene/resources/world_2d.h"
 
 void CanvasLayer::set_layer(int p_xform) {
 	layer = p_xform;
 	if (viewport.is_valid()) {
 		RenderingServer::get_singleton()->viewport_set_canvas_stacking(viewport, canvas, layer, get_index());
+		vp->gui_set_root_order_dirty();
 	}
 }
 
 int CanvasLayer::get_layer() const {
 	return layer;
+}
+
+void CanvasLayer::set_visible(bool p_visible) {
+	if (p_visible == visible) {
+		return;
+	}
+
+	visible = p_visible;
+	emit_signal(SceneStringName(visibility_changed));
+
+	for (int i = 0; i < get_child_count(); i++) {
+		CanvasItem *c = Object::cast_to<CanvasItem>(get_child(i));
+		if (c) {
+			RenderingServer::get_singleton()->canvas_item_set_visible(c->get_canvas_item(), p_visible && c->is_visible());
+
+			c->_propagate_visibility_changed(p_visible);
+		}
+	}
+}
+
+void CanvasLayer::show() {
+	set_visible(true);
+}
+
+void CanvasLayer::hide() {
+	set_visible(false);
+}
+
+bool CanvasLayer::is_visible() const {
+	return visible;
 }
 
 void CanvasLayer::set_transform(const Transform2D &p_xform) {
@@ -54,6 +88,18 @@ Transform2D CanvasLayer::get_transform() const {
 	return transform;
 }
 
+Transform2D CanvasLayer::get_final_transform() const {
+	if (is_following_viewport()) {
+		Transform2D follow;
+		follow.scale(Vector2(get_follow_viewport_scale(), get_follow_viewport_scale()));
+		if (vp) {
+			follow = vp->get_canvas_transform() * follow;
+		}
+		return follow * transform;
+	}
+	return transform;
+}
+
 void CanvasLayer::_update_xform() {
 	transform.set_rotation_and_scale(rot, scale);
 	transform.set_origin(ofs);
@@ -62,8 +108,8 @@ void CanvasLayer::_update_xform() {
 	}
 }
 
-void CanvasLayer::_update_locrotscale() {
-	ofs = transform.elements[2];
+void CanvasLayer::_update_locrotscale() const {
+	ofs = transform.columns[2];
 	rot = transform.get_rotation();
 	scale = transform.get_scale();
 	locrotscale_dirty = false;
@@ -80,7 +126,7 @@ void CanvasLayer::set_offset(const Vector2 &p_offset) {
 
 Vector2 CanvasLayer::get_offset() const {
 	if (locrotscale_dirty) {
-		const_cast<CanvasLayer *>(this)->_update_locrotscale();
+		_update_locrotscale();
 	}
 
 	return ofs;
@@ -97,18 +143,10 @@ void CanvasLayer::set_rotation(real_t p_radians) {
 
 real_t CanvasLayer::get_rotation() const {
 	if (locrotscale_dirty) {
-		const_cast<CanvasLayer *>(this)->_update_locrotscale();
+		_update_locrotscale();
 	}
 
 	return rot;
-}
-
-void CanvasLayer::set_rotation_degrees(real_t p_degrees) {
-	set_rotation(Math::deg2rad(p_degrees));
-}
-
-real_t CanvasLayer::get_rotation_degrees() const {
-	return Math::rad2deg(get_rotation());
 }
 
 void CanvasLayer::set_scale(const Vector2 &p_scale) {
@@ -122,7 +160,7 @@ void CanvasLayer::set_scale(const Vector2 &p_scale) {
 
 Vector2 CanvasLayer::get_scale() const {
 	if (locrotscale_dirty) {
-		const_cast<CanvasLayer *>(this)->_update_locrotscale();
+		_update_locrotscale();
 	}
 
 	return scale;
@@ -136,30 +174,36 @@ void CanvasLayer::_notification(int p_what) {
 			} else {
 				vp = Node::get_viewport();
 			}
-			ERR_FAIL_COND(!vp);
+			ERR_FAIL_NULL_MSG(vp, "Viewport is not initialized.");
 
 			vp->_canvas_layer_add(this);
 			viewport = vp->get_viewport_rid();
 
 			RenderingServer::get_singleton()->viewport_attach_canvas(viewport, canvas);
-			RenderingServer::get_singleton()->viewport_set_canvas_stacking(viewport, canvas, layer, get_index());
 			RenderingServer::get_singleton()->viewport_set_canvas_transform(viewport, canvas, transform);
 			_update_follow_viewport();
 
+			if (vp) {
+				get_parent()->connect(SNAME("child_order_changed"), callable_mp(vp, &Viewport::canvas_parent_mark_dirty).bind(get_parent()), CONNECT_REFERENCE_COUNTED);
+				vp->canvas_parent_mark_dirty(get_parent());
+			}
 		} break;
+
 		case NOTIFICATION_EXIT_TREE: {
+			ERR_FAIL_NULL_MSG(vp, "Viewport is not initialized.");
+			get_parent()->disconnect(SNAME("child_order_changed"), callable_mp(vp, &Viewport::canvas_parent_mark_dirty).bind(get_parent()));
+
 			vp->_canvas_layer_remove(this);
 			RenderingServer::get_singleton()->viewport_remove_canvas(viewport, canvas);
 			viewport = RID();
 			_update_follow_viewport(false);
-
 		} break;
-		case NOTIFICATION_MOVED_IN_PARENT: {
-			if (is_inside_tree()) {
-				RenderingServer::get_singleton()->viewport_set_canvas_stacking(viewport, canvas, layer, get_index());
-			}
+	}
+}
 
-		} break;
+void CanvasLayer::update_draw_order() {
+	if (is_inside_tree()) {
+		RenderingServer::get_singleton()->viewport_set_canvas_stacking(viewport, canvas, layer, get_index());
 	}
 }
 
@@ -167,6 +211,8 @@ Size2 CanvasLayer::get_viewport_size() const {
 	if (!is_inside_tree()) {
 		return Size2(1, 1);
 	}
+
+	ERR_FAIL_NULL_V_MSG(vp, Size2(1, 1), "Viewport is not initialized.");
 
 	Rect2 r = vp->get_visible_rect();
 	return r.size;
@@ -177,7 +223,7 @@ RID CanvasLayer::get_viewport() const {
 }
 
 void CanvasLayer::set_custom_viewport(Node *p_viewport) {
-	ERR_FAIL_NULL(p_viewport);
+	ERR_FAIL_NULL_MSG(p_viewport, "Cannot set viewport to nullptr.");
 	if (is_inside_tree()) {
 		vp->_canvas_layer_remove(this);
 		RenderingServer::get_singleton()->viewport_remove_canvas(viewport, canvas);
@@ -261,17 +307,20 @@ void CanvasLayer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_layer", "layer"), &CanvasLayer::set_layer);
 	ClassDB::bind_method(D_METHOD("get_layer"), &CanvasLayer::get_layer);
 
+	ClassDB::bind_method(D_METHOD("set_visible", "visible"), &CanvasLayer::set_visible);
+	ClassDB::bind_method(D_METHOD("is_visible"), &CanvasLayer::is_visible);
+	ClassDB::bind_method(D_METHOD("show"), &CanvasLayer::show);
+	ClassDB::bind_method(D_METHOD("hide"), &CanvasLayer::hide);
+
 	ClassDB::bind_method(D_METHOD("set_transform", "transform"), &CanvasLayer::set_transform);
 	ClassDB::bind_method(D_METHOD("get_transform"), &CanvasLayer::get_transform);
+	ClassDB::bind_method(D_METHOD("get_final_transform"), &CanvasLayer::get_final_transform);
 
 	ClassDB::bind_method(D_METHOD("set_offset", "offset"), &CanvasLayer::set_offset);
 	ClassDB::bind_method(D_METHOD("get_offset"), &CanvasLayer::get_offset);
 
 	ClassDB::bind_method(D_METHOD("set_rotation", "radians"), &CanvasLayer::set_rotation);
 	ClassDB::bind_method(D_METHOD("get_rotation"), &CanvasLayer::get_rotation);
-
-	ClassDB::bind_method(D_METHOD("set_rotation_degrees", "degrees"), &CanvasLayer::set_rotation_degrees);
-	ClassDB::bind_method(D_METHOD("get_rotation_degrees"), &CanvasLayer::get_rotation_degrees);
 
 	ClassDB::bind_method(D_METHOD("set_scale", "scale"), &CanvasLayer::set_scale);
 	ClassDB::bind_method(D_METHOD("get_scale"), &CanvasLayer::get_scale);
@@ -288,34 +337,27 @@ void CanvasLayer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_canvas"), &CanvasLayer::get_canvas);
 
 	ADD_GROUP("Layer", "");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "layer", PROPERTY_HINT_RANGE, "-128,128,1"), "set_layer", "get_layer");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "layer", PROPERTY_HINT_RANGE, itos(RS::CANVAS_LAYER_MIN) + "," + itos(RS::CANVAS_LAYER_MAX) + ",1"), "set_layer", "get_layer");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "visible"), "set_visible", "is_visible");
 	ADD_GROUP("Transform", "");
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "offset"), "set_offset", "get_offset");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "rotation_degrees", PROPERTY_HINT_RANGE, "-1080,1080,0.1,or_lesser,or_greater", PROPERTY_USAGE_EDITOR), "set_rotation_degrees", "get_rotation_degrees");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "rotation", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR), "set_rotation", "get_rotation");
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "scale"), "set_scale", "get_scale");
-	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM2D, "transform"), "set_transform", "get_transform");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "offset", PROPERTY_HINT_NONE, "suffix:px"), "set_offset", "get_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "rotation", PROPERTY_HINT_RANGE, "-1080,1080,0.1,or_less,or_greater,radians_as_degrees"), "set_rotation", "get_rotation");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "scale", PROPERTY_HINT_LINK), "set_scale", "get_scale");
+	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM2D, "transform", PROPERTY_HINT_NONE, "suffix:px"), "set_transform", "get_transform");
 	ADD_GROUP("", "");
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "custom_viewport", PROPERTY_HINT_RESOURCE_TYPE, "Viewport", 0), "set_custom_viewport", "get_custom_viewport");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "custom_viewport", PROPERTY_HINT_RESOURCE_TYPE, "Viewport", PROPERTY_USAGE_NONE), "set_custom_viewport", "get_custom_viewport");
 	ADD_GROUP("Follow Viewport", "follow_viewport");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "follow_viewport_enable"), "set_follow_viewport", "is_following_viewport");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "follow_viewport_scale", PROPERTY_HINT_RANGE, "0.001,1000,0.001,or_greater,or_lesser"), "set_follow_viewport_scale", "get_follow_viewport_scale");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "follow_viewport_enabled", PROPERTY_HINT_GROUP_ENABLE), "set_follow_viewport", "is_following_viewport");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "follow_viewport_scale", PROPERTY_HINT_RANGE, "0.001,1000,0.001,or_greater,or_less"), "set_follow_viewport_scale", "get_follow_viewport_scale");
+
+	ADD_SIGNAL(MethodInfo("visibility_changed"));
 }
 
 CanvasLayer::CanvasLayer() {
-	vp = nullptr;
-	scale = Vector2(1, 1);
-	rot = 0;
-	locrotscale_dirty = false;
-	layer = 1;
 	canvas = RS::get_singleton()->canvas_create();
-	custom_viewport = nullptr;
-
-	sort_index = 0;
-	follow_viewport = false;
-	follow_viewport_scale = 1.0;
 }
 
 CanvasLayer::~CanvasLayer() {
+	ERR_FAIL_NULL(RenderingServer::get_singleton());
 	RS::get_singleton()->free(canvas);
 }

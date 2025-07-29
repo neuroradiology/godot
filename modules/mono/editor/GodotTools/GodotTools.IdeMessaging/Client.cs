@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -19,12 +20,15 @@ namespace GodotTools.IdeMessaging
         private readonly string identity;
 
         private string MetaFilePath { get; }
+        private DateTime? metaFileModifiedTime;
         private GodotIdeMetadata godotIdeMetadata;
         private readonly FileSystemWatcher fsWatcher;
 
+        public string GodotEditorExecutablePath => godotIdeMetadata.EditorExecutablePath;
+
         private readonly IMessageHandler messageHandler;
 
-        private Peer peer;
+        private Peer? peer;
         private readonly SemaphoreSlim connectionSem = new SemaphoreSlim(1);
 
         private readonly Queue<NotifyAwaiter<bool>> clientConnectedAwaiters = new Queue<NotifyAwaiter<bool>>();
@@ -50,6 +54,7 @@ namespace GodotTools.IdeMessaging
         public bool IsDisposed { get; private set; }
 
         // ReSharper disable once MemberCanBePrivate.Global
+        [MemberNotNullWhen(true, "peer")]
         public bool IsConnected => peer != null && !peer.IsDisposed && peer.IsTcpClientConnected;
 
         // ReSharper disable once EventNeverSubscribedTo.Global
@@ -108,7 +113,7 @@ namespace GodotTools.IdeMessaging
             if (disposing)
             {
                 peer?.Dispose();
-                fsWatcher?.Dispose();
+                fsWatcher.Dispose();
             }
         }
 
@@ -118,13 +123,23 @@ namespace GodotTools.IdeMessaging
             this.messageHandler = messageHandler;
             this.logger = logger;
 
-            string projectMetadataDir = Path.Combine(godotProjectDir, ".mono", "metadata");
+            string projectMetadataDir = Path.Combine(godotProjectDir, ".godot", "mono", "metadata");
+            // FileSystemWatcher requires an existing directory
+            if (!Directory.Exists(projectMetadataDir))
+            {
+                // Check if the non hidden version exists
+                string nonHiddenProjectMetadataDir = Path.Combine(godotProjectDir, "godot", "mono", "metadata");
+                if (Directory.Exists(nonHiddenProjectMetadataDir))
+                {
+                    projectMetadataDir = nonHiddenProjectMetadataDir;
+                }
+                else
+                {
+                    Directory.CreateDirectory(projectMetadataDir);
+                }
+            }
 
             MetaFilePath = Path.Combine(projectMetadataDir, GodotIdeMetadata.DefaultFileName);
-
-            // FileSystemWatcher requires an existing directory
-            if (!File.Exists(projectMetadataDir))
-                Directory.CreateDirectory(projectMetadataDir);
 
             fsWatcher = new FileSystemWatcher(projectMetadataDir, GodotIdeMetadata.DefaultFileName);
         }
@@ -141,6 +156,13 @@ namespace GodotTools.IdeMessaging
 
                 if (!File.Exists(MetaFilePath))
                     return;
+
+                var lastWriteTime = File.GetLastWriteTime(MetaFilePath);
+
+                if (lastWriteTime == metaFileModifiedTime)
+                    return;
+
+                metaFileModifiedTime = lastWriteTime;
 
                 var metadata = ReadMetadataFile();
 
@@ -173,6 +195,13 @@ namespace GodotTools.IdeMessaging
                 if (IsConnected || !File.Exists(MetaFilePath))
                     return;
 
+                var lastWriteTime = File.GetLastWriteTime(MetaFilePath);
+
+                if (lastWriteTime == metaFileModifiedTime)
+                    return;
+
+                metaFileModifiedTime = lastWriteTime;
+
                 var metadata = ReadMetadataFile();
 
                 if (metadata != null)
@@ -185,14 +214,15 @@ namespace GodotTools.IdeMessaging
 
         private GodotIdeMetadata? ReadMetadataFile()
         {
-            using (var reader = File.OpenText(MetaFilePath))
+            using (var fileStream = new FileStream(MetaFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var reader = new StreamReader(fileStream))
             {
-                string portStr = reader.ReadLine();
+                string? portStr = reader.ReadLine();
 
                 if (portStr == null)
                     return null;
 
-                string editorExecutablePath = reader.ReadLine();
+                string? editorExecutablePath = reader.ReadLine();
 
                 if (editorExecutablePath == null)
                     return null;
@@ -272,6 +302,7 @@ namespace GodotTools.IdeMessaging
         // ReSharper disable once UnusedMember.Global
         public async void Start()
         {
+            fsWatcher.Created += OnMetaFileChanged;
             fsWatcher.Changed += OnMetaFileChanged;
             fsWatcher.Deleted += OnMetaFileDeleted;
             fsWatcher.EnableRaisingEvents = true;
@@ -304,7 +335,7 @@ namespace GodotTools.IdeMessaging
             }
         }
 
-        public async Task<TResponse> SendRequest<TResponse>(Request request)
+        public async Task<TResponse?> SendRequest<TResponse>(Request request)
             where TResponse : Response, new()
         {
             if (!IsConnected)
@@ -317,7 +348,7 @@ namespace GodotTools.IdeMessaging
             return await peer.SendRequest<TResponse>(request.Id, body);
         }
 
-        public async Task<TResponse> SendRequest<TResponse>(string id, string body)
+        public async Task<TResponse?> SendRequest<TResponse>(string id, string body)
             where TResponse : Response, new()
         {
             if (!IsConnected)

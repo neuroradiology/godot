@@ -1,34 +1,36 @@
-/*************************************************************************/
-/*  audio_filter_sw.cpp                                                  */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  audio_filter_sw.cpp                                                   */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "audio_filter_sw.h"
+
+#include "core/math/math_funcs.h"
 
 void AudioFilterSW::set_mode(Mode p_mode) {
 	mode = p_mode;
@@ -58,7 +60,7 @@ void AudioFilterSW::prepare_coefficients(Coeffs *p_coeffs) {
 		final_cutoff = 1; //don't allow less than this
 	}
 
-	double omega = 2.0 * Math_PI * final_cutoff / sampling_rate;
+	double omega = Math::TAU * final_cutoff / sampling_rate;
 
 	double sin_v = Math::sin(omega);
 	double cos_v = Math::cos(omega);
@@ -106,9 +108,9 @@ void AudioFilterSW::prepare_coefficients(Coeffs *p_coeffs) {
 		} break;
 
 		case BANDPASS: {
-			p_coeffs->b0 = alpha * sqrt(Q + 1);
+			p_coeffs->b0 = alpha * std::sqrt(Q + 1);
 			p_coeffs->b1 = 0.0;
-			p_coeffs->b2 = -alpha * sqrt(Q + 1);
+			p_coeffs->b2 = -alpha * std::sqrt(Q + 1);
 			p_coeffs->a1 = -2.0 * cos_v;
 			p_coeffs->a2 = 1.0 - alpha;
 		} break;
@@ -132,7 +134,7 @@ void AudioFilterSW::prepare_coefficients(Coeffs *p_coeffs) {
 			double hicutoff = resonance;
 			double centercutoff = (cutoff + resonance) / 2.0;
 			double bandwidth = (Math::log(centercutoff) - Math::log(hicutoff)) / Math::log((double)2);
-			omega = 2.0 * Math_PI * centercutoff / sampling_rate;
+			omega = Math::TAU * centercutoff / sampling_rate;
 			alpha = Math::sin(omega) * Math::sinh(Math::log((double)2) / 2 * bandwidth * omega / Math::sin(omega));
 			a0 = 1 + alpha;
 
@@ -173,59 +175,42 @@ void AudioFilterSW::prepare_coefficients(Coeffs *p_coeffs) {
 			p_coeffs->a2 = ((tmpgain + 1.0) - (tmpgain - 1.0) * cos_v - beta * sin_v);
 
 		} break;
-	};
+	}
 
 	p_coeffs->b0 /= a0;
 	p_coeffs->b1 /= a0;
 	p_coeffs->b2 /= a0;
 	p_coeffs->a1 /= 0.0 - a0;
 	p_coeffs->a2 /= 0.0 - a0;
-
-	//undenormalise
-	/*    p_coeffs->b0=undenormalise(p_coeffs->b0);
-    p_coeffs->b1=undenormalise(p_coeffs->b1);
-    p_coeffs->b2=undenormalise(p_coeffs->b2);
-    p_coeffs->a1=undenormalise(p_coeffs->a1);
-    p_coeffs->a2=undenormalise(p_coeffs->a2);*/
 }
 
-void AudioFilterSW::set_stages(int p_stages) { //adjust for multiple stages
-
+void AudioFilterSW::set_stages(int p_stages) {
 	stages = p_stages;
 }
 
-/* Fouriertransform kernel to obtain response */
+/* Fourier transform kernel to obtain response */
 
 float AudioFilterSW::get_response(float p_freq, Coeffs *p_coeffs) {
-	float freq = p_freq / sampling_rate * Math_PI * 2.0f;
+	float freq = p_freq / sampling_rate * Math::TAU;
 
 	float cx = p_coeffs->b0, cy = 0.0;
 
-	cx += cos(freq) * p_coeffs->b1;
-	cy -= sin(freq) * p_coeffs->b1;
-	cx += cos(2 * freq) * p_coeffs->b2;
-	cy -= sin(2 * freq) * p_coeffs->b2;
+	cx += std::cos(freq) * p_coeffs->b1;
+	cy -= std::sin(freq) * p_coeffs->b1;
+	cx += std::cos(2 * freq) * p_coeffs->b2;
+	cy -= std::sin(2 * freq) * p_coeffs->b2;
 
 	float H = cx * cx + cy * cy;
 	cx = 1.0;
 	cy = 0.0;
 
-	cx -= cos(freq) * p_coeffs->a1;
-	cy += sin(freq) * p_coeffs->a1;
-	cx -= cos(2 * freq) * p_coeffs->a2;
-	cy += sin(2 * freq) * p_coeffs->a2;
+	cx -= std::cos(freq) * p_coeffs->a1;
+	cy += std::sin(freq) * p_coeffs->a1;
+	cx -= std::cos(2 * freq) * p_coeffs->a2;
+	cy += std::sin(2 * freq) * p_coeffs->a2;
 
 	H = H / (cx * cx + cy * cy);
 	return H;
-}
-
-AudioFilterSW::AudioFilterSW() {
-	sampling_rate = 44100;
-	resonance = 0.5;
-	cutoff = 5000;
-	gain = 1.0;
-	mode = LOWPASS;
-	stages = 1;
 }
 
 AudioFilterSW::Processor::Processor() {

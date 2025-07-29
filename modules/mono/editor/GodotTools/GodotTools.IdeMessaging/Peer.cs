@@ -46,11 +46,11 @@ namespace GodotTools.IdeMessaging
 
         private readonly SemaphoreSlim writeSem = new SemaphoreSlim(1);
 
-        private string remoteIdentity = string.Empty;
-        public string RemoteIdentity => remoteIdentity;
+        private string? remoteIdentity;
+        public string RemoteIdentity => remoteIdentity ??= string.Empty;
 
-        public event Action Connected;
-        public event Action Disconnected;
+        public event Action? Connected;
+        public event Action? Disconnected;
 
         private ILogger Logger { get; }
 
@@ -78,7 +78,7 @@ namespace GodotTools.IdeMessaging
             clientStream.WriteTimeout = ClientWriteTimeout;
 
             clientReader = new StreamReader(clientStream, Encoding.UTF8);
-            clientWriter = new StreamWriter(clientStream, Encoding.UTF8) {NewLine = "\n"};
+            clientWriter = new StreamWriter(clientStream, Encoding.UTF8) { NewLine = "\n" };
         }
 
         public async Task Process()
@@ -87,7 +87,7 @@ namespace GodotTools.IdeMessaging
             {
                 var decoder = new MessageDecoder();
 
-                string messageLine;
+                string? messageLine;
                 while ((messageLine = await ReadLine()) != null)
                 {
                     var state = decoder.Decode(messageLine, out var msg);
@@ -105,49 +105,45 @@ namespace GodotTools.IdeMessaging
 
                     try
                     {
-                        try
+                        if (msg!.Kind == MessageKind.Request)
                         {
-                            if (msg.Kind == MessageKind.Request)
-                            {
-                                var responseContent = await messageHandler.HandleRequest(this, msg.Id, msg.Content, Logger);
-                                await WriteMessage(new Message(MessageKind.Response, msg.Id, responseContent));
-                            }
-                            else if (msg.Kind == MessageKind.Response)
-                            {
-                                ResponseAwaiter responseAwaiter;
+                            var responseContent = await messageHandler.HandleRequest(this, msg.Id, msg.Content, Logger);
+                            await WriteMessage(new Message(MessageKind.Response, msg.Id, responseContent));
+                        }
+                        else if (msg.Kind == MessageKind.Response)
+                        {
+                            ResponseAwaiter responseAwaiter;
 
-                                using (await requestsSem.UseAsync())
+                            using (await requestsSem.UseAsync())
+                            {
+                                if (!requestAwaiterQueues.TryGetValue(msg.Id, out var queue) || queue.Count <= 0)
                                 {
-                                    if (!requestAwaiterQueues.TryGetValue(msg.Id, out var queue) || queue.Count <= 0)
-                                    {
-                                        Logger.LogError($"Received unexpected response: {msg.Id}");
-                                        return;
-                                    }
-
-                                    responseAwaiter = queue.Dequeue();
+                                    Logger.LogError($"Received unexpected response: {msg.Id}");
+                                    return;
                                 }
 
-                                responseAwaiter.SetResult(msg.Content);
+                                responseAwaiter = queue.Dequeue();
                             }
-                            else
-                            {
-                                throw new IndexOutOfRangeException($"Invalid message kind {msg.Kind}");
-                            }
+
+                            responseAwaiter.SetResult(msg.Content);
                         }
-                        catch (Exception e)
+                        else
                         {
-                            Logger.LogError($"Message handler for '{msg}' failed with exception", e);
+                            throw new IndexOutOfRangeException($"Invalid message kind {msg.Kind}");
                         }
                     }
                     catch (Exception e)
                     {
-                        Logger.LogError($"Exception thrown from message handler. Message: {msg}", e);
+                        Logger.LogError($"Message handler for '{msg}' failed with exception", e);
                     }
                 }
             }
             catch (Exception e)
             {
-                Logger.LogError("Unhandled exception in the peer loop", e);
+                if (!IsDisposed || !(e is SocketException || e.InnerException is SocketException))
+                {
+                    Logger.LogError("Unhandled exception in the peer loop", e);
+                }
             }
         }
 
@@ -167,9 +163,9 @@ namespace GodotTools.IdeMessaging
                 return false;
             }
 
-            string peerHandshake = await readHandshakeTask;
+            string? peerHandshake = await readHandshakeTask;
 
-            if (handshake == null || !handshake.IsValidPeerHandshake(peerHandshake, out remoteIdentity, Logger))
+            if (peerHandshake == null || !handshake.IsValidPeerHandshake(peerHandshake, out remoteIdentity, Logger))
             {
                 Logger.LogError("Received invalid handshake: " + peerHandshake);
                 return false;
@@ -183,7 +179,7 @@ namespace GodotTools.IdeMessaging
             return true;
         }
 
-        private async Task<string> ReadLine()
+        private async Task<string?> ReadLine()
         {
             try
             {
@@ -220,7 +216,7 @@ namespace GodotTools.IdeMessaging
             return WriteLine(builder.ToString());
         }
 
-        public async Task<TResponse> SendRequest<TResponse>(string id, string body)
+        public async Task<TResponse?> SendRequest<TResponse>(string id, string body)
             where TResponse : Response, new()
         {
             ResponseAwaiter responseAwaiter;
@@ -247,7 +243,7 @@ namespace GodotTools.IdeMessaging
 
         private async Task<bool> WriteLine(string text)
         {
-            if (clientWriter == null || IsDisposed || !IsTcpClientConnected)
+            if (IsDisposed || !IsTcpClientConnected)
                 return false;
 
             using (await writeSem.UseAsync())
@@ -294,9 +290,9 @@ namespace GodotTools.IdeMessaging
                     Disconnected?.Invoke();
             }
 
-            clientReader?.Dispose();
-            clientWriter?.Dispose();
-            ((IDisposable)tcpClient)?.Dispose();
+            clientReader.Dispose();
+            clientWriter.Dispose();
+            ((IDisposable)tcpClient).Dispose();
         }
     }
 }

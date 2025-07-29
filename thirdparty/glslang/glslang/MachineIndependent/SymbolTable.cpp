@@ -3,6 +3,7 @@
 // Copyright (C) 2012-2013 LunarG, Inc.
 // Copyright (C) 2017 ARM Limited.
 // Copyright (C) 2015-2018 Google, Inc.
+// Modifications Copyright (C) 2020 Advanced Micro Devices, Inc. All rights reserved.
 //
 // All rights reserved.
 //
@@ -64,7 +65,6 @@ void TType::buildMangledName(TString& mangledName) const
     case EbtInt:                mangledName += 'i';      break;
     case EbtUint:               mangledName += 'u';      break;
     case EbtBool:               mangledName += 'b';      break;
-#ifndef GLSLANG_WEB
     case EbtDouble:             mangledName += 'd';      break;
     case EbtFloat16:            mangledName += "f16";    break;
     case EbtInt8:               mangledName += "i8";     break;
@@ -74,15 +74,17 @@ void TType::buildMangledName(TString& mangledName) const
     case EbtInt64:              mangledName += "i64";    break;
     case EbtUint64:             mangledName += "u64";    break;
     case EbtAtomicUint:         mangledName += "au";     break;
-    case EbtAccStructNV:        mangledName += "asnv";   break;
-#endif
+    case EbtAccStruct:          mangledName += "as";     break;
+    case EbtRayQuery:           mangledName += "rq";     break;
+    case EbtSpirvType:          mangledName += "spv-t";  break;
+    case EbtHitObjectNV:        mangledName += "ho";     break;
     case EbtSampler:
         switch (sampler.type) {
-#ifndef GLSLANG_WEB
         case EbtFloat16: mangledName += "f16"; break;
-#endif
         case EbtInt:   mangledName += "i"; break;
         case EbtUint:  mangledName += "u"; break;
+        case EbtInt64:   mangledName += "i64"; break;
+        case EbtUint64:  mangledName += "u64"; break;
         default: break; // some compilers want this
         }
         if (sampler.isImageClass())
@@ -105,12 +107,10 @@ void TType::buildMangledName(TString& mangledName) const
         case Esd2D:       mangledName += "2";  break;
         case Esd3D:       mangledName += "3";  break;
         case EsdCube:     mangledName += "C";  break;
-#ifndef GLSLANG_WEB
         case Esd1D:       mangledName += "1";  break;
         case EsdRect:     mangledName += "R2"; break;
         case EsdBuffer:   mangledName += "B";  break;
         case EsdSubpass:  mangledName += "P";  break;
-#endif
         default: break; // some compilers want this
         }
 
@@ -120,7 +120,7 @@ void TType::buildMangledName(TString& mangledName) const
             mangledName += "-tx-struct";
 
             char text[16]; // plenty enough space for the small integers.
-            snprintf(text, sizeof(text), "%d-", sampler.getStructReturnIndex());
+            snprintf(text, sizeof(text), "%u-", sampler.getStructReturnIndex());
             mangledName += text;
         } else {
             switch (sampler.getVectorSize()) {
@@ -144,9 +144,12 @@ void TType::buildMangledName(TString& mangledName) const
         if (typeName)
             mangledName += *typeName;
         for (unsigned int i = 0; i < structure->size(); ++i) {
+            if ((*structure)[i].type->getBasicType() == EbtVoid)
+                continue;
             mangledName += '-';
             (*structure)[i].type->buildMangledName(mangledName);
         }
+        break;
     default:
         break;
     }
@@ -164,7 +167,7 @@ void TType::buildMangledName(TString& mangledName) const
         for (int i = 0; i < arraySizes->getNumDims(); ++i) {
             if (arraySizes->getDimNode(i)) {
                 if (arraySizes->getDimNode(i)->getAsSymbolNode())
-                    snprintf(buf, maxSize, "s%d", arraySizes->getDimNode(i)->getAsSymbolNode()->getId());
+                    snprintf(buf, maxSize, "s%lld", arraySizes->getDimNode(i)->getAsSymbolNode()->getId());
                 else
                     snprintf(buf, maxSize, "s%p", arraySizes->getDimNode(i));
             } else
@@ -175,8 +178,6 @@ void TType::buildMangledName(TString& mangledName) const
         }
     }
 }
-
-#ifndef GLSLANG_WEB
 
 //
 // Dump functions.
@@ -256,8 +257,6 @@ void TSymbolTable::dump(TInfoSink& infoSink, bool complete) const
     }
 }
 
-#endif
-
 //
 // Functions have buried pointers to delete.
 //
@@ -272,8 +271,14 @@ TFunction::~TFunction()
 //
 TSymbolTableLevel::~TSymbolTableLevel()
 {
-    for (tLevel::iterator it = level.begin(); it != level.end(); ++it)
-        delete (*it).second;
+    for (tLevel::iterator it = level.begin(); it != level.end(); ++it) {
+        const TString& name = it->first;
+        auto retargetIter = std::find_if(retargetedSymbols.begin(), retargetedSymbols.end(),
+                                      [&name](const std::pair<TString, TString>& i) { return i.first == name; });
+        if (retargetIter == retargetedSymbols.end())
+            delete (*it).second;
+    }
+
 
     delete [] defaultPrecision;
 }
@@ -311,6 +316,16 @@ void TSymbolTableLevel::setFunctionExtensions(const char* name, int num, const c
         } else
             break;
         ++candidate;
+    }
+}
+
+// Make a single function require an extension(s). i.e., this will only set the extensions for the symbol that matches 'name' exactly.
+// This is different from setFunctionExtensions, which uses std::map::lower_bound to effectively set all symbols that start with 'name'.
+// Should only be used for a version/profile that actually needs the extension(s).
+void TSymbolTableLevel::setSingleFunctionExtensions(const char* name, int num, const char* const extensions[])
+{
+    if (auto candidate = level.find(name); candidate != level.end()) {
+        candidate->second->setExtensions(num, extensions);
     }
 }
 
@@ -368,9 +383,9 @@ TVariable* TVariable::clone() const
 TFunction::TFunction(const TFunction& copyOf) : TSymbol(copyOf)
 {
     for (unsigned int i = 0; i < copyOf.parameters.size(); ++i) {
-        TParameter param;
+        TParameter param{};
         parameters.push_back(param);
-        parameters.back().copyParam(copyOf.parameters[i]);
+        (void)parameters.back().copyParam(copyOf.parameters[i]);
     }
 
     extensions = nullptr;
@@ -384,6 +399,7 @@ TFunction::TFunction(const TFunction& copyOf) : TSymbol(copyOf)
     implicitThis = copyOf.implicitThis;
     illegalImplicitThis = copyOf.illegalImplicitThis;
     defaultParamCount = copyOf.defaultParamCount;
+    spirvInst = copyOf.spirvInst;
 }
 
 TFunction* TFunction::clone() const
@@ -400,7 +416,7 @@ TAnonMember* TAnonMember::clone() const
     // copy of the original container.
     assert(0);
 
-    return 0;
+    return nullptr;
 }
 
 TSymbolTableLevel* TSymbolTableLevel::clone() const
@@ -408,6 +424,10 @@ TSymbolTableLevel* TSymbolTableLevel::clone() const
     TSymbolTableLevel *symTableLevel = new TSymbolTableLevel();
     symTableLevel->anonId = anonId;
     symTableLevel->thisLevel = thisLevel;
+    symTableLevel->retargetedSymbols.clear();
+    for (auto &s : retargetedSymbols) {
+        symTableLevel->retargetedSymbols.push_back({s.first, s.second});
+    }
     std::vector<bool> containerCopied(anonId, false);
     tLevel::const_iterator iter;
     for (iter = level.begin(); iter != level.end(); ++iter) {
@@ -423,8 +443,21 @@ TSymbolTableLevel* TSymbolTableLevel::clone() const
                 symTableLevel->insert(*container, false);
                 containerCopied[anon->getAnonId()] = true;
             }
-        } else
+        } else {
+            const TString& name = iter->first;
+            auto retargetIter = std::find_if(retargetedSymbols.begin(), retargetedSymbols.end(),
+                                          [&name](const std::pair<TString, TString>& i) { return i.first == name; });
+            if (retargetIter != retargetedSymbols.end())
+                continue;
             symTableLevel->insert(*iter->second->clone(), false);
+        }
+    }
+    // Now point retargeted symbols to the newly created versions of them
+    for (auto &s : retargetedSymbols) {
+        TSymbol* sym = symTableLevel->find(s.second);
+        if (!sym)
+            continue;
+        symTableLevel->insert(s.first, sym);
     }
 
     return symTableLevel;

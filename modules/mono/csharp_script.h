@@ -1,103 +1,154 @@
-/*************************************************************************/
-/*  csharp_script.h                                                      */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  csharp_script.h                                                       */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
-#ifndef CSHARP_SCRIPT_H
-#define CSHARP_SCRIPT_H
-
-#include "core/io/resource_loader.h"
-#include "core/io/resource_saver.h"
-#include "core/script_language.h"
-#include "core/self_list.h"
+#pragma once
 
 #include "mono_gc_handle.h"
 #include "mono_gd/gd_mono.h"
-#include "mono_gd/gd_mono_header.h"
-#include "mono_gd/gd_mono_internals.h"
+
+#include "core/doc_data.h"
+#include "core/io/resource_loader.h"
+#include "core/io/resource_saver.h"
+#include "core/object/script_language.h"
+#include "core/templates/self_list.h"
 
 #ifdef TOOLS_ENABLED
-#include "editor/editor_plugin.h"
+#include "editor/plugins/editor_plugin.h"
 #endif
 
 class CSharpScript;
 class CSharpInstance;
 class CSharpLanguage;
 
-#ifdef NO_SAFE_CAST
-template <typename TScriptInstance, typename TScriptLanguage>
-TScriptInstance *cast_script_instance(ScriptInstance *p_inst) {
-	if (!p_inst)
-		return nullptr;
-	return p_inst->get_language() == TScriptLanguage::get_singleton() ? static_cast<TScriptInstance *>(p_inst) : nullptr;
-}
-#else
 template <typename TScriptInstance, typename TScriptLanguage>
 TScriptInstance *cast_script_instance(ScriptInstance *p_inst) {
 	return dynamic_cast<TScriptInstance *>(p_inst);
 }
-#endif
 
 #define CAST_CSHARP_INSTANCE(m_inst) (cast_script_instance<CSharpInstance, CSharpLanguage>(m_inst))
 
 class CSharpScript : public Script {
 	GDCLASS(CSharpScript, Script);
 
-public:
-	struct SignalParameter {
-		String name;
-		Variant::Type type;
-		bool nil_is_variant = false;
-	};
+	friend class CSharpInstance;
+	friend class CSharpLanguage;
 
-	struct EventSignal {
-		GDMonoField *field = nullptr;
-		GDMonoMethod *invoke_method = nullptr;
-		Vector<SignalParameter> parameters;
+public:
+	struct TypeInfo {
+		/**
+		 * Name of the C# class.
+		 */
+		String class_name;
+
+		/**
+		 * Name of the native class this script derives from.
+		 */
+		StringName native_base_name;
+
+		/**
+		 * Path to the icon that will be used for this class by the editor.
+		 */
+		String icon_path;
+
+		/**
+		 * Script is marked as tool and runs in the editor.
+		 */
+		bool is_tool = false;
+
+		/**
+		 * Script is marked as global class and will be registered in the editor.
+		 * Registered classes can be created using certain editor dialogs and
+		 * can be referenced by name from other languages that support the feature.
+		 */
+		bool is_global_class = false;
+
+		/**
+		 * Script is declared abstract.
+		 */
+		bool is_abstract = false;
+
+		/**
+		 * The C# type that corresponds to this script is a constructed generic type.
+		 * E.g.: `Dictionary<int, string>`
+		 */
+		bool is_constructed_generic_type = false;
+
+		/**
+		 * The C# type that corresponds to this script is a generic type definition.
+		 * E.g.: `Dictionary<,>`
+		 */
+		bool is_generic_type_definition = false;
+
+		/**
+		 * The C# type that corresponds to this script contains generic type parameters,
+		 * regardless of whether the type parameters are bound or not.
+		 */
+		bool is_generic() const {
+			return is_constructed_generic_type || is_generic_type_definition;
+		}
+
+		/**
+		 * Check if the script can be instantiated.
+		 * C# types can't be instantiated if they are abstract or contain generic
+		 * type parameters, but a CSharpScript is still created for them.
+		 */
+		bool can_instantiate() const {
+			return !is_abstract && !is_generic_type_definition;
+		}
 	};
 
 private:
-	friend class CSharpInstance;
-	friend class CSharpLanguage;
-	friend struct CSharpScriptDepSort;
+	/**
+	 * Contains the C# type information for this script.
+	 */
+	TypeInfo type_info;
 
-	bool tool = false;
+	/**
+	 * Scripts are valid when the corresponding C# class is found and used
+	 * to extract the script info using the [update_script_class_info] method.
+	 */
 	bool valid = false;
+	/**
+	 * Scripts extract info from the C# class in the reload methods but,
+	 * if the reload is not invalidated, then the current extracted info
+	 * is still valid and there's no need to reload again.
+	 */
+	bool reload_invalidated = false;
 
-	bool builtin;
+	/**
+	 * Base script that this script derives from, or null if it derives from a
+	 * native Godot class.
+	 */
+	Ref<CSharpScript> base_script;
 
-	GDMonoClass *base = nullptr;
-	GDMonoClass *native = nullptr;
-	GDMonoClass *script_class = nullptr;
-
-	Ref<CSharpScript> base_cache; // TODO what's this for?
-
-	Set<Object *> instances;
+	HashSet<Object *> instances;
 
 #ifdef GD_MONO_HOT_RELOAD
 	struct StateBackup {
@@ -105,131 +156,148 @@ private:
 		// Replace with buffer containing the serialized state of managed scripts.
 		// Keep variant state backup to use only with script instance placeholders.
 		List<Pair<StringName, Variant>> properties;
-		List<Pair<StringName, Array>> event_signals;
+		Dictionary event_signals;
 	};
 
-	Set<ObjectID> pending_reload_instances;
-	Map<ObjectID, StateBackup> pending_reload_state;
-	StringName tied_class_name_for_reload;
-	StringName tied_class_namespace_for_reload;
+	HashSet<ObjectID> pending_reload_instances;
+	RBMap<ObjectID, StateBackup> pending_reload_state;
+
+	bool was_tool_before_reload = false;
+	HashSet<ObjectID> pending_replace_placeholders;
 #endif
 
+	/**
+	 * Script source code.
+	 */
 	String source;
-	StringName name;
 
 	SelfList<CSharpScript> script_list = this;
 
-	Map<StringName, Vector<SignalParameter>> _signals;
-	Map<StringName, EventSignal> event_signals;
-	bool signals_invalidated = true;
+	Dictionary rpc_config;
 
-	Vector<ScriptNetData> rpc_functions;
-	Vector<ScriptNetData> rpc_variables;
+	struct EventSignalInfo {
+		StringName name; // MethodInfo stores a string...
+		MethodInfo method_info;
+	};
+
+	struct CSharpMethodInfo {
+		StringName name; // MethodInfo stores a string...
+		MethodInfo method_info;
+	};
+
+	Vector<EventSignalInfo> event_signals;
+	Vector<CSharpMethodInfo> methods;
 
 #ifdef TOOLS_ENABLED
 	List<PropertyInfo> exported_members_cache; // members_cache
-	Map<StringName, Variant> exported_members_defval_cache; // member_default_values_cache
-	Set<PlaceHolderScriptInstance *> placeholders;
+	HashMap<StringName, Variant> exported_members_defval_cache; // member_default_values_cache
+	HashSet<PlaceHolderScriptInstance *> placeholders;
 	bool source_changed_cache = false;
 	bool placeholder_fallback_enabled = false;
 	bool exports_invalidated = true;
-	void _update_exports_values(Map<StringName, Variant> &values, List<PropertyInfo> &propnames);
-	void _update_member_info_no_exports();
-	virtual void _placeholder_erased(PlaceHolderScriptInstance *p_placeholder);
+	void _update_exports_values(HashMap<StringName, Variant> &values, List<PropertyInfo> &propnames);
+	void _placeholder_erased(PlaceHolderScriptInstance *p_placeholder) override;
 #endif
 
 #if defined(TOOLS_ENABLED) || defined(DEBUG_ENABLED)
-	Set<StringName> exported_members_names;
+	HashSet<StringName> exported_members_names;
 #endif
 
-	Map<StringName, PropertyInfo> member_info;
+	HashMap<StringName, PropertyInfo> member_info;
 
 	void _clear();
 
-	void load_script_signals(GDMonoClass *p_class, GDMonoClass *p_native_class);
-	bool _get_signal(GDMonoClass *p_class, GDMonoMethod *p_delegate_invoke, Vector<SignalParameter> &params);
-
-	bool _update_exports();
-
-	bool _get_member_export(IMonoClassMember *p_member, bool p_inspect_export, PropertyInfo &r_prop_info, bool &r_exported);
+	static void GD_CLR_STDCALL _add_property_info_list_callback(CSharpScript *p_script, const String *p_current_class_name, void *p_props, int32_t p_count);
 #ifdef TOOLS_ENABLED
-	static int _try_get_member_export_hint(IMonoClassMember *p_member, ManagedType p_type, Variant::Type p_variant_type, bool p_allow_generics, PropertyHint &r_hint, String &r_hint_string);
+	static void GD_CLR_STDCALL _add_property_default_values_callback(CSharpScript *p_script, void *p_def_vals, int32_t p_count);
 #endif
+	bool _update_exports(PlaceHolderScriptInstance *p_instance_to_update = nullptr);
 
-	CSharpInstance *_create_instance(const Variant **p_args, int p_argcount, Object *p_owner, bool p_isref, Callable::CallError &r_error);
+	CSharpInstance *_create_instance(const Variant **p_args, int p_argcount, Object *p_owner, bool p_is_ref_counted, Callable::CallError &r_error);
 	Variant _new(const Variant **p_args, int p_argcount, Callable::CallError &r_error);
 
 	// Do not use unless you know what you are doing
-	friend void GDMonoInternals::tie_managed_to_unmanaged(MonoObject *, Object *);
-	static Ref<CSharpScript> create_for_managed_type(GDMonoClass *p_class, GDMonoClass *p_native);
-	static void initialize_for_managed_type(Ref<CSharpScript> p_script, GDMonoClass *p_class, GDMonoClass *p_native);
+	static void update_script_class_info(Ref<CSharpScript> p_script);
 
-	MultiplayerAPI::RPCMode _member_get_rpc_mode(IMonoClassMember *p_member) const;
+	void _get_script_signal_list(List<MethodInfo> *r_signals, bool p_include_base) const;
 
 protected:
 	static void _bind_methods();
 
-	Variant call(const StringName &p_method, const Variant **p_args, int p_argcount, Callable::CallError &r_error);
-	virtual void _resource_path_changed();
 	bool _get(const StringName &p_name, Variant &r_ret) const;
 	bool _set(const StringName &p_name, const Variant &p_value);
 	void _get_property_list(List<PropertyInfo> *p_properties) const;
 
 public:
-	virtual bool can_instance() const;
-	virtual StringName get_instance_base_type() const;
-	virtual ScriptInstance *instance_create(Object *p_this);
-	virtual PlaceHolderScriptInstance *placeholder_instance_create(Object *p_this);
-	virtual bool instance_has(const Object *p_this) const;
+	static void reload_registered_script(Ref<CSharpScript> p_script);
 
-	virtual bool has_source_code() const;
-	virtual String get_source_code() const;
-	virtual void set_source_code(const String &p_code);
+	bool can_instantiate() const override;
+	StringName get_instance_base_type() const override;
+	ScriptInstance *instance_create(Object *p_this) override;
+	PlaceHolderScriptInstance *placeholder_instance_create(Object *p_this) override;
+	bool instance_has(const Object *p_this) const override;
 
-	virtual Error reload(bool p_keep_state = false);
-
-	virtual bool has_script_signal(const StringName &p_signal) const;
-	virtual void get_script_signal_list(List<MethodInfo> *r_signals) const;
-
-	virtual bool get_property_default_value(const StringName &p_property, Variant &r_value) const;
-	virtual void get_script_property_list(List<PropertyInfo> *p_list) const;
-	virtual void update_exports();
-
-	void get_members(Set<StringName> *p_members) override;
-
-	virtual bool is_tool() const { return tool; }
-	virtual bool is_valid() const { return valid; }
-
-	bool inherits_script(const Ref<Script> &p_script) const;
-
-	virtual Ref<Script> get_base_script() const;
-	virtual ScriptLanguage *get_language() const;
-
-	virtual void get_script_method_list(List<MethodInfo> *p_list) const;
-	bool has_method(const StringName &p_method) const;
-	MethodInfo get_method_info(const StringName &p_method) const;
-
-	virtual int get_member_line(const StringName &p_member) const;
-
-	virtual Vector<ScriptNetData> get_rpc_methods() const;
-	virtual uint16_t get_rpc_method_id(const StringName &p_method) const;
-	virtual StringName get_rpc_method(const uint16_t p_rpc_method_id) const;
-	virtual MultiplayerAPI::RPCMode get_rpc_mode_by_id(const uint16_t p_rpc_method_id) const;
-	virtual MultiplayerAPI::RPCMode get_rpc_mode(const StringName &p_method) const;
-
-	virtual Vector<ScriptNetData> get_rset_properties() const;
-	virtual uint16_t get_rset_property_id(const StringName &p_variable) const;
-	virtual StringName get_rset_property(const uint16_t p_variable_id) const;
-	virtual MultiplayerAPI::RPCMode get_rset_mode_by_id(const uint16_t p_variable_id) const;
-	virtual MultiplayerAPI::RPCMode get_rset_mode(const StringName &p_variable) const;
+	bool has_source_code() const override;
+	String get_source_code() const override;
+	void set_source_code(const String &p_code) override;
 
 #ifdef TOOLS_ENABLED
-	virtual bool is_placeholder_fallback_enabled() const { return placeholder_fallback_enabled; }
+	virtual StringName get_doc_class_name() const override { return StringName(); } // TODO
+	virtual Vector<DocData::ClassDoc> get_documentation() const override {
+		// TODO
+		Vector<DocData::ClassDoc> docs;
+		return docs;
+	}
+	virtual String get_class_icon_path() const override {
+		return type_info.icon_path;
+	}
+#endif // TOOLS_ENABLED
+
+	Error reload(bool p_keep_state = false) override;
+
+	bool has_script_signal(const StringName &p_signal) const override;
+	void get_script_signal_list(List<MethodInfo> *r_signals) const override;
+
+	bool get_property_default_value(const StringName &p_property, Variant &r_value) const override;
+	void get_script_property_list(List<PropertyInfo> *r_list) const override;
+	void update_exports() override;
+
+	void get_members(HashSet<StringName> *p_members) override;
+
+	bool is_tool() const override {
+		return type_info.is_tool;
+	}
+	bool is_valid() const override {
+		return valid;
+	}
+	bool is_abstract() const override {
+		return type_info.is_abstract;
+	}
+
+	bool inherits_script(const Ref<Script> &p_script) const override;
+
+	Ref<Script> get_base_script() const override;
+	StringName get_global_name() const override;
+
+	ScriptLanguage *get_language() const override;
+
+	void get_script_method_list(List<MethodInfo> *p_list) const override;
+	bool has_method(const StringName &p_method) const override;
+	virtual int get_script_method_argument_count(const StringName &p_method, bool *r_is_valid = nullptr) const override;
+	MethodInfo get_method_info(const StringName &p_method) const override;
+	Variant callp(const StringName &p_method, const Variant **p_args, int p_argcount, Callable::CallError &r_error) override;
+
+	int get_member_line(const StringName &p_member) const override;
+
+	const Variant get_rpc_config() const override;
+
+#ifdef TOOLS_ENABLED
+	bool is_placeholder_fallback_enabled() const override {
+		return placeholder_fallback_enabled;
+	}
 #endif
 
 	Error load_source_code(const String &p_path);
-
-	StringName get_script_name() const;
 
 	CSharpScript();
 	~CSharpScript();
@@ -240,7 +308,7 @@ class CSharpInstance : public ScriptInstance {
 	friend class CSharpLanguage;
 
 	Object *owner = nullptr;
-	bool base_ref = false;
+	bool base_ref_counted = false;
 	bool ref_dying = false;
 	bool unsafe_referenced = false;
 	bool predelete_notified = false;
@@ -249,7 +317,7 @@ class CSharpInstance : public ScriptInstance {
 	Ref<CSharpScript> script;
 	MonoGCHandleData gchandle;
 
-	Vector<Callable> event_signal_callables;
+	List<Callable> connected_event_signals;
 
 	bool _reference_owner_unsafe();
 
@@ -259,71 +327,58 @@ class CSharpInstance : public ScriptInstance {
 	bool _unreference_owner_unsafe();
 
 	/*
-	 * If nullptr is returned, the caller must destroy the script instance by removing it from its owner.
+	 * If false is returned, the caller must destroy the script instance by removing it from its owner.
 	 */
-	MonoObject *_internal_new_managed();
+	bool _internal_new_managed();
 
 	// Do not use unless you know what you are doing
-	friend void GDMonoInternals::tie_managed_to_unmanaged(MonoObject *, Object *);
 	static CSharpInstance *create_for_managed_type(Object *p_owner, CSharpScript *p_script, const MonoGCHandleData &p_gchandle);
 
-	void _call_multilevel(MonoObject *p_mono_object, const StringName &p_method, const Variant **p_args, int p_argcount);
-
-	void get_properties_state_for_reloading(List<Pair<StringName, Variant>> &r_state);
-	void get_event_signals_state_for_reloading(List<Pair<StringName, Array>> &r_state);
-
 public:
-	MonoObject *get_mono_object() const;
-
 	_FORCE_INLINE_ bool is_destructing_script_instance() { return destructing_script_instance; }
 
-	virtual Object *get_owner();
+	_FORCE_INLINE_ GCHandleIntPtr get_gchandle_intptr() { return gchandle.get_intptr(); }
 
-	virtual bool set(const StringName &p_name, const Variant &p_value);
-	virtual bool get(const StringName &p_name, Variant &r_ret) const;
-	virtual void get_property_list(List<PropertyInfo> *p_properties) const;
-	virtual Variant::Type get_property_type(const StringName &p_name, bool *r_is_valid) const;
+	Object *get_owner() override;
 
-	/* TODO */ virtual void get_method_list(List<MethodInfo> *p_list) const {}
-	virtual bool has_method(const StringName &p_method) const;
-	virtual Variant call(const StringName &p_method, const Variant **p_args, int p_argcount, Callable::CallError &r_error);
-	virtual void call_multilevel(const StringName &p_method, const Variant **p_args, int p_argcount);
-	virtual void call_multilevel_reversed(const StringName &p_method, const Variant **p_args, int p_argcount);
+	bool set(const StringName &p_name, const Variant &p_value) override;
+	bool get(const StringName &p_name, Variant &r_ret) const override;
+	void get_property_list(List<PropertyInfo> *p_properties) const override;
+	Variant::Type get_property_type(const StringName &p_name, bool *r_is_valid) const override;
+	virtual void validate_property(PropertyInfo &p_property) const override;
 
-	void mono_object_disposed(MonoObject *p_obj);
+	bool property_can_revert(const StringName &p_name) const override;
+	bool property_get_revert(const StringName &p_name, Variant &r_ret) const override;
+
+	void get_method_list(List<MethodInfo> *p_list) const override;
+	bool has_method(const StringName &p_method) const override;
+	virtual int get_method_argument_count(const StringName &p_method, bool *r_is_valid = nullptr) const override;
+	Variant callp(const StringName &p_method, const Variant **p_args, int p_argcount, Callable::CallError &r_error) override;
+
+	void mono_object_disposed(GCHandleIntPtr p_gchandle_to_free);
 
 	/*
-	 * If 'r_delete_owner' is set to true, the caller must memdelete the script instance's owner. Otherwise, ifevent_signal
+	 * If 'r_delete_owner' is set to true, the caller must memdelete the script instance's owner. Otherwise, if
 	 * 'r_remove_script_instance' is set to true, the caller must destroy the script instance by removing it from its owner.
 	 */
-	void mono_object_disposed_baseref(MonoObject *p_obj, bool p_is_finalizer, bool &r_delete_owner, bool &r_remove_script_instance);
+	void mono_object_disposed_baseref(GCHandleIntPtr p_gchandle_to_free, bool p_is_finalizer, bool &r_delete_owner, bool &r_remove_script_instance);
 
 	void connect_event_signals();
 	void disconnect_event_signals();
 
-	virtual void refcount_incremented();
-	virtual bool refcount_decremented();
+	void refcount_incremented() override;
+	bool refcount_decremented() override;
 
-	virtual Vector<ScriptNetData> get_rpc_methods() const;
-	virtual uint16_t get_rpc_method_id(const StringName &p_method) const;
-	virtual StringName get_rpc_method(const uint16_t p_rpc_method_id) const;
-	virtual MultiplayerAPI::RPCMode get_rpc_mode_by_id(const uint16_t p_rpc_method_id) const;
-	virtual MultiplayerAPI::RPCMode get_rpc_mode(const StringName &p_method) const;
+	const Variant get_rpc_config() const override;
 
-	virtual Vector<ScriptNetData> get_rset_properties() const;
-	virtual uint16_t get_rset_property_id(const StringName &p_variable) const;
-	virtual StringName get_rset_property(const uint16_t p_variable_id) const;
-	virtual MultiplayerAPI::RPCMode get_rset_mode_by_id(const uint16_t p_variable_id) const;
-	virtual MultiplayerAPI::RPCMode get_rset_mode(const StringName &p_variable) const;
+	void notification(int p_notification, bool p_reversed = false) override;
+	void _call_notification(int p_notification, bool p_reversed = false);
 
-	virtual void notification(int p_notification);
-	void _call_notification(int p_notification);
+	String to_string(bool *r_valid) override;
 
-	virtual String to_string(bool *r_valid);
+	Ref<Script> get_script() const override;
 
-	virtual Ref<Script> get_script() const;
-
-	virtual ScriptLanguage *get_language();
+	ScriptLanguage *get_language() override;
 
 	CSharpInstance(const Ref<CSharpScript> &p_script);
 	~CSharpInstance();
@@ -332,7 +387,6 @@ public:
 struct CSharpScriptBinding {
 	bool inited = false;
 	StringName type_name;
-	GDMonoClass *wrapper_class = nullptr;
 	MonoGCHandleData gchandle;
 	Object *owner = nullptr;
 
@@ -359,45 +413,24 @@ class CSharpLanguage : public ScriptLanguage {
 	Mutex script_gchandle_release_mutex;
 	Mutex language_bind_mutex;
 
-	Map<Object *, CSharpScriptBinding> script_bindings;
+	RBMap<Object *, CSharpScriptBinding> script_bindings;
 
 #ifdef DEBUG_ENABLED
 	// List of unsafe object references
-	Map<ObjectID, int> unsafe_object_references;
+	HashMap<ObjectID, int> unsafe_object_references;
 	Mutex unsafe_object_references_lock;
 #endif
 
 	ManagedCallableMiddleman *managed_callable_middleman = memnew(ManagedCallableMiddleman);
 
-	struct StringNameCache {
-		StringName _signal_callback;
-		StringName _set;
-		StringName _get;
-		StringName _get_property_list;
-		StringName _notification;
-		StringName _script_source;
-		StringName dotctor; // .ctor
-		StringName on_before_serialize; // OnBeforeSerialize
-		StringName on_after_deserialize; // OnAfterDeserialize
-		StringName delegate_invoke_method_name;
-
-		StringNameCache();
-	};
-
 	int lang_idx = -1;
-
-	Dictionary scripts_metadata;
-	bool scripts_metadata_invalidated = true;
 
 	// For debug_break and debug_break_parse
 	int _debug_parse_err_line = -1;
 	String _debug_parse_err_file;
 	String _debug_error;
 
-	void _load_scripts_metadata();
-
 	friend class GDMono;
-	void _on_scripts_domain_unloaded();
 
 #ifdef TOOLS_ENABLED
 	EditorPlugin *godotsharp_editor = nullptr;
@@ -405,24 +438,43 @@ class CSharpLanguage : public ScriptLanguage {
 	static void _editor_init_callback();
 #endif
 
+	static void *_instance_binding_create_callback(void *p_token, void *p_instance);
+	static void _instance_binding_free_callback(void *p_token, void *p_instance, void *p_binding);
+	static GDExtensionBool _instance_binding_reference_callback(void *p_token, void *p_binding, GDExtensionBool p_reference);
+
+	static GDExtensionInstanceBindingCallbacks _instance_binding_callbacks;
+
 public:
-	StringNameCache string_names;
+	static void *get_instance_binding(Object *p_object);
+	static void *get_existing_instance_binding(Object *p_object);
+	static void *get_instance_binding_with_setup(Object *p_object);
+	static bool has_instance_binding(Object *p_object);
 
-	const Mutex &get_language_bind_mutex() { return language_bind_mutex; }
+	const Mutex &get_language_bind_mutex() {
+		return language_bind_mutex;
+	}
+	const Mutex &get_script_instances_mutex() {
+		return script_instances_mutex;
+	}
 
-	_FORCE_INLINE_ int get_language_index() { return lang_idx; }
+	_FORCE_INLINE_ int get_language_index() {
+		return lang_idx;
+	}
 	void set_language_index(int p_idx);
 
-	_FORCE_INLINE_ const StringNameCache &get_string_names() { return string_names; }
-
-	_FORCE_INLINE_ static CSharpLanguage *get_singleton() { return singleton; }
+	_FORCE_INLINE_ static CSharpLanguage *get_singleton() {
+		return singleton;
+	}
 
 #ifdef TOOLS_ENABLED
-	_FORCE_INLINE_ EditorPlugin *get_godotsharp_editor() const { return godotsharp_editor; }
+	_FORCE_INLINE_ EditorPlugin *get_godotsharp_editor() const {
+		return godotsharp_editor;
+	}
 #endif
 
 	static void release_script_gchandle(MonoGCHandleData &p_gchandle);
-	static void release_script_gchandle(MonoObject *p_expected_obj, MonoGCHandleData &p_gchandle);
+	static void release_script_gchandle_thread_safe(GCHandleIntPtr p_gchandle_to_free, MonoGCHandleData &r_gchandle);
+	static void release_binding_gchandle_thread_safe(GCHandleIntPtr p_gchandle_to_free, CSharpScriptBinding &r_script_binding);
 
 	bool debug_break(const String &p_error, bool p_allow_continue = true);
 	bool debug_break_parse(const String &p_file, int p_line, const String &p_error);
@@ -432,95 +484,102 @@ public:
 	void reload_assemblies(bool p_soft_reload);
 #endif
 
-	_FORCE_INLINE_ Dictionary get_scripts_metadata_or_nothing() {
-		return scripts_metadata_invalidated ? Dictionary() : scripts_metadata;
+	_FORCE_INLINE_ ManagedCallableMiddleman *get_managed_callable_middleman() const {
+		return managed_callable_middleman;
 	}
 
-	_FORCE_INLINE_ const Dictionary &get_scripts_metadata() {
-		if (scripts_metadata_invalidated)
-			_load_scripts_metadata();
-		return scripts_metadata;
-	}
-
-	_FORCE_INLINE_ ManagedCallableMiddleman *get_managed_callable_middleman() const { return managed_callable_middleman; }
-
-	virtual String get_name() const;
+	String get_name() const override;
 
 	/* LANGUAGE FUNCTIONS */
-	virtual String get_type() const;
-	virtual String get_extension() const;
-	virtual Error execute_file(const String &p_path);
-	virtual void init();
-	virtual void finish();
+	String get_type() const override;
+	String get_extension() const override;
+	void init() override;
+	void finish() override;
+
+	void finalize();
 
 	/* EDITOR FUNCTIONS */
-	virtual void get_reserved_words(List<String> *p_words) const;
-	virtual void get_comment_delimiters(List<String> *p_delimiters) const;
-	virtual void get_string_delimiters(List<String> *p_delimiters) const;
-	virtual Ref<Script> get_template(const String &p_class_name, const String &p_base_class_name) const;
-	virtual bool is_using_templates();
-	virtual void make_template(const String &p_class_name, const String &p_base_class_name, Ref<Script> &p_script);
-	/* TODO */ virtual bool validate(const String &p_script, int &r_line_error, int &r_col_error, String &r_test_error, const String &p_path, List<String> *r_functions, List<ScriptLanguage::Warning> *r_warnings = nullptr, Set<int> *r_safe_lines = nullptr) const { return true; }
-	virtual String validate_path(const String &p_path) const;
-	virtual Script *create_script() const;
-	virtual bool has_named_classes() const;
-	virtual bool supports_builtin_mode() const;
-	/* TODO? */ virtual int find_function(const String &p_function, const String &p_code) const { return -1; }
-	virtual String make_function(const String &p_class, const String &p_name, const PackedStringArray &p_args) const;
+	Vector<String> get_reserved_words() const override;
+	bool is_control_flow_keyword(const String &p_keyword) const override;
+	Vector<String> get_comment_delimiters() const override;
+	Vector<String> get_doc_comment_delimiters() const override;
+	Vector<String> get_string_delimiters() const override;
+	bool is_using_templates() override;
+	virtual Ref<Script> make_template(const String &p_template, const String &p_class_name, const String &p_base_class_name) const override;
+	virtual Vector<ScriptTemplate> get_built_in_templates(const StringName &p_object) override;
+	/* TODO */ bool validate(const String &p_script, const String &p_path, List<String> *r_functions,
+			List<ScriptLanguage::ScriptError> *r_errors = nullptr, List<ScriptLanguage::Warning> *r_warnings = nullptr, HashSet<int> *r_safe_lines = nullptr) const override {
+		return true;
+	}
+	String validate_path(const String &p_path) const override;
+	Script *create_script() const override;
+#ifndef DISABLE_DEPRECATED
+	virtual bool has_named_classes() const override { return false; }
+#endif
+	bool supports_builtin_mode() const override;
+	/* TODO? */ int find_function(const String &p_function, const String &p_code) const override {
+		return -1;
+	}
+	String make_function(const String &p_class, const String &p_name, const PackedStringArray &p_args) const override;
+	virtual bool can_make_function() const override { return false; }
 	virtual String _get_indentation() const;
-	/* TODO? */ virtual void auto_indent_code(String &p_code, int p_from_line, int p_to_line) const {}
-	/* TODO */ virtual void add_global_constant(const StringName &p_variable, const Variant &p_value) {}
+	/* TODO? */ void auto_indent_code(String &p_code, int p_from_line, int p_to_line) const override {}
+	/* TODO */ void add_global_constant(const StringName &p_variable, const Variant &p_value) override {}
+	virtual ScriptNameCasing preferred_file_name_casing() const override;
+
+	/* SCRIPT GLOBAL CLASS FUNCTIONS */
+	virtual bool handles_global_class_type(const String &p_type) const override;
+	virtual String get_global_class_name(const String &p_path, String *r_base_type = nullptr, String *r_icon_path = nullptr, bool *r_is_abstract = nullptr, bool *r_is_tool = nullptr) const override;
 
 	/* DEBUGGER FUNCTIONS */
-	virtual String debug_get_error() const;
-	virtual int debug_get_stack_level_count() const;
-	virtual int debug_get_stack_level_line(int p_level) const;
-	virtual String debug_get_stack_level_function(int p_level) const;
-	virtual String debug_get_stack_level_source(int p_level) const;
-	/* TODO */ virtual void debug_get_stack_level_locals(int p_level, List<String> *p_locals, List<Variant> *p_values, int p_max_subitems, int p_max_depth) {}
-	/* TODO */ virtual void debug_get_stack_level_members(int p_level, List<String> *p_members, List<Variant> *p_values, int p_max_subitems, int p_max_depth) {}
-	/* TODO */ virtual void debug_get_globals(List<String> *p_locals, List<Variant> *p_values, int p_max_subitems, int p_max_depth) {}
-	/* TODO */ virtual String debug_parse_stack_level_expression(int p_level, const String &p_expression, int p_max_subitems, int p_max_depth) { return ""; }
-	virtual Vector<StackInfo> debug_get_current_stack_info();
+	String debug_get_error() const override;
+	int debug_get_stack_level_count() const override;
+	int debug_get_stack_level_line(int p_level) const override;
+	String debug_get_stack_level_function(int p_level) const override;
+	String debug_get_stack_level_source(int p_level) const override;
+	/* TODO */ void debug_get_stack_level_locals(int p_level, List<String> *p_locals, List<Variant> *p_values, int p_max_subitems, int p_max_depth) override {}
+	/* TODO */ void debug_get_stack_level_members(int p_level, List<String> *p_members, List<Variant> *p_values, int p_max_subitems, int p_max_depth) override {}
+	/* TODO */ void debug_get_globals(List<String> *p_locals, List<Variant> *p_values, int p_max_subitems, int p_max_depth) override {}
+	/* TODO */ String debug_parse_stack_level_expression(int p_level, const String &p_expression, int p_max_subitems, int p_max_depth) override {
+		return "";
+	}
+	Vector<StackInfo> debug_get_current_stack_info() override;
 
 	/* PROFILING FUNCTIONS */
-	/* TODO */ virtual void profiling_start() {}
-	/* TODO */ virtual void profiling_stop() {}
-	/* TODO */ virtual int profiling_get_accumulated_data(ProfilingInfo *p_info_arr, int p_info_max) { return 0; }
-	/* TODO */ virtual int profiling_get_frame_data(ProfilingInfo *p_info_arr, int p_info_max) { return 0; }
+	/* TODO */ void profiling_start() override {}
+	/* TODO */ void profiling_stop() override {}
+	/* TODO */ void profiling_set_save_native_calls(bool p_enable) override {}
+	/* TODO */ int profiling_get_accumulated_data(ProfilingInfo *p_info_arr, int p_info_max) override {
+		return 0;
+	}
+	/* TODO */ int profiling_get_frame_data(ProfilingInfo *p_info_arr, int p_info_max) override {
+		return 0;
+	}
 
-	virtual void frame();
+	void frame() override;
 
-	/* TODO? */ virtual void get_public_functions(List<MethodInfo> *p_functions) const {}
-	/* TODO? */ virtual void get_public_constants(List<Pair<String, Variant>> *p_constants) const {}
+	/* TODO? */ void get_public_functions(List<MethodInfo> *p_functions) const override {}
+	/* TODO? */ void get_public_constants(List<Pair<String, Variant>> *p_constants) const override {}
+	/* TODO? */ void get_public_annotations(List<MethodInfo> *p_annotations) const override {}
 
-	virtual void reload_all_scripts();
-	virtual void reload_tool_script(const Ref<Script> &p_script, bool p_soft_reload);
+	void reload_all_scripts() override;
+	void reload_scripts(const Array &p_scripts, bool p_soft_reload) override;
+	void reload_tool_script(const Ref<Script> &p_script, bool p_soft_reload) override;
 
 	/* LOADER FUNCTIONS */
-	virtual void get_recognized_extensions(List<String> *p_extensions) const;
+	void get_recognized_extensions(List<String> *p_extensions) const override;
 
 #ifdef TOOLS_ENABLED
-	virtual Error open_in_external_editor(const Ref<Script> &p_script, int p_line, int p_col);
-	virtual bool overrides_external_editor();
+	Error open_in_external_editor(const Ref<Script> &p_script, int p_line, int p_col) override;
+	bool overrides_external_editor() override;
 #endif
 
-	/* THREAD ATTACHING */
-	virtual void thread_enter();
-	virtual void thread_exit();
-
-	// Don't use these. I'm watching you
-	virtual void *alloc_instance_binding_data(Object *p_object);
-	virtual void free_instance_binding_data(void *p_data);
-	virtual void refcount_incremented_instance_binding(Object *p_object);
-	virtual bool refcount_decremented_instance_binding(Object *p_object);
-
-	Map<Object *, CSharpScriptBinding>::Element *insert_script_binding(Object *p_object, const CSharpScriptBinding &p_script_binding);
+	RBMap<Object *, CSharpScriptBinding>::Element *insert_script_binding(Object *p_object, const CSharpScriptBinding &p_script_binding);
 	bool setup_csharp_script_binding(CSharpScriptBinding &r_script_binding, Object *p_object);
 
-#ifdef DEBUG_ENABLED
-	Vector<StackInfo> stack_trace_get_info(MonoObject *p_stack_trace);
-#endif
+	static void tie_native_managed_to_unmanaged(GCHandleIntPtr p_gchandle_intptr, Object *p_unmanaged, const StringName *p_native_name, bool p_ref_counted);
+	static void tie_user_managed_to_unmanaged(GCHandleIntPtr p_gchandle_intptr, Object *p_unmanaged, Ref<CSharpScript> *p_script, bool p_ref_counted);
+	static void tie_managed_to_unmanaged_with_pre_setup(GCHandleIntPtr p_gchandle_intptr, Object *p_unmanaged);
 
 	void post_unsafe_reference(Object *p_obj);
 	void pre_unsafe_unreference(Object *p_obj);
@@ -531,17 +590,15 @@ public:
 
 class ResourceFormatLoaderCSharpScript : public ResourceFormatLoader {
 public:
-	virtual RES load(const String &p_path, const String &p_original_path = "", Error *r_error = nullptr, bool p_use_sub_threads = false, float *r_progress = nullptr, bool p_no_cache = false);
-	virtual void get_recognized_extensions(List<String> *p_extensions) const;
-	virtual bool handles_type(const String &p_type) const;
-	virtual String get_resource_type(const String &p_path) const;
+	Ref<Resource> load(const String &p_path, const String &p_original_path = "", Error *r_error = nullptr, bool p_use_sub_threads = false, float *r_progress = nullptr, CacheMode p_cache_mode = CACHE_MODE_REUSE) override;
+	void get_recognized_extensions(List<String> *p_extensions) const override;
+	bool handles_type(const String &p_type) const override;
+	String get_resource_type(const String &p_path) const override;
 };
 
 class ResourceFormatSaverCSharpScript : public ResourceFormatSaver {
 public:
-	virtual Error save(const String &p_path, const RES &p_resource, uint32_t p_flags = 0);
-	virtual void get_recognized_extensions(const RES &p_resource, List<String> *p_extensions) const;
-	virtual bool recognize(const RES &p_resource) const;
+	Error save(const Ref<Resource> &p_resource, const String &p_path, uint32_t p_flags = 0) override;
+	void get_recognized_extensions(const Ref<Resource> &p_resource, List<String> *p_extensions) const override;
+	bool recognize(const Ref<Resource> &p_resource) const override;
 };
-
-#endif // CSHARP_SCRIPT_H
